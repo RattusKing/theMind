@@ -76,9 +76,19 @@ waiting, and `export` produces a single portable file. But absence is absence.
 
 ## Quickstart
 
+New here? **[GETTING_STARTED.md](GETTING_STARTED.md)** walks through both
+paths in plain language.
+
+**No code — the proxy.** Run one command, then point your app's `base_url` at
+it. Works with anything speaking the OpenAI wire format (OpenAI, Ollama,
+LM Studio, OpenRouter, vLLM…):
+
 ```
-pip install themind        # zero dependencies, pure stdlib
+python3 -m themind.proxy --upstream https://api.openai.com/v1 --mind ./my-mind
+# your app's base_url becomes http://127.0.0.1:6463/v1 — nothing else changes
 ```
+
+**Three lines — the library:**
 
 ```python
 from themind import Mind
@@ -94,11 +104,12 @@ callable for OpenAI-compatible endpoints, Anthropic, and Gemini.
 
 ## Status
 
-**v0.1.** The on-disk format — what a mind is, at rest — is published in
+**v0.2.** The on-disk format — what a mind is, at rest — is published in
 [FORMAT.md](FORMAT.md) and remains open to challenge while it is cheap to
 change. The library implements it; `tests/run_all.py` holds the behavioral
-guarantees (grounding, parse-or-skip, read order, budget, export round-trip).
-The local proxy (connect by swapping a base URL, no code) is the next phase.
+guarantees (grounding, parse-or-skip, read order, budget, export round-trip,
+proxy passthrough). The local proxy (connect by swapping a base URL, no code)
+shipped in v0.2. Publishing to PyPI is next; until then, clone this repo.
 
 theMind is extracted from a production AI companion whose cognitive systems have
 been running live since 2025. The scaffolding she needed (schedulers, cloud
