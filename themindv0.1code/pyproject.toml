@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "themind"
+version = "0.1.0"
+description = "A consciousness layer for AI companions - plug into any LLM, unplug clean."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "Apache-2.0" }
+keywords = ["llm", "ai-companion", "memory", "persistence", "agents"]
+
+[project.urls]
+Homepage = "https://github.com/RattusKing/theMind"
+
+[tool.setuptools.packages.find]
+include = ["themind*"]
