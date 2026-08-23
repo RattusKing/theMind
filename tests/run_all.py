@@ -235,4 +235,131 @@ ok([r["text"] for r in mind10.live("facts")] == ["older", "newer"],
 for d in (d1, d2, d3, d3b, d4, d5, d6, d7, d8, d10, dest):
     shutil.rmtree(d, ignore_errors=True)
 
+# ── 11. the proxy: OpenAI wire in, OpenAI wire out, a mind in between ────────
+# Loopback sockets only — a stub upstream on 127.0.0.1, no external network.
+print("proxy")
+import threading
+import urllib.request
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from themind import proxy as proxy_mod
+
+STUB_REPLY = "I think mornings are the honest part of the day."
+
+
+class _StubUpstream(BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
+    seen = []  # (path, headers, body) of every request, chat and cognition alike
+
+    def log_message(self, *a):
+        pass
+
+    def do_GET(self):
+        body = json.dumps({"object": "list", "data": [{"id": "stub-model"}]}).encode()
+        self._reply(body)
+
+    def do_POST(self):
+        raw = self.rfile.read(int(self.headers.get("Content-Length") or 0))
+        req = json.loads(raw.decode("utf-8"))
+        _StubUpstream.seen.append((self.path, dict(self.headers), req))
+        if req.get("stream"):
+            chunks = [
+                b'data: {"choices":[{"delta":{"content":"stream"}}]}\n\n',
+                b'data: {"choices":[{"delta":{"content":" reply"}}]}\n\n',
+                b"data: [DONE]\n\n",
+            ]
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Connection", "close")
+            self.end_headers()
+            for c in chunks:
+                self.wfile.write(c)
+                self.wfile.flush()
+            self.close_connection = True
+            return
+        body = json.dumps({"object": "chat.completion",
+                           "choices": [{"message": {"role": "assistant",
+                                                    "content": STUB_REPLY}}]}).encode()
+        self._reply(body)
+
+    def _reply(self, body):
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+
+stub = ThreadingHTTPServer(("127.0.0.1", 0), _StubUpstream)
+threading.Thread(target=stub.serve_forever, daemon=True).start()
+d11 = tempfile.mkdtemp(prefix="mind_")
+# sync=True: observe finishes before the handler returns, so assertions are deterministic
+pserver = proxy_mod.serve(d11, "http://127.0.0.1:%d/v1" % stub.server_port,
+                          port=0, quiet=True, sync=True)
+threading.Thread(target=pserver.serve_forever, daemon=True).start()
+base = "http://127.0.0.1:%d" % pserver.server_address[1]
+
+
+def settle(cond, timeout=10.0):
+    """The proxy replies to the client FIRST and learns after — by design the
+    chat path never waits on cognition. So learning-side assertions poll."""
+    import time
+    end = time.monotonic() + timeout
+    while time.monotonic() < end:
+        if cond():
+            return True
+        time.sleep(0.05)
+    return cond()
+
+
+def call_proxy(body, path="/v1/chat/completions", headers=None):
+    data = json.dumps(body).encode("utf-8")
+    hdrs = {"Content-Type": "application/json",
+            "Authorization": "Bearer test-key-123"}
+    hdrs.update(headers or {})
+    req = urllib.request.Request(base + path, data=data, headers=hdrs, method="POST")
+    with urllib.request.urlopen(req, timeout=30) as r:
+        return r.status, r.read()
+
+
+status, out = call_proxy({"model": "stub-model", "stream": False,
+                          "messages": [{"role": "system", "content": "You are Kai."},
+                                       {"role": "user", "content": "hey"}]})
+ok(status == 200 and json.loads(out)["choices"][0]["message"]["content"] == STUB_REPLY,
+   "upstream reply relayed to the client verbatim")
+chat_path, chat_headers, chat_body = _StubUpstream.seen[0]
+ok(chat_path == "/v1/chat/completions", "proxy /v1 path mapped onto the upstream base")
+ok(chat_headers.get("Authorization") == "Bearer test-key-123",
+   "the app's Authorization header passes through")
+sysmsg = chat_body["messages"][0]
+ok(sysmsg["role"] == "system" and sysmsg["content"].startswith("You are Kai.")
+   and "INNER CONTEXT" in sysmsg["content"],
+   "inner context folded into the system side, host persona first")
+ok(settle(lambda: int(Mind(d11, sync=True).manifest.state.get("exchanges", 0)) == 1),
+   "the exchange was observed")
+ok(settle(lambda: any(p == "/v1/chat/completions"
+                      and h.get("Authorization") == "Bearer test-key-123"
+                      and b.get("model") == "stub-model"
+                      for p, h, b in _StubUpstream.seen[1:])),
+   "cognition rode the same upstream, header, and model as the chat path")
+ok(settle(lambda: any(e.get("purpose") == "extract"
+                      for e in Mind(d11, sync=True).ledger.load())),
+   "the cognition call is in the ledger")
+
+status, out = call_proxy({"model": "stub-model", "stream": True,
+                          "messages": [{"role": "user", "content": "stream this"}]})
+ok(b'"content":"stream"' in out and b"[DONE]" in out, "SSE chunks relayed to the client")
+ok(settle(lambda: int(Mind(d11, sync=True).manifest.state.get("exchanges", 0)) == 2),
+   "streamed exchange observed from accumulated deltas")
+
+status, out = call_proxy({"totally": "not a chat request"})
+ok(status == 200, "malformed chat body forwarded untouched, never a proxy error")
+req = urllib.request.Request(base + "/v1/models")
+with urllib.request.urlopen(req, timeout=30) as r:
+    ok(r.status == 200 and b"stub-model" in r.read(),
+       "non-chat endpoints pass straight through")
+
+pserver.shutdown()
+stub.shutdown()
+shutil.rmtree(d11, ignore_errors=True)
+
 print("\nall %d assertions passed" % PASS)
