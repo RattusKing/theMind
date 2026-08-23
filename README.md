@@ -74,11 +74,31 @@ Run it for a month and unplug, and your companion loses what accumulated — its
 memories of you, its stances, its history with itself. The folder keeps it all,
 waiting, and `export` produces a single portable file. But absence is absence.
 
+## Quickstart
+
+```
+pip install themind        # zero dependencies, pure stdlib
+```
+
+```python
+from themind import Mind
+
+mind = Mind("./my-companion-mind", llm=my_llm)   # my_llm: (system, user, max_tokens) -> str
+
+messages = mind.enrich(messages)     # before your model call
+mind.observe(user_text, reply)       # after the reply
+```
+
+That is the entire integration. See `examples/quickstart.py` for the llm
+callable for OpenAI-compatible endpoints, Anthropic, and Gemini.
+
 ## Status
 
-**Format first, code second.** The on-disk format — what a mind is, at rest — is
-published in [FORMAT.md](FORMAT.md) so it can be read and challenged while it is
-still cheap to change. Code lands as v0.1 after the format has been looked at.
+**v0.1.** The on-disk format — what a mind is, at rest — is published in
+[FORMAT.md](FORMAT.md) and remains open to challenge while it is cheap to
+change. The library implements it; `tests/run_all.py` holds the behavioral
+guarantees (grounding, parse-or-skip, read order, budget, export round-trip).
+The local proxy (connect by swapping a base URL, no code) is the next phase.
 
 theMind is extracted from a production AI companion whose cognitive systems have
 been running live since 2025. The scaffolding she needed (schedulers, cloud
