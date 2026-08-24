@@ -38,7 +38,12 @@ STORES = ("facts", "self_memory", "beliefs", "tensions", "aches", "desires", "re
 
 
 class Mind:
-    def __init__(self, path, llm=None, budget_tokens=2000, sync=False):
+    def __init__(self, path, llm=None, budget_tokens=2000, sync=False, retriever=None):
+        """`retriever` swaps the memory-recall backend: a callable
+        `(records, query_text, lit_entity_labels, k) -> records` returning the
+        most relevant of `records`, best first. Default is `retrieval.recall`
+        (weighted keyword overlap). Bring embeddings if you want them — the
+        rest of the mind neither knows nor cares."""
         self.root = os.path.abspath(path)
         os.makedirs(os.path.join(self.root, "stores"), exist_ok=True)
         os.makedirs(os.path.join(self.root, "archive"), exist_ok=True)
@@ -46,6 +51,7 @@ class Mind:
         self.llm = llm
         self.budget_tokens = budget_tokens
         self.sync = sync
+        self.retriever = retriever
         self._busy = threading.Lock()
 
         self.stores = {
