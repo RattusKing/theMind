@@ -1,13 +1,17 @@
 """Per-turn extraction — facts, threads, wants, and what the mind's own voice said.
 
-Two guards, both structural (FORMAT.md, `facts.jsonl`):
+The guards, all structural (FORMAT.md, `facts.jsonl`):
 - WRITE-TIME grounding: a fact's provenance quote must appear verbatim in the
   PERSON's side of the exchange, or it is dropped. Stops invention entering.
 - SAID lines must share real words with the assistant's actual reply, so the
   mind can't invent commitments for itself either.
+- CHALLENGE-TIME (challenge.py, invoked after storing): a stored fact touched
+  by this turn's new facts is re-derived from its own provenance quote rather
+  than trusted. Stops trusting an error already stored.
 """
 from ..envelope import make_record, norm_key
 from ..retrieval import _words
+from . import challenge
 
 SYSTEM = (
     "You are the memory-extraction faculty of an AI companion's mind. From this exchange, "
@@ -38,6 +42,7 @@ def run(mind, user_text, assistant_text):
     if not out or out.strip().upper() == "NONE":
         return 0
     stored = 0
+    new_facts = []
     user_low = (user_text or "").lower()
     asst_words = _words(assistant_text or "")
     for line in out.splitlines():
@@ -57,6 +62,7 @@ def run(mind, user_text, assistant_text):
                                   entities=entities, kind=kind.strip().lower()[:20])
                 if _is_new(mind, "facts", rec) and mind.stores["facts"].append(rec):
                     mind.graph.touch(entities, src_ref=rec["id"])
+                    new_facts.append(rec)
                     stored += 1
             elif head.upper().startswith("ACHE:") or head.upper().startswith("WANT:"):
                 name = "ACHE:" if head.upper().startswith("ACHE:") else "WANT:"
@@ -79,6 +85,11 @@ def run(mind, user_text, assistant_text):
                     stored += 1
         except Exception:
             continue  # one bad line never poisons the rest
+    if new_facts:
+        try:
+            challenge.check(mind, new_facts)
+        except Exception:
+            pass  # the guard protects the store; it never breaks the turn
     return stored
 
 

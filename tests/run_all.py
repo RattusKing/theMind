@@ -235,7 +235,84 @@ ok([r["text"] for r in mind10.live("facts")] == ["older", "newer"],
 for d in (d1, d2, d3, d3b, d4, d5, d6, d7, d8, d10, dest):
     shutil.rmtree(d, ignore_errors=True)
 
-# ── 11. the proxy: OpenAI wire in, OpenAI wire out, a mind in between ────────
+# ── 11. challenge-time guard: re-derive contested facts from provenance ──────
+print("challenge-time guard")
+from themind.cognition import challenge as challenge_mod
+from themind.envelope import make_record
+
+CH_EXTRACT = ("FACT: They are planning a trip to Lisbon. | "
+              "QUOTE: i'm planning my trip to lisbon | ENTITIES: Lisbon | KIND: event")
+
+
+def ch_llm(challenge_reply):
+    def llm(system, user, max_tokens):
+        if system == challenge_mod.SYSTEM:
+            return challenge_reply
+        return CH_EXTRACT
+    return llm
+
+
+def drifted_fact():
+    # Stored text claims more than its own evidence supports.
+    return make_record("f", {"kind": "exchange", "quote": "we went to lisbon once years ago",
+                             "ref": None},
+                       salience=0.7, text="They live in Lisbon.",
+                       entities=["Lisbon"], kind="profile")
+
+
+# evidence does NOT support the stored text -> revised from the quote, superseded
+mindc, dc = fresh(llm=ch_llm("REVISED: They visited Lisbon once, years ago."))
+mindc.stores["facts"].append(drifted_fact())
+mindc.observe("i'm planning my trip to lisbon next spring", "How exciting!")
+live_texts = [f["text"] for f in mindc.live("facts")]
+ok("They live in Lisbon." not in live_texts, "unsupported stored text left the live store")
+ok("They visited Lisbon once, years ago." in live_texts,
+   "…superseded by what the evidence itself supports")
+revised = next(f for f in mindc.live("facts") if f["text"].startswith("They visited"))
+ok(revised["src"]["quote"] == "we went to lisbon once years ago",
+   "the revision carries the ORIGINAL quote as provenance")
+arch = [json.loads(l) for l in open(mindc._p("archive", "facts.jsonl"))]
+ok(any(a["text"] == "They live in Lisbon." and a["superseded_by"] == revised["id"]
+       for a in arch), "the drifted fact is archived naming its successor")
+ok(any(e.get("purpose") == "challenge" for e in mindc.ledger.load()),
+   "the challenge call is in the ledger")
+
+# evidence DOES support the stored text -> untouched (a change of heart is a tension,
+# not a correction; consolidation's business, not the guard's)
+mindc2, dc2 = fresh(llm=ch_llm("SUPPORTED"))
+mindc2.stores["facts"].append(drifted_fact())
+mindc2.observe("i'm planning my trip to lisbon next spring", "How exciting!")
+ok("They live in Lisbon." in [f["text"] for f in mindc2.live("facts")],
+   "a supported fact stands; the guard corrects drift, not people changing")
+
+# garbage reply -> parse-or-skip, store untouched
+mindc3, dc3 = fresh(llm=ch_llm("hmm, hard to say really"))
+mindc3.stores["facts"].append(drifted_fact())
+mindc3.observe("i'm planning my trip to lisbon next spring", "How exciting!")
+ok("They live in Lisbon." in [f["text"] for f in mindc3.live("facts")],
+   "garbage challenge reply is a no-op")
+
+# a revision not grounded in the evidence it re-reads is itself dropped
+mindc4, dc4 = fresh(llm=ch_llm("REVISED: They are secretly a billionaire."))
+mindc4.stores["facts"].append(drifted_fact())
+mindc4.observe("i'm planning my trip to lisbon next spring", "How exciting!")
+texts4 = [f["text"] for f in mindc4.live("facts")]
+ok("They live in Lisbon." in texts4 and "They are secretly a billionaire." not in texts4,
+   "an ungrounded revision is dropped whole (a guard on the guard)")
+
+# only exchange-provenance facts are re-derivable: a quote can be re-read, an inference can't
+mindc5, dc5 = fresh(llm=ch_llm("REVISED: should never be asked"))
+mindc5.stores["facts"].append(
+    make_record("f", {"kind": "inference", "ref": "f_original"},
+                salience=0.7, text="They live in Lisbon.", entities=["Lisbon"], kind="profile"))
+mindc5.observe("i'm planning my trip to lisbon next spring", "How exciting!")
+ok(not any(e.get("purpose") == "challenge" for e in mindc5.ledger.load()),
+   "facts without a re-readable quote are never challenged")
+
+for d in (dc, dc2, dc3, dc4, dc5):
+    shutil.rmtree(d, ignore_errors=True)
+
+# ── 12. the proxy: OpenAI wire in, OpenAI wire out, a mind in between ────────
 # Loopback sockets only — a stub upstream on 127.0.0.1, no external network.
 print("proxy")
 import threading
