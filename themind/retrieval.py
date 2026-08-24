@@ -1,8 +1,17 @@
 """Scored recall — keyword overlap x salience x recency, boosted by the graph.
 
 Deliberately not embeddings: below ~100k records, weighted keyword recall is
-as good and costs nothing, and it keeps the zero-dependency promise. The
-backend is small enough to swap; anyone who wants vectors overrides `score`.
+as good and costs nothing, and it keeps the zero-dependency promise.
+
+This is the pluggable seam. `recall` is the default implementation of the
+retriever contract:
+
+    retriever(records, query_text, lit_entity_labels, k) -> records
+
+(most relevant of `records`, best first, at most `k`). Pass your own via
+`Mind(path, retriever=...)` — embeddings, a vector DB, whatever — and the
+rest of the mind neither knows nor cares. Only fact recall goes through the
+seam; `recent` ordering stays time-based on purpose.
 """
 from .envelope import age_days
 

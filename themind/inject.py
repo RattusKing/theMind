@@ -53,7 +53,8 @@ def build_blocks(mind, incoming_text=None):
     if facts:
         lit = mind.graph.constellation(incoming_text or "") if incoming_text else []
         from .retrieval import recall, recent
-        chosen = recall(facts, incoming_text or "", lit, k=8) if incoming_text else recent(facts, 5)
+        retrieve = getattr(mind, "retriever", None) or recall
+        chosen = retrieve(facts, incoming_text or "", lit, 8) if incoming_text else recent(facts, 5)
         blocks.append((_block("WHAT YOU REMEMBER ABOUT THEM:",
                               ["- " + f.get("text", "") for f in chosen]), False))
         if lit:
@@ -77,6 +78,13 @@ def build_blocks(mind, incoming_text=None):
         blocks.append((_block("WHAT YOU'RE STILL HOLDING (open threads and kept tensions — "
                               "never nag, just carry them):",
                               ["- " + r.get("text", "") for r in open_threads]), False))
+
+    wants = mind.live("desires")
+    if wants:
+        from .retrieval import recent
+        blocks.append((_block("WHAT THEY'RE LOOKING FORWARD TO (carry it lightly, surface it "
+                              "only when it fits — never nag):",
+                              ["- " + w.get("text", "") for w in recent(wants, 3)]), False))
 
     growth = mind.growth_doc.load(default={})
     cur_g = (growth.get("curiosities") or [])[:3]

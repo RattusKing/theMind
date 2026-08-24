@@ -312,7 +312,63 @@ ok(not any(e.get("purpose") == "challenge" for e in mindc5.ledger.load()),
 for d in (dc, dc2, dc3, dc4, dc5):
     shutil.rmtree(d, ignore_errors=True)
 
-# ── 12. the proxy: OpenAI wire in, OpenAI wire out, a mind in between ────────
+# ── 12. the seams: pluggable retrieval, the CLI door, desires injected ───────
+print("retrieval seam / cli / desires")
+import contextlib
+import io
+from themind.__main__ import main as cli_main
+
+mind12, d12 = fresh()
+mind12.stores["facts"].append(
+    make_record("f", {"kind": "exchange", "quote": "i keep bees", "ref": None},
+                salience=0.6, text="They keep bees.", entities=["bees"], kind="profile"))
+mind12.stores["facts"].append(
+    make_record("f", {"kind": "exchange", "quote": "i play cello", "ref": None},
+                salience=0.6, text="They play the cello.", entities=["cello"], kind="profile"))
+
+seen_call = {}
+def my_retriever(records, query, lit, k):
+    seen_call["args"] = (len(records), query, k)
+    return [r for r in records if "cello" in r.get("text", "")]
+
+mind12r = Mind(d12, retriever=my_retriever, sync=True)
+mem = mind12r.context("tell me about bees").split("WHAT YOU REMEMBER ABOUT THEM:")[1]
+ok("cello" in mem and "bees" not in mem,
+   "a custom retriever swaps the recall backend whole")
+ok(seen_call["args"] == (2, "tell me about bees", 8),
+   "the retriever contract: (records, query, lit, k)")
+ok("bees" in Mind(d12, sync=True).context("do you remember my bees"),
+   "default keyword recall untouched when no retriever is passed")
+
+buf = io.StringIO()
+with contextlib.redirect_stdout(buf):
+    rc = cli_main(["export", d12])
+ok(rc == 0 and os.path.isfile(os.path.join(d12, "mind-export.json")),
+   "CLI export writes the single-file snapshot")
+dest12 = tempfile.mkdtemp(prefix="mind_")
+with contextlib.redirect_stdout(buf):
+    rc = cli_main(["restore", os.path.join(d12, "mind-export.json"),
+                   os.path.join(dest12, "m")])
+ok(rc == 0 and Mind(os.path.join(dest12, "m")).manifest.mind_id == mind12.manifest.mind_id,
+   "CLI restore round-trips the same mind")
+with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
+    rc = cli_main(["export", os.path.join(d12, "not-a-mind")])
+ok(rc == 2, "export refuses a folder that isn't a mind (never invents one)")
+
+mind12.stores["desires"].append(
+    make_record("d", {"kind": "exchange", "quote": "i can't wait for the concert", "ref": None},
+                salience=0.6, text="They can't wait for the concert next month."))
+ctx12 = Mind(d12, sync=True).context("hey")
+ok("LOOKING FORWARD" in ctx12 and "concert" in ctx12,
+   "desires surface in injection, carried lightly")
+tiny12 = Mind(d12, budget_tokens=40, sync=True).context("hey")
+ok("LOOKING FORWARD" not in tiny12 and "YOU STAND" in tiny12,
+   "desires drop whole under budget; the reserved stance survives")
+
+for d in (d12, dest12):
+    shutil.rmtree(d, ignore_errors=True)
+
+# ── 13. the proxy: OpenAI wire in, OpenAI wire out, a mind in between ────────
 # Loopback sockets only — a stub upstream on 127.0.0.1, no external network.
 print("proxy")
 import threading

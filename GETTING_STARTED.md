@@ -18,12 +18,15 @@ There are two ways to use it. Most people want the first one.
 
 You change **one line** in your app: the address it sends chat requests to.
 
-**Step 1. Get theMind** (Python 3.9+ is the only requirement):
+**Step 1. Get theMind** (Python 3.9+ is the only requirement — one command,
+straight from GitHub, no accounts needed):
 
 ```
-git clone https://github.com/RattusKing/theMind.git
-cd theMind
+pip install git+https://github.com/RattusKing/theMind.git
 ```
+
+(Prefer to see the code first? `git clone https://github.com/RattusKing/theMind.git`
+and run from inside the folder — both work the same.)
 
 **Step 2. Start the proxy.** Tell it where your app *currently* sends its
 requests (`--upstream`) and where to keep the memory (`--mind`):
@@ -75,8 +78,12 @@ OpenAI-compatible endpoints, Anthropic, and Gemini.
 plain, readable JSON — open it and look. Nothing is written anywhere else.
 
 **How do I back it up or move it to another machine?** The folder *is* the
-mind: copy it. Or create a single-file snapshot from Python with
-`mind.export()` and load it elsewhere with `Mind.restore(...)`.
+mind: copy it. Or make a single-file snapshot — no code needed:
+
+```
+python3 -m themind export ./my-mind            # writes my-mind/mind-export.json
+python3 -m themind restore mind-export.json ./my-mind   # brings it back anywhere
+```
 
 **Does it cost anything?** theMind is free (Apache 2.0). Its background
 thinking uses your own model connection — a handful of small extra calls,
