@@ -8,7 +8,7 @@ Two doors into one set of operations; the architecture forecloses neither.
 Every pass is parse-or-skip: a malformed reply is discarded whole and prior
 state is left intact. The chat path never sees an error from here.
 """
-from . import extract, consolidate, selfhood, felt_sense, reflect, growth  # noqa: F401
+from . import extract, challenge, consolidate, selfhood, felt_sense, reflect, growth  # noqa: F401
 from ..envelope import age_days
 
 
