@@ -88,6 +88,15 @@ python3 -m themind.proxy --upstream https://api.openai.com/v1 --mind ./my-mind
 # your app's base_url becomes http://127.0.0.1:6463/v1 — nothing else changes
 ```
 
+**Any platform — the MCP door.** Claude, ChatGPT, local apps: one command,
+then add the URL as an MCP server / custom connector. The agent tends its own
+mind — remembering, reflecting, wanting — with its own thinking:
+
+```
+python3 -m themind.mcp --mind ./my-mind
+# add http://127.0.0.1:6464/mcp to your platform
+```
+
 **Three lines — the library:**
 
 ```python

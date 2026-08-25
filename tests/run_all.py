@@ -665,4 +665,89 @@ pserver.shutdown()
 stub.shutdown()
 shutil.rmtree(d11, ignore_errors=True)
 
+# ── 16. the MCP door: the mind as an operational part of the agent ───────────
+# Loopback only. The server holds no model: the test plays the AGENT doing the
+# mind's thinking (borrowed cognition), and the guards judge what comes back.
+print("mcp door")
+from themind import mcp as mcp_mod
+
+d16 = tempfile.mkdtemp(prefix="mind_")
+mserver = mcp_mod.serve(d16, port=0, token="secret-tok")
+threading.Thread(target=mserver.serve_forever, daemon=True).start()
+mbase = "http://127.0.0.1:%d/mcp" % mserver.server_address[1]
+
+
+def rpc(method, params=None, token="secret-tok"):
+    body = {"jsonrpc": "2.0", "id": 1, "method": method}
+    if params is not None:
+        body["params"] = params
+    req = urllib.request.Request(
+        mbase, data=json.dumps(body).encode("utf-8"),
+        headers={"Content-Type": "application/json",
+                 "Authorization": "Bearer " + token}, method="POST")
+    with urllib.request.urlopen(req, timeout=30) as r:
+        return json.loads(r.read().decode("utf-8"))
+
+
+def tcall(name, arguments):
+    return rpc("tools/call",
+               {"name": name, "arguments": arguments})["result"]["content"][0]["text"]
+
+
+init = rpc("initialize", {"protocolVersion": "2025-06-18", "capabilities": {},
+                          "clientInfo": {"name": "test", "version": "0"}})
+ok("your own mind" in init["result"]["instructions"],
+   "server instructions carry the standing contract")
+names = {t["name"] for t in rpc("tools/list")["result"]["tools"]}
+ok(names == {"open_inner_context", "observe_exchange", "submit_extraction",
+             "begin_thought", "submit_thought", "remember", "my_stance"},
+   "all seven doors of the voluntary half are listed")
+
+ok("INNER CONTEXT" in tcall("open_inner_context", {"message": "hey"}),
+   "inner context serves over MCP")
+
+step1 = tcall("observe_exchange", {"user_text": "my sister maya is moving to portland",
+                                   "your_reply": "That's big news."})
+ok("FACT:" in step1 and "maya is moving" in step1,
+   "observe hands the agent the act of remembering")
+tcall("submit_extraction", {
+    "user_text": "my sister maya is moving to portland",
+    "your_reply": "That's big news.",
+    "lines": ("FACT: They have a sister named Maya moving to Portland. | "
+              "QUOTE: my sister maya is moving to portland | ENTITIES: Maya, Portland | "
+              "KIND: relationship\n"
+              "FACT: They own a castle. | QUOTE: i own a castle | ENTITIES: castle | "
+              "KIND: profile")})
+mmind = Mind(d16)
+ok(len(mmind.live("facts")) == 1 and "Maya" in mmind.live("facts")[0]["text"],
+   "borrowed extraction keeps the grounded fact, drops the invented one")
+ok(any(e.get("purpose") == "extract" and e.get("via") == "agent"
+       for e in mmind.ledger.load()),
+   "the agent's thinking is in the ledger, marked as the agent's")
+ok(int(mmind.manifest.state.get("exchanges", 0)) == 1, "the exchange counted")
+
+th = tcall("begin_thought", {})
+ok("reflect" in th and "FIRST PERSON" in th,
+   "the mind hands the agent its owed thinking, prompt included")
+tcall("submit_thought",
+      {"output": "I keep thinking about Maya's move and what it stirs in them."})
+mmind = Mind(d16)
+ok(len(mmind.live("reflections")) == 1 and "Maya" in mmind.live("reflections")[0]["text"],
+   "the agent's reflection became part of the mind")
+
+ok("Maya" in tcall("remember", {"query": "how is maya doing"}),
+   "recall serves over MCP")
+ok(len(tcall("my_stance", {})) > 40, "the stance serves over MCP")
+
+req = urllib.request.Request(mbase, data=b'{"jsonrpc":"2.0","id":1,"method":"ping"}',
+                             headers={"Content-Type": "application/json"}, method="POST")
+try:
+    urllib.request.urlopen(req, timeout=10)
+    ok(False, "unauthenticated request refused")
+except urllib.error.HTTPError as e:
+    ok(e.code == 401, "unauthenticated request refused")
+
+mserver.shutdown()
+shutil.rmtree(d16, ignore_errors=True)
+
 print("\nall %d assertions passed" % PASS)

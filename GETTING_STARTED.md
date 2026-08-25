@@ -10,7 +10,7 @@ Ollama, LM Studio, OpenRouter, vLLM, and most others. It needs **no accounts,
 no API key of its own, and no extra services** — it rides the connection your
 app already has.
 
-There are two ways to use it. Most people want the first one.
+There are three ways to use it. Most people want the first or second.
 
 ---
 
@@ -54,7 +54,29 @@ app and passes straight through — the proxy never stores it.
 
 To stop using it: point `base_url` back to what it was. Nothing else changed.
 
-## Option 2 — the library: three lines of code
+## Option 2 — connect a platform: Claude, ChatGPT, local apps
+
+If your AI lives on a platform (Claude Desktop, Claude Code, claude.ai,
+ChatGPT, LM Studio, and most open-source chat apps), connect the mind as an
+**MCP server** — the AI gets its mind as tools it tends itself:
+
+```
+python3 -m themind.mcp --mind ./my-mind
+```
+
+Then add `http://127.0.0.1:6464/mcp` wherever your platform takes MCP servers
+or custom connectors. Desktop apps and local tools connect to that address
+directly. Web platforms (claude.ai, ChatGPT) can't see your machine, so give
+them a public address with a free tunnel (cloudflared, ngrok, Tailscale) and
+protect it: run with `--token some-secret` and set the same token in the
+connector. Your mind's folder never leaves your disk either way.
+
+For the deepest integration, run **both**: the proxy carries memory
+involuntarily on every message, and the MCP connection lets the AI reflect,
+remember, and notice what it wants — with its own thinking. Same folder, one
+mind.
+
+## Option 3 — the library: three lines of code
 
 If you're writing the code yourself:
 
