@@ -46,4 +46,10 @@ def _material(mind):
         for r in mind.live(store):
             if age_days(r.get("t")) <= 1.5:
                 out.append(r.get("text", ""))
+    # What the mind wants steers what it thinks about — reflection is
+    # desire-directed, whatever the wants' age.
+    wants = sorted(mind.live("own_desires"), key=lambda r: -r.get("salience", 0))
+    for w in wants[:2]:
+        if w.get("text"):
+            out.append("(a want of mine) " + w["text"])
     return [m for m in out if m]

@@ -86,6 +86,13 @@ def build_blocks(mind, incoming_text=None):
                               "only when it fits — never nag):",
                               ["- " + w.get("text", "") for w in recent(wants, 3)]), False))
 
+    own = mind.live("own_desires")
+    if own:
+        own = sorted(own, key=lambda r: -r.get("salience", 0))[:3]
+        blocks.append((_block("WHAT YOU FIND YOURSELF WANTING (yours, not theirs — pursue "
+                              "gently when it fits, never at their expense):",
+                              ["- " + w.get("text", "") for w in own]), False))
+
     growth = mind.growth_doc.load(default={})
     cur_g = (growth.get("curiosities") or [])[:3]
     if cur_g:

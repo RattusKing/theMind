@@ -8,7 +8,7 @@ import os
 from .envelope import now_iso
 from .store import JsonDoc
 
-FORMAT = "themind/0.1"
+FORMAT = "themind/0.2"
 
 
 class Manifest:
@@ -22,6 +22,9 @@ class Manifest:
                 "created": now_iso(),
                 "state": {},
             }
+        fmt = str(data.get("format") or "")
+        if fmt.startswith("themind/0.") and fmt != FORMAT:
+            data["format"] = FORMAT  # minor upgrade-on-open; majors are refused by readers
         data.setdefault("state", {})
         st = data["state"]
         st.setdefault("exchanges", 0)
@@ -30,6 +33,7 @@ class Manifest:
         st.setdefault("last_felt", None)
         st.setdefault("last_self", None)
         st.setdefault("last_growth", None)
+        st.setdefault("last_desire", None)
         self.data = data
         self.save()
 

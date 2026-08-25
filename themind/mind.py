@@ -34,7 +34,8 @@ from . import inject, defaults
 from . import cognition
 from .cognition import extract
 
-STORES = ("facts", "self_memory", "beliefs", "tensions", "aches", "desires", "reflections")
+STORES = ("facts", "self_memory", "beliefs", "tensions", "aches", "desires",
+          "own_desires", "reflections")
 
 
 class Mind:
