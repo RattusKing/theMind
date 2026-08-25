@@ -100,7 +100,8 @@ def _apply(mind, line, valid_ids):
 
 
 def _decay(mind):
-    for store, factor in (("facts", 0.985), ("aches", 0.85), ("desires", 0.85)):
+    for store, factor in (("facts", 0.985), ("aches", 0.85), ("desires", 0.85),
+                          ("own_desires", 0.9)):
         recs = mind.live(store)
         keep = []
         for r in recs:

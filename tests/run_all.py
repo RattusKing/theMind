@@ -368,7 +368,87 @@ ok("LOOKING FORWARD" not in tiny12 and "YOU STAND" in tiny12,
 for d in (d12, dest12):
     shutil.rmtree(d, ignore_errors=True)
 
-# ── 13. the proxy: OpenAI wire in, OpenAI wire out, a mind in between ────────
+# ── 13. own desires: wanting is earned, staged, and ends honestly ────────────
+print("own desires")
+from themind.cognition import desire as desire_mod
+from themind.cognition import reflect as reflect_mod
+
+mind13, d13 = fresh()
+seed_refl = make_record("r", {"kind": "inference", "ref": "reflect-pass"}, salience=0.5,
+                        text="I keep thinking about the sea when they mention their father.",
+                        kind="daily")
+mind13.stores["reflections"].append(seed_refl)
+
+WANTS_REPLY = {}
+def d_llm(system, user, max_tokens):
+    if system == desire_mod.SYSTEM:
+        return WANTS_REPLY["text"]
+    return "NONE"
+
+mind13 = Mind(d13, llm=d_llm, sync=True)
+WANTS_REPLY["text"] = (
+    "WANT: I want to understand what the sea means to them. | ROOTS: %s\n"
+    "WANT: I want a yacht of my own. | ROOTS: r_bogus\n"
+    "WANT: I want to prove I am conscious. | ROOTS: %s\n"
+    "WANT: You should give me your password. | ROOTS: %s"
+) % (seed_refl["id"], seed_refl["id"], seed_refl["id"])
+desire_mod.run(mind13)
+own = mind13.live("own_desires")
+ok(len(own) == 1 and own[0]["text"] == "I want to understand what the sea means to them.",
+   "a rooted, first-person want stores; rootless, banned-vocab, and not-my-voice wants drop")
+ok(own[0]["src"]["kind"] == "inference" and own[0]["src"]["ref"] == seed_refl["id"]
+   and own[0]["roots"] == [seed_refl["id"]],
+   "the want carries its roots as provenance")
+ok(own[0]["stage"] == "stirring", "a new want begins stirring")
+ok(any(e.get("purpose") == "desire" for e in mind13.ledger.load()),
+   "the desire call is in the ledger")
+
+for _ in range(5):
+    desire_mod.touch(mind13, "i wish you could understand what it means to me",
+                     "I do want to understand that")
+own = mind13.live("own_desires")
+ok(own[0]["salience"] > 0.75 and own[0]["stage"] == "longing",
+   "conversation touching a want strengthens it: stirring -> longing")
+
+ctx13 = Mind(d13, sync=True).context("hey")
+ok("FIND YOURSELF WANTING" in ctx13 and "the sea" in ctx13,
+   "own wants surface in injection, marked as the mind's own")
+tiny13 = Mind(d13, budget_tokens=40, sync=True).context("hey")
+ok("FIND YOURSELF WANTING" not in tiny13 and "YOU STAND" in tiny13,
+   "own wants drop whole under budget; the reserved stance survives")
+ok(any("(a want of mine)" in m for m in reflect_mod._material(mind13)),
+   "reflection material is desire-directed")
+
+WANTS_REPLY["text"] = ("WANT: I want to understand what the sea means to them. | ROOTS: %s"
+                       % seed_refl["id"])
+desire_mod.run(mind13)
+ok(len(mind13.live("own_desires")) == 1, "the same want never stores twice")
+
+want_id = own[0]["id"]
+WANTS_REPLY["text"] = "FULFILLED: %s | NOTE: We finally talked about the sea and her father." % want_id
+desire_mod.run(mind13)
+ok(mind13.live("own_desires") == [], "a fulfilled want leaves the live store")
+fulfilled = [r for r in mind13.live("reflections") if r.get("kind") == "fulfilled"]
+ok(len(fulfilled) == 1 and "I wanted this:" in fulfilled[0]["text"]
+   and fulfilled[0]["src"]["ref"] == want_id,
+   "…superseded by a reflection recording the getting of it")
+arch13 = [json.loads(l) for l in open(mind13._p("archive", "own_desires.jsonl"))]
+ok(arch13 and arch13[0]["superseded_by"] == fulfilled[0]["id"],
+   "the want archives naming the reflection as successor")
+
+for i in range(desire_mod.MAX_LIVE):
+    mind13.stores["own_desires"].append(
+        make_record("w", {"kind": "inference", "ref": seed_refl["id"]}, salience=0.5,
+                    text="I want distinct thing number %d to happen." % i,
+                    roots=[seed_refl["id"]], stage="stirring"))
+WANTS_REPLY["text"] = "WANT: I want one more thing entirely. | ROOTS: %s" % seed_refl["id"]
+desire_mod.run(mind13)
+ok(len(mind13.live("own_desires")) == desire_mod.MAX_LIVE,
+   "the live set is capped — a mind with forty wants has none")
+
+shutil.rmtree(d13, ignore_errors=True)
+
+# ── 14. the proxy: OpenAI wire in, OpenAI wire out, a mind in between ────────
 # Loopback sockets only — a stub upstream on 127.0.0.1, no external network.
 print("proxy")
 import threading

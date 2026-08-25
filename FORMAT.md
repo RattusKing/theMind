@@ -1,6 +1,7 @@
 # theMind — on-disk format
 
-**Version 0.1 — draft, published for review before any code ships.**
+**Version 0.2 — adds `own_desires.jsonl` (the mind's own wants). Minor, additive:
+0.1 readers ignore the unknown store; 0.1 minds open unchanged.**
 
 This document describes what a mind *is, at rest*: the directory a running mind
 reads and writes, and the single-file export it can be carried away in. It is
@@ -54,6 +55,7 @@ mind/
     tensions.jsonl       kept contradictions (deliberately unresolved)
     aches.jsonl          held threads carried between sessions
     desires.jsonl        wants and anticipations, with decay
+    own_desires.jsonl    the mind's OWN wants — rooted, staged, with a lifecycle
     reflections.jsonl    periodic distillations of lived time
     growth.json          curiosities and shaped traits from this person
   archive/
@@ -161,6 +163,20 @@ Held threads and anticipations. Both decay (`salience` decreases on cognition
 passes without reinforcement); a decayed record is distilled into a reflection
 before it archives — the tail is gardened, not dropped.
 
+### own_desires.jsonl
+What the mind itself wants — not the person's wants (those are `desires.jsonl`).
+Envelope plus `text` (one sentence, first person), `roots` (ids of records the
+want grew out of), and `stage` (`stirring | wanting | longing`), advanced as
+conversation touches the want and its salience strengthens. The provenance rule
+bites hardest here: **a want with no roots in what the mind already holds is
+invented, and writers must drop it** — wanting is earned from a lived history,
+never generated on command. Lifecycle is first-class: a want the mind judges met
+is superseded by a reflection recording the getting of it; one it lets go of is
+superseded by a release reflection; the tail decays like any held thread, so a
+want must matter to persist. Guards ride the format's semantics: never a want to
+extract something from, test, or change the person; never a mirror of their
+wants; at most a handful live at once — a mind with forty wants has none.
+
 ### reflections.jsonl
 Periodic first-person distillations of lived time. First person is enforced at
 write: a reflection in the third person is a narrator describing the mind, not
@@ -172,8 +188,9 @@ shaped the mind. The guardrail rides in the format's semantics: growth is
 *adjacent* to the person's themes, never a mirror of them, and may disagree.
 
 ### ledger.jsonl
-Every model call the mind initiates: `t`, `purpose` (`extract | consolidate |
-reflect | self | felt_sense`), `model`, `tokens_in`, `tokens_out`. The mind
+Every model call the mind initiates: `t`, `purpose` (`extract | challenge |
+consolidate | reflect | self | felt_sense | growth | desire`), `model`,
+`tokens_in`, `tokens_out`. The mind
 spends the host's money; the ledger is the honesty mechanism. No entry, no call.
 
 ## Context injection (what leaves the folder per turn)
