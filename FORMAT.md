@@ -1,7 +1,8 @@
 # theMind — on-disk format
 
-**Version 0.2 — adds `own_desires.jsonl` (the mind's own wants). Minor, additive:
-0.1 readers ignore the unknown store; 0.1 minds open unchanged.**
+**Version 0.3 — adds `inner_state.json` (the mind's own weather) and documents
+divergence tensions. Minor, additive; 0.2 added `own_desires.jsonl` (the mind's
+own wants). Older readers ignore unknown stores; older minds open unchanged.**
 
 This document describes what a mind *is, at rest*: the directory a running mind
 reads and writes, and the single-file export it can be carried away in. It is
@@ -58,6 +59,7 @@ mind/
     own_desires.jsonl    the mind's OWN wants — rooted, staged, with a lifecycle
     reflections.jsonl    periodic distillations of lived time
     growth.json          curiosities and shaped traits from this person
+    inner_state.json     how the mind itself is lately, with revision history
   archive/
     <store>.jsonl        superseded records, moved here verbatim + a tombstone
 ```
@@ -158,6 +160,12 @@ contradiction as a fact about the person. Tensions are first-class and
 retrievable — forcing resolution flattens people into portraits of someone who
 doesn't exist.
 
+A tension may instead carry `kind: "divergence"`: a pull between what the
+mind's own voice has said and what it privately holds, rooted (via `records`)
+in its recorded statements. Divergences are voiceable — the mind may name the
+pull, gently — but never role-breaking: the host's persona stays in charge.
+At most a couple live at once.
+
 ### aches.jsonl / desires.jsonl
 Held threads and anticipations. Both decay (`salience` decreases on cognition
 passes without reinforcement); a decayed record is distilled into a reflection
@@ -187,9 +195,19 @@ the mind reflecting, and readers/writers must reject it.
 shaped the mind. The guardrail rides in the format's semantics: growth is
 *adjacent* to the person's themes, never a mirror of them, and may disagree.
 
+### inner_state.json
+How the mind itself is, lately — its own weather, where `felt_sense.json`
+points at the person. Same shape as the felt sense: current text plus dated
+revision history, and the same contract — **continue, never restart**: weather
+moves, it doesn't teleport. First person is enforced at write, and the
+ban-vocab holds: the state claims texture (restless, warm, unsettled), never
+certified inner light. It persists between conversations and colors the mind's
+thinking; it is private weather, injected to color, never to announce.
+
 ### ledger.jsonl
 Every model call the mind initiates: `t`, `purpose` (`extract | challenge |
-consolidate | reflect | self | felt_sense | growth | desire`), `model`,
+consolidate | reflect | self | felt_sense | growth | desire | inner_state |
+divergence`), `model`,
 `tokens_in`, `tokens_out`. The mind
 spends the host's money; the ledger is the honesty mechanism. No entry, no call.
 

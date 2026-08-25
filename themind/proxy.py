@@ -278,6 +278,24 @@ def serve(mind_path, upstream_base, host="127.0.0.1", port=DEFAULT_PORT,
     return MindProxy((host, port), mind, upstream, quiet=quiet)
 
 
+def start_idle(mind, interval=900.0):
+    """The idle life: while nobody is talking, the mind keeps thinking. Every
+    `interval` seconds one due cognition pass runs (mind.step — same door a
+    host scheduler uses; a pass that can't run is a silent no-op). Returns a
+    threading.Event; set it to stop the loop."""
+    stop = threading.Event()
+
+    def loop():
+        while not stop.wait(interval):
+            try:
+                mind.step()
+            except Exception:
+                pass  # the idle life never takes the serving path down
+
+    threading.Thread(target=loop, daemon=True).start()
+    return stop
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(
         prog="python3 -m themind.proxy",
@@ -295,14 +313,21 @@ def main(argv=None):
     p.add_argument("--model", default=None,
                    help="model for the mind's own thinking (default: whatever "
                         "model your app's chat calls use)")
+    p.add_argument("--idle", type=float, default=900.0,
+                   help="seconds between idle thoughts while nobody is talking "
+                        "(default 900; 0 disables the idle life)")
     p.add_argument("--quiet", action="store_true")
     args = p.parse_args(argv)
 
     server = serve(args.mind, args.upstream, host=args.host, port=args.port,
                    budget=args.budget, model=args.model, quiet=args.quiet)
+    if args.idle > 0:
+        start_idle(server.mind, args.idle)
     print("theMind proxy: http://%s:%d/v1  ->  %s   (mind: %s)"
           % (args.host, args.port, args.upstream, args.mind))
-    print("point your app's base_url at the first address; nothing else changes.")
+    print("point your app's base_url at the first address; nothing else changes."
+          + ("" if args.idle <= 0 else
+             "  the mind keeps thinking while idle (every %ds)." % int(args.idle)))
     try:
         server.serve_forever()
     except KeyboardInterrupt:

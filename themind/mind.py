@@ -65,6 +65,7 @@ class Mind:
         self.self_doc = JsonDoc(self._p("stores", "self.json"))
         self.felt_doc = JsonDoc(self._p("stores", "felt_sense.json"))
         self.growth_doc = JsonDoc(self._p("stores", "growth.json"))
+        self.inner_doc = JsonDoc(self._p("stores", "inner_state.json"))
 
     def _p(self, *parts):
         return os.path.join(self.root, *parts)
@@ -194,7 +195,7 @@ class Mind:
             data["stores"][name] = self.stores[name].load()
         for name, doc in (("graph", JsonDoc(self._p("stores", "graph.json"))),
                           ("self", self.self_doc), ("felt_sense", self.felt_doc),
-                          ("growth", self.growth_doc)):
+                          ("growth", self.growth_doc), ("inner_state", self.inner_doc)):
             data["stores"][name] = doc.load(default={})
         data["stores"]["ledger"] = self.ledger.load()
         for name in STORES:
@@ -221,7 +222,7 @@ class Mind:
         for name in STORES:
             Jsonl(os.path.join(dest_dir, "stores", name + ".jsonl"),
                   validate=False).rewrite(stores.get(name) or [])
-        for name in ("graph", "self", "felt_sense", "growth"):
+        for name in ("graph", "self", "felt_sense", "growth", "inner_state"):
             if stores.get(name):
                 JsonDoc(os.path.join(dest_dir, "stores", name + ".json")).save(stores[name])
         if stores.get("ledger"):

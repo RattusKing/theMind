@@ -8,7 +8,8 @@ Two doors into one set of operations; the architecture forecloses neither.
 Every pass is parse-or-skip: a malformed reply is discarded whole and prior
 state is left intact. The chat path never sees an error from here.
 """
-from . import extract, challenge, consolidate, selfhood, felt_sense, reflect, growth, desire  # noqa: F401
+from . import (extract, challenge, consolidate, selfhood, felt_sense, reflect,  # noqa: F401
+               growth, desire, inner_state, divergence)
 from ..envelope import age_days
 
 
@@ -28,6 +29,10 @@ def due_passes(mind):
         due.append(("growth", growth.run))
     if desire.due(mind, st):
         due.append(("desire", desire.run))
+    if inner_state.due(mind, st):
+        due.append(("inner_state", inner_state.run))
+    if divergence.due(mind, st):
+        due.append(("divergence", divergence.run))
     return due
 
 
