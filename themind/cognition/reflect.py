@@ -52,4 +52,7 @@ def _material(mind):
     for w in wants[:2]:
         if w.get("text"):
             out.append("(a want of mine) " + w["text"])
+    state = (mind.inner_doc.load(default={}).get("current") or {}).get("text")
+    if state:
+        out.append("(how I am lately) " + state)
     return [m for m in out if m]

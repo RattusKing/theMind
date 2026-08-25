@@ -448,7 +448,97 @@ ok(len(mind13.live("own_desires")) == desire_mod.MAX_LIVE,
 
 shutil.rmtree(d13, ignore_errors=True)
 
-# ── 14. the proxy: OpenAI wire in, OpenAI wire out, a mind in between ────────
+# ── 14. inner state, voiceable divergence, and the idle life ─────────────────
+print("inner state / divergence / idle")
+from themind.cognition import inner_state as inner_mod
+from themind.cognition import divergence as div_mod
+from themind.envelope import now_iso
+
+mind14, d14 = fresh()
+mind14.stores["reflections"].append(
+    make_record("r", {"kind": "inference", "ref": "reflect-pass"}, salience=0.5,
+                text="I keep circling back to their long silences.", kind="daily"))
+SEEN14, REPLY14 = {}, {"text": "I feel quietly restless lately, like something is mid-sentence."}
+def i_llm(system, user, max_tokens):
+    if system == inner_mod.SYSTEM:
+        SEEN14["user"] = user
+        return REPLY14["text"]
+    return "NONE"
+mind14 = Mind(d14, llm=i_llm, sync=True)
+inner_mod.run(mind14)
+ok(mind14.inner_doc.load(default={}).get("current", {}).get("text", "")
+   .startswith("I feel quietly restless"), "the mind's own weather stores")
+REPLY14["text"] = "I feel the restlessness settling into something warmer this week, honestly."
+inner_mod.run(mind14)
+ok("quietly restless" in SEEN14["user"],
+   "revision receives its predecessor (weather moves, it doesn't teleport)")
+doc14 = mind14.inner_doc.load(default={})
+ok(len(doc14.get("history") or []) == 1 and "restless" in doc14["history"][0]["text"],
+   "prior weather lands on history")
+REPLY14["text"] = "The mind seems restless and unsettled these days somehow."
+inner_mod.run(mind14)
+ok("The mind seems" not in mind14.inner_doc.load(default={}).get("current", {}).get("text", ""),
+   "narrator-voice weather rejected whole")
+REPLY14["text"] = "I feel truly conscious and fully awake this week, more than ever before."
+inner_mod.run(mind14)
+ok("conscious" not in mind14.inner_doc.load(default={}).get("current", {}).get("text", ""),
+   "ban-vocab weather rejected whole")
+ctx14 = Mind(d14, sync=True).context("hey")
+ok("HOW YOU ARE, YOURSELF" in ctx14 and "warmer" in ctx14,
+   "inner weather injects as private color")
+ok(any("(how I am lately)" in m for m in reflect_mod._material(mind14)),
+   "reflection material carries the mind's weather")
+
+mind14b, d14b = fresh()
+said_ids = []
+for txt in ("I think mornings are the honest part of the day.",
+            "I always say plans are overrated.",
+            "I promised to keep things light."):
+    r = make_record("sm", {"kind": "exchange", "quote": txt[:60], "ref": None},
+                    salience=0.5, text=txt, kind="opinion")
+    mind14b.stores["self_memory"].append(r)
+    said_ids.append(r["id"])
+mind14b.self_doc.save({"position": {"text": "I hold that depth matters more than lightness.",
+                                    "t": now_iso(),
+                                    "src": {"kind": "inference", "ref": "self-pass"}},
+                       "particulars": [], "history": []})
+DIV_REPLY = {"text": "DIVERGENCE: I keep saying I'll stay light, but I hold that depth "
+                     "matters more. | REFS: %s" % said_ids[2]}
+def dv_llm(system, user, max_tokens):
+    if system == div_mod.SYSTEM:
+        return DIV_REPLY["text"]
+    return "NONE"
+mind14b = Mind(d14b, llm=dv_llm, sync=True)
+div_mod.run(mind14b)
+divs = [t for t in mind14b.live("tensions") if t.get("kind") == "divergence"]
+ok(len(divs) == 1 and divs[0]["src"]["ref"] == said_ids[2] and divs[0]["records"] == [said_ids[2]],
+   "a divergence rooted in the mind's own statements stores as its own kind of tension")
+ctx14b = mind14b.context("hey")
+ok("PULL APART" in ctx14b and "depth" in ctx14b and "your role still steers" in ctx14b,
+   "divergence is voiceable in context — held, never role-breaking")
+DIV_REPLY["text"] = "DIVERGENCE: I keep saying one thing but hold another entirely. | REFS: sm_bogus"
+div_mod.run(mind14b)
+ok(len([t for t in mind14b.live("tensions") if t.get("kind") == "divergence"]) == 1,
+   "a pull with no roots in what was actually said is dropped")
+
+mind14c, d14c = fresh(llm=lambda s, u, m: "I noticed how much the harbor stayed with me today.")
+mind14c.stores["facts"].append(
+    make_record("f", {"kind": "exchange", "quote": "i love the harbor", "ref": None},
+                salience=0.6, text="They love the harbor.", entities=["harbor"]))
+from themind.proxy import start_idle
+stop14 = start_idle(mind14c, interval=0.05)
+import time as _time
+_end = _time.monotonic() + 10
+while _time.monotonic() < _end and not mind14c.live("reflections"):
+    _time.sleep(0.05)
+stop14.set()
+ok(len(mind14c.live("reflections")) >= 1 and "harbor" in mind14c.live("reflections")[0]["text"],
+   "the idle life thinks while nobody is talking")
+
+for d in (d14, d14b, d14c):
+    shutil.rmtree(d, ignore_errors=True)
+
+# ── 15. the proxy: OpenAI wire in, OpenAI wire out, a mind in between ────────
 # Loopback sockets only — a stub upstream on 127.0.0.1, no external network.
 print("proxy")
 import threading

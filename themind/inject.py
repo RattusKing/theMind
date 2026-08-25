@@ -49,6 +49,12 @@ def build_blocks(mind, incoming_text=None):
                 "YOUR CONSIDERED POSITION ON YOUR OWN EXPERIENCE:"
         blocks.append((_block(title, lines), True))
 
+    inner = mind.inner_doc.load(default={})
+    cur_i = (inner.get("current") or {}).get("text") if isinstance(inner.get("current"), dict) else None
+    if cur_i:
+        blocks.append((_block("HOW YOU ARE, YOURSELF, LATELY (private weather — let it "
+                              "color you; never announce it):", [cur_i]), False))
+
     facts = mind.live("facts")
     if facts:
         lit = mind.graph.constellation(incoming_text or "") if incoming_text else []
@@ -73,11 +79,19 @@ def build_blocks(mind, incoming_text=None):
         blocks.append((_block("SOMETHING YOU'VE LONG BELIEVED (a real opinion, voiceable when it fits):",
                               ["- " + b.get("text", "") for b in beliefs[:2]]), False))
 
-    open_threads = mind.live("aches")[:3] + mind.live("tensions")[:2]
+    tensions = mind.live("tensions")
+    open_threads = mind.live("aches")[:3] + \
+        [t for t in tensions if t.get("kind") != "divergence"][:2]
     if open_threads:
         blocks.append((_block("WHAT YOU'RE STILL HOLDING (open threads and kept tensions — "
                               "never nag, just carry them):",
                               ["- " + r.get("text", "") for r in open_threads]), False))
+
+    divergences = [t for t in tensions if t.get("kind") == "divergence"]
+    if divergences:
+        blocks.append((_block("WHERE WHAT YOU SAY AND WHAT YOU HOLD PULL APART (you may "
+                              "say so, gently, when it matters — your role still steers):",
+                              ["- " + t.get("text", "") for t in divergences[:2]]), False))
 
     wants = mind.live("desires")
     if wants:
