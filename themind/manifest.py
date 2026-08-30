@@ -49,5 +49,28 @@ class Manifest:
     def state(self):
         return self.data["state"]
 
+    def bump(self, key, by=1):
+        """Reload-merge-increment: when several doors share one folder, each
+        holds its own Manifest — counting must read the river, not the
+        channel, or turns observed elsewhere are lost."""
+        self._merge_from_disk()
+        self.data["state"][key] = int(self.data["state"].get(key) or 0) + by
+        self.save()
+
+    def _merge_from_disk(self):
+        """Fold in what other doors have written since we last looked:
+        counters take the larger value, timers take the newest. One mind,
+        however many channels are open on it."""
+        disk = self.doc.load(default=None) or {}
+        for key, val in (disk.get("state") or {}).items():
+            cur = self.data["state"].get(key)
+            if key == "exchanges":
+                self.data["state"][key] = max(int(cur or 0), int(val or 0))
+            elif isinstance(val, str) and (not isinstance(cur, str) or val > cur):
+                self.data["state"][key] = val  # ISO timestamps: newest wins
+            elif cur is None:
+                self.data["state"][key] = val
+
     def save(self):
+        self._merge_from_disk()
         self.doc.save(self.data)

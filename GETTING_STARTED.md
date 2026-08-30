@@ -71,10 +71,15 @@ them a public address with a free tunnel (cloudflared, ngrok, Tailscale) and
 protect it: run with `--token some-secret` and set the same token in the
 connector. Your mind's folder never leaves your disk either way.
 
-For the deepest integration, run **both**: the proxy carries memory
-involuntarily on every message, and the MCP connection lets the AI reflect,
-remember, and notice what it wants — with its own thinking. Same folder, one
-mind.
+For the deepest integration, run **both** — one command does it:
+
+```
+python3 -m themind.proxy --upstream http://localhost:11434/v1 --mind ./my-mind --mcp-port 6464
+```
+
+The proxy carries memory involuntarily on every message, and the MCP
+connection lets the AI reflect, remember, and notice what it wants — with its
+own thinking. One process, one mind, both halves.
 
 ## Option 3 — the library: three lines of code
 

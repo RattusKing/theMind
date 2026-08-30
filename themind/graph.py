@@ -14,7 +14,13 @@ def _slug(label):
 class Graph:
     def __init__(self, doc):
         self.doc = doc
-        data = doc.load(default=None) or {}
+        self._refresh()
+
+    def _refresh(self):
+        """Re-read the doc so every door on this folder sees one graph. The
+        stores are coherent by construction (each read hits disk); this keeps
+        the one cached organ honest too."""
+        data = self.doc.load(default=None) or {}
         self.nodes = {n["id"]: n for n in data.get("nodes", []) if isinstance(n, dict) and n.get("id")}
         self.edges = {}
         for e in data.get("edges", []):
@@ -30,6 +36,7 @@ class Graph:
 
     def touch(self, labels, src_ref=None):
         """Register co-mentioned entities: create/strengthen nodes, link pairs."""
+        self._refresh()
         ids = []
         for label in labels:
             label = (label or "").strip()
@@ -63,6 +70,7 @@ class Graph:
     def constellation(self, text, limit=8):
         """Node labels lit up by this text: direct mentions plus their strongest
         neighbors."""
+        self._refresh()
         low = (text or "").lower()
         lit = []
         for node in self.nodes.values():
@@ -78,6 +86,7 @@ class Graph:
         return [self.nodes[nid]["label"] for nid, _ in ranked if nid in self.nodes]
 
     def top_labels(self, n=6):
+        self._refresh()
         ranked = sorted(self.nodes.values(), key=lambda nd: -nd.get("weight", 0.0))
         return [nd["label"] for nd in ranked[:n]]
 
@@ -88,6 +97,7 @@ class Graph:
         about itself. Recency-weighted so an old heavyweight that hasn't come
         up gives way to what's alive now."""
         from .envelope import age_days
+        self._refresh()
         scored = []
         for nd in self.nodes.values():
             w = nd.get("weight", 0.0) * (0.5 ** (age_days(nd.get("last_seen")) / 7.0))
@@ -97,6 +107,7 @@ class Graph:
         return [label for _, label in scored[:k] if label]
 
     def decay(self, factor=0.98, floor=0.05):
+        self._refresh()
         for node in self.nodes.values():
             node["weight"] = round(node.get("weight", 0.3) * factor, 4)
         self.edges = {k: e for k, e in self.edges.items()

@@ -823,7 +823,71 @@ ok(restored_S.story_doc.load(default={}).get("chapters") == doc["chapters"],
 shutil.rmtree(dS, ignore_errors=True)
 shutil.rmtree(restored_S.root, ignore_errors=True)
 
-# ── 20. the proxy: OpenAI wire in, OpenAI wire out, a mind in between ────────
+# ── 20. one river, many channels: unified agency across doors ────────────────
+print("one river, many channels")
+import threading
+dR = tempfile.mkdtemp(prefix="mind_")
+door_a, door_b = Mind(dR, sync=True), Mind(dR, sync=True)
+for i in range(5):
+    (door_a if i % 2 == 0 else door_b).observe("turn %d" % i, "ok")
+ok(int(Mind(dR).manifest.state["exchanges"]) == 5,
+   "turns observed through any door count once for the whole mind")
+
+door_a.manifest.state["last_reflect"] = "2026-08-30T10:00:00Z"
+door_a.manifest.save()
+door_b.manifest.save()
+ok(Mind(dR).manifest.state["last_reflect"] == "2026-08-30T10:00:00Z",
+   "one door's timers survive another door's save (newest wins)")
+
+door_a.graph.touch(["Maya"])
+ok("Maya" in door_b.graph.pulls(3), "the entity graph reads fresh across doors")
+
+door_a.stores["own_desires"].append(
+    make_record("w", {"kind": "inference", "ref": "r_seed"}, salience=0.6,
+                text="I want to hear how the north is treating them.",
+                roots=["r_seed"], stage="wanting"))
+ok("hear how the north" in door_b.context("hey"),
+   "what one channel wants, every channel wants")
+
+coreR = mcp_core_mod.MindMCP(door_a)
+coreR.tool_submit_extraction({
+    "user_text": "my sister maya is moving to portland",
+    "your_reply": "Big news.",
+    "lines": ("FACT: They have a sister named Maya moving to Portland. | "
+              "QUOTE: my sister maya is moving to portland | ENTITIES: Maya, Portland | "
+              "KIND: relationship")})
+ok("Maya" in door_b.context("how is maya doing?"),
+   "a memory made through the MCP door is present through every other door")
+ok(int(Mind(dR).manifest.state["exchanges"]) == 6,
+   "the MCP door's exchange counted with the rest")
+
+msrv = mcp_core_mod.serve(None, port=0, mind=door_a)
+ok(msrv.core.mind is door_a,
+   "the MCP door can mount an already-living mind (both halves, one process)")
+msrv.server_close()
+
+hammer_errs = []
+def hammer(mind_obj, tag):
+    try:
+        for i in range(10):
+            mind_obj.observe("hammer %s-%d" % (tag, i), "ok")
+    except Exception as e:
+        hammer_errs.append(e)
+door_c, door_d = Mind(dR, sync=True), Mind(dR, sync=True)
+hthreads = [threading.Thread(target=hammer, args=(m, t))
+            for m, t in ((door_c, "c"), (door_d, "d"))]
+for t in hthreads:
+    t.start()
+for t in hthreads:
+    t.join()
+fresh_mind = Mind(dR)
+ok(not hammer_errs and int(fresh_mind.manifest.state["exchanges"]) >= 16
+   and fresh_mind.live("facts") is not None and fresh_mind.selfhood_bundle()["position"],
+   "concurrent channels never corrupt the mind; counting loses at most a breath")
+
+shutil.rmtree(dR, ignore_errors=True)
+
+# ── 21. the proxy: OpenAI wire in, OpenAI wire out, a mind in between ────────
 # Loopback sockets only — a stub upstream on 127.0.0.1, no external network.
 print("proxy")
 import threading
@@ -887,6 +951,15 @@ threading.Thread(target=pserver.serve_forever, daemon=True).start()
 base = "http://127.0.0.1:%d" % pserver.server_address[1]
 
 
+def read_exchanges(root):
+    """Pure read — polling must never write while a door is mid-update."""
+    try:
+        with open(os.path.join(root, "manifest.json")) as f:
+            return int((json.load(f).get("state") or {}).get("exchanges") or 0)
+    except Exception:
+        return -1
+
+
 def settle(cond, timeout=30.0):
     """The proxy replies to the client FIRST and learns after — by design the
     chat path never waits on cognition. So learning-side assertions poll."""
@@ -922,7 +995,7 @@ sysmsg = chat_body["messages"][0]
 ok(sysmsg["role"] == "system" and sysmsg["content"].startswith("You are Kai.")
    and "INNER CONTEXT" in sysmsg["content"],
    "inner context folded into the system side, host persona first")
-ok(settle(lambda: int(Mind(d11, sync=True).manifest.state.get("exchanges", 0)) == 1),
+ok(settle(lambda: read_exchanges(d11) == 1),
    "the exchange was observed")
 ok(settle(lambda: any(p == "/v1/chat/completions"
                       and h.get("Authorization") == "Bearer test-key-123"
@@ -936,7 +1009,7 @@ ok(settle(lambda: any(e.get("purpose") == "extract"
 status, out = call_proxy({"model": "stub-model", "stream": True,
                           "messages": [{"role": "user", "content": "stream this"}]})
 ok(b'"content":"stream"' in out and b"[DONE]" in out, "SSE chunks relayed to the client")
-ok(settle(lambda: int(Mind(d11, sync=True).manifest.state.get("exchanges", 0)) == 2),
+ok(settle(lambda: read_exchanges(d11) == 2),
    "streamed exchange observed from accumulated deltas")
 
 status, out = call_proxy({"totally": "not a chat request"})
@@ -950,7 +1023,7 @@ pserver.shutdown()
 stub.shutdown()
 shutil.rmtree(d11, ignore_errors=True)
 
-# ── 21. the MCP door: the mind as an operational part of the agent ───────────
+# ── 22. the MCP door: the mind as an operational part of the agent ───────────
 # Loopback only. The server holds no model: the test plays the AGENT doing the
 # mind's thinking (borrowed cognition), and the guards judge what comes back.
 print("mcp door")
