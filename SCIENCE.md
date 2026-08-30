@@ -135,8 +135,11 @@ In order, each format-first where it touches disk and guarded where it touches
 truth:
 
 1. ~~**Expectation & surprise** (PP-1)~~ — **shipped, format 0.4.**
-2. **Person-model** — what the person believes, feels, and doesn't know, as
-   distinct from what is true (theory of mind; the false-belief milestone).
+2. ~~**Person-model**~~ — **shipped, format 0.5**: what the person believes,
+   feels, and doesn't know, as distinct from what is true
+   (`person_model.jsonl`) — a mistaken belief is representable *as mistaken*,
+   coexisting with the fact it contradicts (theory of mind; the false-belief
+   milestone).
 3. **Confidence that gets used** (HOT-2 → HOT-3) — remembering vs. inferring
    vs. guessing, surfaced in the mind's own voice and consumed by beliefs.
 4. **Attention schema** (AST-1) — a small self-model of what has been pulling

@@ -67,6 +67,14 @@ def build_blocks(mind, incoming_text=None):
             blocks.append((_block("LIT UP BY THIS MESSAGE (connected, not just mentioned):",
                                   [", ".join(lit)]), False))
 
+    inner_them = mind.live("person_model")
+    if inner_them:
+        from .retrieval import recent
+        blocks.append((_block("WHAT'S GOING ON INSIDE THEM (what they believe, feel, and "
+                              "don't yet know — theirs, and distinct from what's true; "
+                              "hold it with care):",
+                              ["- " + p.get("text", "") for p in recent(inner_them, 4)]), False))
+
     said = mind.live("self_memory")
     if said:
         from .retrieval import recent

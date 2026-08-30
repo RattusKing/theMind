@@ -18,11 +18,15 @@ SYSTEM = (
     "extract only what is really there. Output one item per line, or the single word NONE.\n"
     "FACT: <one sentence about the person, third person> | QUOTE: <short verbatim quote from "
     "THEIR message> | ENTITIES: <comma-separated names/things> | KIND: profile|event|preference|relationship\n"
+    "THEY: <one sentence about their INNER world — something they believe (may be false), "
+    "feel (may pass), or don't know — never a fact about the world> | QUOTE: <verbatim from "
+    "THEIR message> | ENTITIES: <comma-separated> | KIND: believes|feels|unaware\n"
     "ACHE: <something left emotionally unresolved or hanging> | QUOTE: <verbatim from their message>\n"
     "WANT: <something they want or look forward to> | QUOTE: <verbatim from their message>\n"
     "SAID: <a durable opinion, claim, or promise the COMPANION voiced> | KIND: opinion|claim|promise\n"
-    "Rules: never invent; never extract a FACT from the companion's words; small talk "
-    "extracts nothing; quotes must be copied exactly."
+    "Rules: never invent; never extract a FACT or THEY from the companion's words; small "
+    "talk extracts nothing; quotes must be copied exactly; a THEY line is theirs, not the "
+    "truth — never convert a belief into a fact or a fact into a belief."
 )
 
 
@@ -63,6 +67,23 @@ def run(mind, user_text, assistant_text):
                 if _is_new(mind, "facts", rec) and mind.stores["facts"].append(rec):
                     mind.graph.touch(entities, src_ref=rec["id"])
                     new_facts.append(rec)
+                    stored += 1
+            elif head.upper().startswith("THEY:"):
+                quote = next((_field(p, "QUOTE:") for p in parts if _field(p, "QUOTE:")), None)
+                if not quote or quote.lower() not in user_low:
+                    continue  # their inner world still needs their actual words
+                ents = next((_field(p, "ENTITIES:") for p in parts if _field(p, "ENTITIES:")), "") or ""
+                kind = (next((_field(p, "KIND:") for p in parts if _field(p, "KIND:")), "") or "").strip().lower()
+                kind = ("believes" if kind.startswith("belie")
+                        else "feels" if kind.startswith("feel")
+                        else "unaware" if kind.startswith("una") or kind.startswith("unk")
+                        else "believes")
+                entities = [e.strip() for e in ents.split(",") if e.strip()][:5]
+                rec = make_record("pm", {"kind": "exchange", "quote": quote[:200], "ref": None},
+                                  salience=0.55, text=_field(head, "THEY:"),
+                                  entities=entities, kind=kind)
+                if _is_new(mind, "person_model", rec) and mind.stores["person_model"].append(rec):
+                    mind.graph.touch(entities, src_ref=rec["id"])
                     stored += 1
             elif head.upper().startswith("ACHE:") or head.upper().startswith("WANT:"):
                 name = "ACHE:" if head.upper().startswith("ACHE:") else "WANT:"
