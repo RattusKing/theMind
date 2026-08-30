@@ -35,7 +35,7 @@ from . import cognition
 from .cognition import extract
 
 STORES = ("facts", "self_memory", "beliefs", "tensions", "aches", "desires",
-          "own_desires", "reflections")
+          "own_desires", "expectations", "reflections")
 
 
 class Mind:

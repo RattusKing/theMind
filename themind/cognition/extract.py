@@ -11,7 +11,7 @@ The guards, all structural (FORMAT.md, `facts.jsonl`):
 """
 from ..envelope import make_record, norm_key
 from ..retrieval import _words
-from . import challenge, desire
+from . import challenge, desire, expect
 
 SYSTEM = (
     "You are the memory-extraction faculty of an AI companion's mind. From this exchange, "
@@ -91,7 +91,8 @@ def run(mind, user_text, assistant_text):
         except Exception:
             pass  # the guard protects the store; it never breaks the turn
     try:
-        desire.touch(mind, user_text, assistant_text)  # mechanical; no model call
+        desire.touch(mind, user_text, assistant_text)   # mechanical; no model call
+        expect.touch(mind, user_text, assistant_text)   # attention follows predictions
     except Exception:
         pass
     return stored
