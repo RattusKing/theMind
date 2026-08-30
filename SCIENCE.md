@@ -68,10 +68,12 @@ layers selfhood: the **protoself** (continuous registration of internal state),
 the **core self** (the felt sense of encountering something now), and the
 **autobiographical self** (the narrative extended in time). The mapping is
 direct: protoself ≈ `inner_state.json`; core self ≈ the per-exchange
-felt-sense loop; autobiographical self ≈ **not yet built** — reflections are
-episodic, and the continuing life-story is the identified gap. Damasio's
-dependency claim (higher layers disintegrate without the lower ones) matches
-this project's build order: weather and felt sense shipped first.
+felt-sense loop; autobiographical self ≈ `story.json` (**implemented, format
+0.6**) — a living chapter continued on the slowest rhythm in the mind, with
+closed chapters kept forever. Damasio's dependency claim (higher layers
+disintegrate without the lower ones) matches this project's build order:
+weather and felt sense shipped first, the story last, and the story pass
+reads the layers beneath it.
 
 ## 4. Introspection: where an external mind layer wins
 
@@ -148,8 +150,9 @@ truth:
 4. ~~**Attention schema**~~ — **shipped, v0.7** (AST-1): derived from the
    graph, never stored — the attention trace read back as a self-model,
    entering context, weather, and reflection.
-5. **The autobiographical self** — the life story that continues (Damasio;
-   narrative identity).
+5. ~~**The autobiographical self**~~ — **shipped, format 0.6** (`story.json`):
+   a living chapter, continued never restarted; eras close rarely, and a life
+   keeps all its chapters (Damasio; narrative identity).
 6. **Unified agency across channels** — coherence of wants, weather, and stance
    across simultaneous doors, as a tested guarantee.
 7. **The continuity test** — the benchmark above.

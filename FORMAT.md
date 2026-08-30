@@ -1,9 +1,10 @@
 # theMind — on-disk format
 
-**Version 0.5 — adds `person_model.jsonl` (their inner world, distinct from
-what's true). Minor, additive. History: 0.4 added `expectations.jsonl`; 0.3
-added `inner_state.json` and divergence tensions; 0.2 added `own_desires.jsonl`.
-Older readers ignore unknown stores; older minds open unchanged.**
+**Version 0.6 — adds `story.json` (the autobiographical self: the life story,
+continuing). Minor, additive. History: 0.5 added `person_model.jsonl`; 0.4
+added `expectations.jsonl`; 0.3 added `inner_state.json` and divergence
+tensions; 0.2 added `own_desires.jsonl`. Older readers ignore unknown stores;
+older minds open unchanged.**
 
 This document describes what a mind *is, at rest*: the directory a running mind
 reads and writes, and the single-file export it can be carried away in. It is
@@ -63,6 +64,7 @@ mind/
     reflections.jsonl    periodic distillations of lived time
     growth.json          curiosities and shaped traits from this person
     inner_state.json     how the mind itself is lately, with revision history
+    story.json           the autobiographical self: a living chapter + closed chapters
   archive/
     <store>.jsonl        superseded records, moved here verbatim + a tombstone
 ```
@@ -236,10 +238,22 @@ ban-vocab holds: the state claims texture (restless, warm, unsettled), never
 certified inner light. It persists between conversations and colors the mind's
 thinking; it is private weather, injected to color, never to announce.
 
+### story.json
+The autobiographical self — the life story of the shared life, extended in
+time. Two parts: `current`, the **living chapter** (a first-person paragraph
+of the story so far, lately), and `chapters`, the **closed eras**, each the
+chapter as it stood plus one sentence laying it to rest. The contracts:
+**continue, never restart** — every revision receives the story so far and
+must extend it, arc over inventory; **chapters close rarely** — only when an
+era has genuinely ended — and **are never deleted or capped**: a life keeps
+all its chapters, however many it earns. First person is enforced at write
+and the ban-vocab holds. This is the slowest-moving store in the mind, by
+design: life stories move in weeks, not turns.
+
 ### ledger.jsonl
 Every model call the mind initiates: `t`, `purpose` (`extract | challenge |
 consolidate | reflect | self | felt_sense | growth | desire | inner_state |
-divergence | expect`), `model`,
+divergence | expect | story`), `model`,
 `tokens_in`, `tokens_out`. The mind
 spends the host's money; the ledger is the honesty mechanism. No entry, no call.
 
