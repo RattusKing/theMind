@@ -40,8 +40,8 @@ belong to the model underneath and are marked as such.
 | GWT-3 | Global broadcast of workspace contents | Global workspace | **Partial** — winning content reaches the host model each turn; cognition passes read stores rather than the live workspace |
 | GWT-4 | Modules coordinating through the broadcast | Global workspace | **Partial** — reflection folds in wants and weather; coordination is looser than the theory's ideal |
 | HOT-1 | Generative top-down perception | Higher-order | **Buildable** — a preconstruction faculty (imagining before encountering) does not exist yet |
-| HOT-2 | Metacognitive monitoring distinguishing reliable representations from noise | Higher-order | **Partial** — the challenge-time guard re-derives contested memories from their own evidence; graded confidence is not yet surfaced |
-| HOT-3 | Agentive consumer of tagged content | Higher-order | **Partial** — beliefs carry weights and stages; nothing yet consumes reliability distinctions |
+| HOT-2 | Metacognitive monitoring distinguishing reliable representations from noise | Higher-order | **Implemented (v0.6)** — the challenge-time guard re-derives contested memories from evidence, and epistemic status (remembered / inferred / hazy / given) is derived at read time from provenance and wear, surfaced in the mind's own voice |
+| HOT-3 | Agentive consumer of tagged content | Higher-order | **Implemented (v0.6)** — the tags are consumed: recall prefers what they actually said over what the mind pieced together, and inferences/hazy memories announce themselves wherever memory is served |
 | HOT-4 | Self-awareness feedback loops | Higher-order | **Implemented** — selfhood with dated history, inner state, voiceable divergence, first-person reflection |
 | AST-1 | A model of one's own attention | Attention schema | **Buildable** — the entity graph tracks what lights up; the mind does not yet model its own attending |
 | PP-1 | Predictive models with prediction-error signals | Predictive processing | **Implemented (format 0.4)** — expectations with provenance; surprise raises salience, confirmation lowers it (`expectations.jsonl`) |
@@ -140,8 +140,11 @@ truth:
    (`person_model.jsonl`) — a mistaken belief is representable *as mistaken*,
    coexisting with the fact it contradicts (theory of mind; the false-belief
    milestone).
-3. **Confidence that gets used** (HOT-2 → HOT-3) — remembering vs. inferring
-   vs. guessing, surfaced in the mind's own voice and consumed by beliefs.
+3. ~~**Confidence that gets used**~~ — **shipped, v0.6** (HOT-2 → HOT-3):
+   epistemic status derived at read time — never stored — from provenance and
+   wear; a well-remembered thing speaks plainly, an inference admits it's an
+   inference, a worn memory admits its haze; and recall leans on the
+   remembered over the pieced-together.
 4. **Attention schema** (AST-1) — a small self-model of what has been pulling
    at the mind's attention.
 5. **The autobiographical self** — the life story that continues (Damasio;

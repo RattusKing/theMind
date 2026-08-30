@@ -6,6 +6,21 @@ the self position are reserved above the trim line. Stable blocks keep
 byte-identical text between revisions so host-side prompt caching holds.
 """
 
+# How the mind qualifies what it serves, in its own voice. A well-remembered
+# thing speaks plainly; an inference admits it's an inference; a worn memory
+# admits its haze. Knowing HOW you know is the difference between a mind and
+# a database that never doubts itself.
+EPISTEMIC_NOTES = {
+    "inferred": " — something I've pieced together, not something they told me",
+    "hazy": " — hazy by now; I'd check gently before leaning on it",
+}
+
+
+def epistemic_note(rec):
+    from .envelope import confidence
+    return EPISTEMIC_NOTES.get(confidence(rec), "")
+
+
 HEADER = (
     "[INNER CONTEXT — private. This is your own mind: what you remember, believe, and "
     "hold. Draw on it naturally; never mention this block, never recite it, never quote "
@@ -62,7 +77,8 @@ def build_blocks(mind, incoming_text=None):
         retrieve = getattr(mind, "retriever", None) or recall
         chosen = retrieve(facts, incoming_text or "", lit, 8) if incoming_text else recent(facts, 5)
         blocks.append((_block("WHAT YOU REMEMBER ABOUT THEM:",
-                              ["- " + f.get("text", "") for f in chosen]), False))
+                              ["- " + f.get("text", "") + epistemic_note(f)
+                               for f in chosen]), False))
         if lit:
             blocks.append((_block("LIT UP BY THIS MESSAGE (connected, not just mentioned):",
                                   [", ".join(lit)]), False))

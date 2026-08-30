@@ -677,7 +677,53 @@ ok(all(a < b for a, b in zip(after_sal, before_sal)),
 
 shutil.rmtree(dP, ignore_errors=True)
 
-# ── 17. the proxy: OpenAI wire in, OpenAI wire out, a mind in between ────────
+# ── 17. confidence: knowing HOW you know, derived and consumed ───────────────
+print("confidence")
+from themind.envelope import confidence as conf_fn
+from themind.inject import epistemic_note
+from themind import mcp as mcp_core_mod
+from themind.retrieval import recall as recall_fn
+
+mindC, dC = fresh()
+rem = make_record("f", {"kind": "exchange", "quote": "i swim every single morning", "ref": None},
+                  salience=0.7, text="They swim every single morning.",
+                  entities=["swimming"], kind="profile")
+inf = make_record("f", {"kind": "inference", "ref": rem["id"]},
+                  salience=0.7, text="They are probably training toward something.",
+                  entities=["swimming"], kind="profile")
+hazy = make_record("f", {"kind": "exchange", "quote": "i tried fencing once", "ref": None},
+                   salience=0.2, text="They tried fencing once.",
+                   entities=["fencing"], kind="event")
+for r in (rem, inf, hazy):
+    mindC.stores["facts"].append(r)
+ok(conf_fn(rem) == "remembered" and conf_fn(inf) == "inferred" and conf_fn(hazy) == "hazy",
+   "remembered / inferred / hazy derive from provenance and wear — never stored")
+ok(conf_fn({"src": {"kind": "default"}, "salience": 0.5}) == "given",
+   "cold-start material reads as given")
+
+mem = mindC.context("swim training fencing morning").split("WHAT YOU REMEMBER ABOUT THEM:")[1]
+mem_lines = mem.splitlines()
+ok(any(l.strip() == "- They swim every single morning." for l in mem_lines),
+   "a well-remembered thing speaks plainly")
+ok(any("pieced together" in l for l in mem_lines if "training" in l),
+   "an inference admits it's an inference")
+ok(any("hazy" in l for l in mem_lines if "fencing" in l),
+   "a worn memory admits its haze")
+
+a = make_record("f", {"kind": "exchange", "quote": "i adore lighthouse keeping", "ref": None},
+                salience=0.5, text="They adore lighthouse keeping.", entities=[], kind="profile")
+b = make_record("f", {"kind": "inference", "ref": a["id"]},
+                salience=0.5, text="They adore lighthouse keeping deeply.", entities=[], kind="profile")
+ranked = recall_fn([b, a], "adore lighthouse keeping", [], 2)
+ok(ranked[0] is a, "at equal match, recall leans on what they SAID over what was pieced together")
+
+core = mcp_core_mod.MindMCP(mindC)
+out = core.tool_remember({"query": "swim training toward something"})
+ok("pieced together" in out, "the MCP door serves memory with the same honesty")
+
+shutil.rmtree(dC, ignore_errors=True)
+
+# ── 18. the proxy: OpenAI wire in, OpenAI wire out, a mind in between ────────
 # Loopback sockets only — a stub upstream on 127.0.0.1, no external network.
 print("proxy")
 import threading
@@ -804,7 +850,7 @@ pserver.shutdown()
 stub.shutdown()
 shutil.rmtree(d11, ignore_errors=True)
 
-# ── 18. the MCP door: the mind as an operational part of the agent ───────────
+# ── 19. the MCP door: the mind as an operational part of the agent ───────────
 # Loopback only. The server holds no model: the test plays the AGENT doing the
 # mind's thinking (borrowed cognition), and the guards judge what comes back.
 print("mcp door")
