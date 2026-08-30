@@ -143,6 +143,12 @@ def build_blocks(mind, incoming_text=None):
                               "what actually happens — being wrong is worth noticing):",
                               lines), False))
 
+    pulls = mind.graph.pulls(4)
+    if pulls:
+        blocks.append((_block("WHAT'S BEEN PULLING AT YOUR ATTENTION LATELY (your own "
+                              "noticing, noticed — it steers you more than you say):",
+                              [", ".join(pulls)]), False))
+
     growth = mind.growth_doc.load(default={})
     cur_g = (growth.get("curiosities") or [])[:3]
     if cur_g:

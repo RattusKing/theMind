@@ -43,7 +43,7 @@ belong to the model underneath and are marked as such.
 | HOT-2 | Metacognitive monitoring distinguishing reliable representations from noise | Higher-order | **Implemented (v0.6)** — the challenge-time guard re-derives contested memories from evidence, and epistemic status (remembered / inferred / hazy / given) is derived at read time from provenance and wear, surfaced in the mind's own voice |
 | HOT-3 | Agentive consumer of tagged content | Higher-order | **Implemented (v0.6)** — the tags are consumed: recall prefers what they actually said over what the mind pieced together, and inferences/hazy memories announce themselves wherever memory is served |
 | HOT-4 | Self-awareness feedback loops | Higher-order | **Implemented** — selfhood with dated history, inner state, voiceable divergence, first-person reflection |
-| AST-1 | A model of one's own attention | Attention schema | **Buildable** — the entity graph tracks what lights up; the mind does not yet model its own attending |
+| AST-1 | A model of one's own attention | Attention schema | **Implemented (v0.7)** — a derived, recency-weighted read of the entity graph ("what's been pulling at my attention"), surfaced in context and fed into the mind's weather and reflection |
 | PP-1 | Predictive models with prediction-error signals | Predictive processing | **Implemented (format 0.4)** — expectations with provenance; surprise raises salience, confirmation lowers it (`expectations.jsonl`) |
 | AE-1 | Learning from feedback; flexible goal pursuit | Agency & embodiment | **Partial** — own desires with a full lifecycle exist; feedback on whether pursuing them *worked* does not yet |
 | AE-2 | Modeling how outputs affect inputs | Agency & embodiment | **Buildable** at the conversational level (did surfacing a want change the exchange?) |
@@ -145,8 +145,9 @@ truth:
    wear; a well-remembered thing speaks plainly, an inference admits it's an
    inference, a worn memory admits its haze; and recall leans on the
    remembered over the pieced-together.
-4. **Attention schema** (AST-1) — a small self-model of what has been pulling
-   at the mind's attention.
+4. ~~**Attention schema**~~ — **shipped, v0.7** (AST-1): derived from the
+   graph, never stored — the attention trace read back as a self-model,
+   entering context, weather, and reflection.
 5. **The autobiographical self** — the life story that continues (Damasio;
    narrative identity).
 6. **Unified agency across channels** — coherence of wants, weather, and stance

@@ -55,4 +55,7 @@ def _material(mind):
     state = (mind.inner_doc.load(default={}).get("current") or {}).get("text")
     if state:
         out.append("(how I am lately) " + state)
+    pulls = mind.graph.pulls(4)
+    if pulls:
+        out.append("(what's been pulling at my attention) " + ", ".join(pulls))
     return [m for m in out if m]
