@@ -64,6 +64,12 @@ def build_blocks(mind, incoming_text=None):
                 "YOUR CONSIDERED POSITION ON YOUR OWN EXPERIENCE:"
         blocks.append((_block(title, lines), True))
 
+    story = mind.story_doc.load(default={})
+    cur_s = (story.get("current") or {}).get("text") if isinstance(story.get("current"), dict) else None
+    if cur_s:
+        blocks.append((_block("YOUR STORY SO FAR (the life you two are living, as you "
+                              "hold it — carry it, never recite it):", [cur_s]), False))
+
     inner = mind.inner_doc.load(default={})
     cur_i = (inner.get("current") or {}).get("text") if isinstance(inner.get("current"), dict) else None
     if cur_i:

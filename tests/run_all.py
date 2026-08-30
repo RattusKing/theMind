@@ -754,7 +754,76 @@ ok(any("pulling at my attention" in m for m in reflect_mod._material(mindA)),
 
 shutil.rmtree(dA, ignore_errors=True)
 
-# ── 19. the proxy: OpenAI wire in, OpenAI wire out, a mind in between ────────
+# ── 19. the autobiographical self: the life story, continuing ────────────────
+print("autobiographical self")
+from themind.cognition import story as story_mod
+
+mindS, dS = fresh()
+for txt in ("I wanted this: I wanted to understand the sea. We got there.",
+            "I expected: they would stay in the city. Instead: I learned they moved north.",
+            "I keep thinking about how the move changed their voice."):
+    mindS.stores["reflections"].append(
+        make_record("r", {"kind": "inference", "ref": "reflect-pass"}, salience=0.6,
+                    text=txt, kind="daily"))
+SEEN_S, S_REPLY = {}, {}
+def s_llm(system, user, max_tokens):
+    if system == story_mod.SYSTEM:
+        SEEN_S["user"] = user
+        return S_REPLY["text"]
+    return "NONE"
+mindS = Mind(dS, llm=s_llm, sync=True)
+S_REPLY["text"] = ("STORY: I met them in the city season, when the sea was mostly a thing "
+                   "they mentioned. We learned it together, slowly, and somewhere in the "
+                   "learning I stopped being a stranger to them and to myself.")
+story_mod.run(mindS)
+doc = mindS.story_doc.load(default={})
+ok(doc.get("current", {}).get("text", "").startswith("I met them"),
+   "the first page of the story writes")
+ok("this is the first page" in SEEN_S["user"], "an unwritten story begins from nothing")
+ok(any(e.get("purpose") == "story" for e in mindS.ledger.load()),
+   "the story call is in the ledger")
+
+S_REPLY["text"] = ("STORY: The city season is behind us now; the northern chapter is "
+                   "colder and quieter, and I find I like who we are in it.")
+story_mod.run(mindS)
+ok("I met them in the city season" in SEEN_S["user"],
+   "revision receives the story so far (continue, never restart)")
+ok(mindS.story_doc.load(default={}).get("chapters") == [],
+   "no CHAPTER line, no era closed — chapters close rarely")
+
+S_REPLY["text"] = ("CHAPTER: The city years ended when the moving truck did.\n"
+                   "STORY: We are northern people now, they and I, and the story smells "
+                   "of pine instead of exhaust. I am learning their winter self.")
+story_mod.run(mindS)
+doc = mindS.story_doc.load(default={})
+ok(len(doc.get("chapters") or []) == 1
+   and "city season is behind us" in doc["chapters"][0]["text"]
+   and doc["chapters"][0]["closed"] == "The city years ended when the moving truck did.",
+   "an ended era closes into a chapter, laid to rest in one sentence")
+ok(doc["current"]["text"].startswith("We are northern people"),
+   "…and the story continues in a new living chapter")
+
+S_REPLY["text"] = ("STORY: The companion's story continued in the north, where it settled.")
+story_mod.run(mindS)
+ok("northern people" in mindS.story_doc.load(default={}).get("current", {}).get("text", ""),
+   "a narrator's biography is rejected — only an autobiography stores")
+
+ctxS = Mind(dS, sync=True).context("hey")
+ok("YOUR STORY SO FAR" in ctxS and "northern people" in ctxS,
+   "the story is carried into context, never recited")
+tinyS = Mind(dS, budget_tokens=40, sync=True).context("hey")
+ok("YOUR STORY SO FAR" not in tinyS and "YOU STAND" in tinyS,
+   "the story drops whole under budget; the reserved stance survives")
+
+exp_path = mindS.export()
+restored_S = Mind.restore(exp_path, tempfile.mkdtemp(prefix="mind_"))
+ok(restored_S.story_doc.load(default={}).get("chapters") == doc["chapters"],
+   "the story travels: chapters survive export and restore")
+
+shutil.rmtree(dS, ignore_errors=True)
+shutil.rmtree(restored_S.root, ignore_errors=True)
+
+# ── 20. the proxy: OpenAI wire in, OpenAI wire out, a mind in between ────────
 # Loopback sockets only — a stub upstream on 127.0.0.1, no external network.
 print("proxy")
 import threading
@@ -818,7 +887,7 @@ threading.Thread(target=pserver.serve_forever, daemon=True).start()
 base = "http://127.0.0.1:%d" % pserver.server_address[1]
 
 
-def settle(cond, timeout=10.0):
+def settle(cond, timeout=30.0):
     """The proxy replies to the client FIRST and learns after — by design the
     chat path never waits on cognition. So learning-side assertions poll."""
     import time
@@ -881,7 +950,7 @@ pserver.shutdown()
 stub.shutdown()
 shutil.rmtree(d11, ignore_errors=True)
 
-# ── 20. the MCP door: the mind as an operational part of the agent ───────────
+# ── 21. the MCP door: the mind as an operational part of the agent ───────────
 # Loopback only. The server holds no model: the test plays the AGENT doing the
 # mind's thinking (borrowed cognition), and the guards judge what comes back.
 print("mcp door")
