@@ -128,9 +128,7 @@ class Mind:
     def observe(self, user_text, assistant_text):
         """Learn from one exchange. Extraction plus at most one due deep pass —
         on a background thread by default so the host's turn never waits."""
-        st = self.manifest.state
-        st["exchanges"] = int(st.get("exchanges", 0)) + 1
-        self.manifest.save()
+        self.manifest.bump("exchanges")
         if self.llm is None:
             return
         if self.sync:

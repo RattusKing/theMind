@@ -57,9 +57,13 @@ global workspace, absent self-models, and — deepest — the lack of **unified
 agency**. theMind is a system-level response to most of that list: a workspace
 (injection under budget), a self-model (selfhood, inner state, divergence), and
 one identity with its own goals reachable through every door (library, proxy,
-MCP — one folder, one mind). Unified agency across simultaneously active
-channels is a design target this project treats as a testable guarantee, not a
-slogan.
+MCP — one folder, one mind). Unified agency across simultaneously active channels
+is a **tested guarantee** as of v0.9: turns observed through any door count
+once for the whole mind, timers and the entity graph stay coherent between
+doors, what one channel wants every channel wants, and a memory made through
+the MCP door is present through every other door — with a concurrent-channel
+stress test holding the stores uncorrupted. The recommended deployment runs
+both halves in one process on one Mind instance (`--mcp-port` on the proxy).
 
 ## 3. Damasio's layered self
 
@@ -153,8 +157,10 @@ truth:
 5. ~~**The autobiographical self**~~ — **shipped, format 0.6** (`story.json`):
    a living chapter, continued never restarted; eras close rarely, and a life
    keeps all its chapters (Damasio; narrative identity).
-6. **Unified agency across channels** — coherence of wants, weather, and stance
-   across simultaneous doors, as a tested guarantee.
+6. ~~**Unified agency across channels**~~ — **shipped, v0.9** (Chalmers'
+   deepest barrier): coherence across simultaneous doors as a tested
+   guarantee — honest counting, shared graph, shared wants, one identity;
+   both halves mountable in one process.
 7. **The continuity test** — the benchmark above.
 
 ---

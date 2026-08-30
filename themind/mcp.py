@@ -147,9 +147,7 @@ class MindMCP:
         lines = (args.get("lines") or "").strip()
         if not user_text or not lines:
             return "nothing submitted"
-        st = self.mind.manifest.state
-        st["exchanges"] = int(st.get("exchanges", 0)) + 1
-        self.mind.manifest.save()
+        self.mind.manifest.bump("exchanges")
         stored = self._one_shot_run("extract", lines,
                                     lambda: extract.run(self.mind, user_text, reply))
         return "held: %s item(s) became part of you (everything ungrounded was dropped)" \
@@ -352,9 +350,12 @@ class _HTTPHandler(BaseHTTPRequestHandler):
             self._send(200, json.dumps(resp).encode("utf-8"))
 
 
-def serve(mind_path, host="127.0.0.1", port=DEFAULT_PORT, budget=2000,
-          token=None, quiet=True, retriever=None):
-    mind = Mind(mind_path, llm=None, budget_tokens=budget, retriever=retriever)
+def serve(mind_path=None, host="127.0.0.1", port=DEFAULT_PORT, budget=2000,
+          token=None, quiet=True, retriever=None, mind=None):
+    """Pass `mind` to mount an already-living Mind — both halves of the
+    nervous system in one process, one instance, full coherence (the proxy's
+    --mcp-port does exactly this). Otherwise a Mind opens at `mind_path`."""
+    mind = mind or Mind(mind_path, llm=None, budget_tokens=budget, retriever=retriever)
     return MindMCPServer((host, port), MindMCP(mind), token=token, quiet=quiet)
 
 

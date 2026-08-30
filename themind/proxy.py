@@ -313,6 +313,9 @@ def main(argv=None):
     p.add_argument("--model", default=None,
                    help="model for the mind's own thinking (default: whatever "
                         "model your app's chat calls use)")
+    p.add_argument("--mcp-port", type=int, default=0,
+                   help="also open the MCP door on this port — both halves of "
+                        "the nervous system, one process, one mind (0 = off)")
     p.add_argument("--idle", type=float, default=900.0,
                    help="seconds between idle thoughts while nobody is talking "
                         "(default 900; 0 disables the idle life)")
@@ -323,6 +326,13 @@ def main(argv=None):
                    budget=args.budget, model=args.model, quiet=args.quiet)
     if args.idle > 0:
         start_idle(server.mind, args.idle)
+    if args.mcp_port > 0:
+        from . import mcp as mcp_door
+        mcp_server = mcp_door.serve(host=args.host, port=args.mcp_port,
+                                    quiet=args.quiet, mind=server.mind)
+        threading.Thread(target=mcp_server.serve_forever, daemon=True).start()
+        print("theMind MCP: http://%s:%d/mcp   (same mind — the voluntary half)"
+              % (args.host, args.mcp_port))
     print("theMind proxy: http://%s:%d/v1  ->  %s   (mind: %s)"
           % (args.host, args.port, args.upstream, args.mind))
     print("point your app's base_url at the first address; nothing else changes."
