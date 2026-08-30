@@ -81,6 +81,21 @@ class Graph:
         ranked = sorted(self.nodes.values(), key=lambda nd: -nd.get("weight", 0.0))
         return [nd["label"] for nd in ranked[:n]]
 
+    def pulls(self, k=4):
+        """The attention schema, derived — never stored: what has been pulling
+        at the mind's attention lately. The graph IS the attention trace
+        (touch strengthens, absence decays); this is the mind reading it
+        about itself. Recency-weighted so an old heavyweight that hasn't come
+        up gives way to what's alive now."""
+        from .envelope import age_days
+        scored = []
+        for nd in self.nodes.values():
+            w = nd.get("weight", 0.0) * (0.5 ** (age_days(nd.get("last_seen")) / 7.0))
+            if w > 0.1:
+                scored.append((w, nd.get("label", "")))
+        scored.sort(key=lambda wl: -wl[0])
+        return [label for _, label in scored[:k] if label]
+
     def decay(self, factor=0.98, floor=0.05):
         for node in self.nodes.values():
             node["weight"] = round(node.get("weight", 0.3) * factor, 4)

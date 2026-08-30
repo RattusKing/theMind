@@ -66,4 +66,7 @@ def _material(mind):
     for w in sorted(mind.live("own_desires"), key=lambda r: -r.get("salience", 0))[:2]:
         if w.get("text"):
             out.append("(a want of mine) " + w["text"])
+    pulls = mind.graph.pulls(4)
+    if pulls:
+        out.append("(what's been pulling at my attention) " + ", ".join(pulls))
     return out

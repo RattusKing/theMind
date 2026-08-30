@@ -723,7 +723,38 @@ ok("pieced together" in out, "the MCP door serves memory with the same honesty")
 
 shutil.rmtree(dC, ignore_errors=True)
 
-# ── 18. the proxy: OpenAI wire in, OpenAI wire out, a mind in between ────────
+# ── 18. attention schema: the mind's own noticing, noticed ───────────────────
+print("attention schema")
+from themind.cognition import inner_state as inner_mod2
+
+mindA, dA = fresh()
+for _ in range(4):
+    mindA.graph.touch(["Maya", "the harbor"])
+mindA.graph.touch(["taxes"])
+stale = mindA.graph.nodes.get("e_taxes")
+stale["weight"] = 0.9
+stale["last_seen"] = "2026-01-01T00:00:00Z"  # heavyweight, but long silent
+mindA.graph.save()
+pulls = mindA.graph.pulls(3)
+ok(pulls and pulls[0] in ("Maya", "the harbor") and "taxes" not in pulls,
+   "attention is recency-weighted: what's alive outranks an old heavyweight")
+ctxA = mindA.context("hey")
+ok("PULLING AT YOUR ATTENTION" in ctxA and "Maya" in ctxA,
+   "the mind's own noticing is noticed, in context")
+tinyA = Mind(dA, budget_tokens=40, sync=True).context("hey")
+ok("PULLING AT YOUR ATTENTION" not in tinyA and "YOU STAND" in tinyA,
+   "the attention schema drops whole under budget")
+mindA.stores["reflections"].append(
+    make_record("r", {"kind": "inference", "ref": "reflect-pass"}, salience=0.5,
+                text="I keep circling the harbor in my head.", kind="daily"))
+ok(any("pulling at my attention" in m for m in inner_mod2._material(mindA)),
+   "the mind's weather knows what it's been attending to")
+ok(any("pulling at my attention" in m for m in reflect_mod._material(mindA)),
+   "reflection is attention-aware")
+
+shutil.rmtree(dA, ignore_errors=True)
+
+# ── 19. the proxy: OpenAI wire in, OpenAI wire out, a mind in between ────────
 # Loopback sockets only — a stub upstream on 127.0.0.1, no external network.
 print("proxy")
 import threading
@@ -850,7 +881,7 @@ pserver.shutdown()
 stub.shutdown()
 shutil.rmtree(d11, ignore_errors=True)
 
-# ── 19. the MCP door: the mind as an operational part of the agent ───────────
+# ── 20. the MCP door: the mind as an operational part of the agent ───────────
 # Loopback only. The server holds no model: the test plays the AGENT doing the
 # mind's thinking (borrowed cognition), and the guards judge what comes back.
 print("mcp door")
