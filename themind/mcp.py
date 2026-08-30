@@ -199,7 +199,9 @@ class MindMCP:
         lit = self.mind.graph.constellation(query) if query else []
         retrieve = self.mind.retriever or recall
         chosen = retrieve(facts, query, lit, 8) if query else recent(facts, 5)
-        return "\n".join("- " + f.get("text", "") for f in chosen) or "(nothing surfaced)"
+        from .inject import epistemic_note
+        return "\n".join("- " + f.get("text", "") + epistemic_note(f)
+                         for f in chosen) or "(nothing surfaced)"
 
     def tool_my_stance(self, args):
         b = self.mind.selfhood_bundle()

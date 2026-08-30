@@ -68,6 +68,30 @@ def valid_record(rec):
     )
 
 
+def confidence(rec):
+    """Epistemic status of a record — DERIVED at read time, never stored.
+    Metacognition rides what the envelope already carries: provenance says
+    how a thing was known (their words vs. the mind's own inference vs.
+    shipped material), and wear says how well it's still held.
+
+      remembered  exchange provenance: their actual words exist
+      inferred    the mind's own derivation (inference/record provenance)
+      given       cold-start material (src.kind "default")
+      hazy        worn thin (salience < 0.3), whatever its origin
+    """
+    try:
+        if float(rec.get("salience", 0.5)) < 0.3:
+            return "hazy"
+    except Exception:
+        pass
+    kind = (rec.get("src") or {}).get("kind")
+    if kind == "default":
+        return "given"
+    if kind in ("inference", "record"):
+        return "inferred"
+    return "remembered"
+
+
 def det_pick(seed_text, pool, n=1):
     """Deterministic per-mind selection. hashlib, never builtin hash() —
     that one is salted per process, so a restart would hand the same mind

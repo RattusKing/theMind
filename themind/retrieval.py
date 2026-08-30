@@ -36,7 +36,10 @@ def score(fact, message_words, lit_labels):
     if base == 0:
         return 0.0
     recency = 0.5 ** (age_days(fact.get("t")) / 30.0)
-    return base * (0.4 + fact.get("salience", 0.5)) * (0.3 + 0.7 * recency)
+    # Confidence gets consumed: when both match, lean on what they actually
+    # said over what the mind pieced together. A preference, never a gate.
+    src_w = 1.0 if (fact.get("src") or {}).get("kind") == "exchange" else 0.9
+    return base * (0.4 + fact.get("salience", 0.5)) * (0.3 + 0.7 * recency) * src_w
 
 
 def recall(facts, message_text, lit_labels, k=8):
