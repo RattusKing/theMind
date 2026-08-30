@@ -616,7 +616,68 @@ ok(len(mindE.live("expectations")) == expect_mod.MAX_LIVE,
 
 shutil.rmtree(dE, ignore_errors=True)
 
-# ── 16. the proxy: OpenAI wire in, OpenAI wire out, a mind in between ────────
+# ── 16. person-model: their inner world, distinct from what's true ───────────
+print("person model")
+mindP, dP = fresh(llm=lambda s, u, m: (
+    "THEY: They believe their sister is still happy in Portland. | "
+    "QUOTE: i think maya's still loving portland | ENTITIES: Maya, Portland | KIND: believes\n"
+    "THEY: They feel guilty about missing the call. | "
+    "QUOTE: i feel awful about missing her call | ENTITIES: Maya | KIND: feels\n"
+    "THEY: They don't know what Maya decided about the job. | "
+    "QUOTE: no idea what she decided | ENTITIES: Maya | KIND: unaware\n"
+    "THEY: They secretly believe the moon landing was staged. | "
+    "QUOTE: the moon landing was staged obviously | ENTITIES: moon | KIND: believes"))
+mindP.observe("i think maya's still loving portland but i feel awful about missing her call "
+              "and honestly no idea what she decided", "That sounds like a lot to carry.")
+pm = mindP.live("person_model")
+ok(len(pm) == 3, "grounded mental states store; a fabricated-quote one drops")
+ok({p["kind"] for p in pm} == {"believes", "feels", "unaware"},
+   "believes / feels / unaware all parse")
+ok(all(p["src"]["kind"] == "exchange" and p["src"]["quote"] for p in pm),
+   "their inner world still needs their actual words (provenance carried)")
+
+# the false-belief milestone: the belief and the contradicting fact coexist
+mindP.stores["facts"].append(
+    make_record("f", {"kind": "exchange", "quote": "maya moved back last month", "ref": None},
+                salience=0.7, text="Maya moved back last month.",
+                entities=["Maya"], kind="event"))
+ctxP = Mind(dP, sync=True).context("how is maya?")
+ok("INSIDE THEM" in ctxP and "believe their sister is still happy in Portland" in ctxP
+   and "moved back last month" in ctxP,
+   "a mistaken belief is held AS a belief, coexisting with the fact it contradicts")
+tinyP = Mind(dP, budget_tokens=40, sync=True).context("hey")
+ok("INSIDE THEM" not in tinyP and "YOU STAND" in tinyP,
+   "the person-model drops whole under budget; the reserved stance survives")
+
+SEEN_P = {}
+def felt_llm(system, user, max_tokens):
+    SEEN_P["user"] = user
+    return ("I feel them carrying Portland guilt they haven't said out loud, and I hold "
+            "both what they believe and what I know while they catch up to it gently.")
+mindP2 = Mind(dP, llm=felt_llm, sync=True)
+for i, t in enumerate(("They grew up near the coast.", "They work long night shifts.")):
+    mindP2.stores["facts"].append(
+        make_record("f", {"kind": "exchange", "quote": "seed quote %d" % i, "ref": None},
+                    salience=0.6, text=t, entities=[], kind="profile"))
+from themind.cognition import felt_sense as felt_mod
+felt_mod.run(mindP2)
+ok("GOING ON INSIDE THEM" in SEEN_P["user"] and "guilty" in SEEN_P["user"],
+   "the felt sense receives their inner world, not just facts about them")
+ok(any("guilty" in m for m in reflect_mod._material(mindP2)),
+   "fresh mental states enter reflection material")
+ok(any("maya" in l.lower() for l in mindP2.graph.constellation("what about maya?")),
+   "mental-state entities land in the graph")
+
+before_sal = [p["salience"] for p in mindP2.live("person_model")]
+from themind.cognition import consolidate as consolidate_mod
+consolidate_mod._decay(mindP2)
+after_sal = [p["salience"] for p in mindP2.live("person_model")]
+ok(all(a < b for a, b in zip(after_sal, before_sal)),
+   "feelings pass: mental states decay faster than facts")
+
+shutil.rmtree(dP, ignore_errors=True)
+
+# ── 17. the proxy: OpenAI wire in, OpenAI wire out, a mind in between ────────
 # Loopback sockets only — a stub upstream on 127.0.0.1, no external network.
 print("proxy")
 import threading
@@ -743,7 +804,7 @@ pserver.shutdown()
 stub.shutdown()
 shutil.rmtree(d11, ignore_errors=True)
 
-# ── 16. the MCP door: the mind as an operational part of the agent ───────────
+# ── 18. the MCP door: the mind as an operational part of the agent ───────────
 # Loopback only. The server holds no model: the test plays the AGENT doing the
 # mind's thinking (borrowed cognition), and the guards judge what comes back.
 print("mcp door")

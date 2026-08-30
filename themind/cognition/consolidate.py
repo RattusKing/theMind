@@ -101,7 +101,8 @@ def _apply(mind, line, valid_ids):
 
 def _decay(mind):
     for store, factor in (("facts", 0.985), ("aches", 0.85), ("desires", 0.85),
-                          ("own_desires", 0.9), ("expectations", 0.85)):
+                          ("own_desires", 0.9), ("expectations", 0.85),
+                          ("person_model", 0.9)):  # feelings pass; a weather report, not a ledger
         recs = mind.live(store)
         keep = []
         for r in recs:

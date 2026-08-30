@@ -22,9 +22,12 @@ def run(mind):
     doc = mind.felt_doc.load(default={})
     prior = (doc.get("current") or {}).get("text")
     reflections = [r.get("text", "") for r in mind.live("reflections")[-2:]]
-    user = "PRIOR PORTRAIT:\n%s\n\nWHAT YOU KNOW:\n%s\n\nRECENT REFLECTIONS:\n%s" % (
+    inner_them = [p.get("text", "") for p in recent(mind.live("person_model"), 4)]
+    user = ("PRIOR PORTRAIT:\n%s\n\nWHAT YOU KNOW:\n%s\n\nWHAT'S GOING ON INSIDE THEM:\n%s"
+            "\n\nRECENT REFLECTIONS:\n%s") % (
         prior or "(none — first portrait)",
         "\n".join("- " + f.get("text", "") for f in facts),
+        "\n".join("- " + p for p in inner_them) or "(unknown so far)",
         "\n".join("- " + r for r in reflections) or "(none)")
     out = mind._call("felt_sense", SYSTEM, user, max_tokens=400)
     if not out or len(out.strip()) < 40:

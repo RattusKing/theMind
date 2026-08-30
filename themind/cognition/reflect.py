@@ -42,7 +42,7 @@ def run(mind):
 
 def _material(mind):
     out = []
-    for store in ("facts", "aches", "desires", "self_memory"):
+    for store in ("facts", "aches", "desires", "person_model", "self_memory"):
         for r in mind.live(store):
             if age_days(r.get("t")) <= 1.5:
                 out.append(r.get("text", ""))

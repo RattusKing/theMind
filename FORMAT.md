@@ -1,9 +1,9 @@
 # theMind — on-disk format
 
-**Version 0.4 — adds `expectations.jsonl` (the mind's model of its world, run
-forward). Minor, additive. History: 0.3 added `inner_state.json` and divergence
-tensions; 0.2 added `own_desires.jsonl`. Older readers ignore unknown stores;
-older minds open unchanged.**
+**Version 0.5 — adds `person_model.jsonl` (their inner world, distinct from
+what's true). Minor, additive. History: 0.4 added `expectations.jsonl`; 0.3
+added `inner_state.json` and divergence tensions; 0.2 added `own_desires.jsonl`.
+Older readers ignore unknown stores; older minds open unchanged.**
 
 This document describes what a mind *is, at rest*: the directory a running mind
 reads and writes, and the single-file export it can be carried away in. It is
@@ -57,6 +57,7 @@ mind/
     tensions.jsonl       kept contradictions (deliberately unresolved)
     aches.jsonl          held threads carried between sessions
     desires.jsonl        wants and anticipations, with decay
+    person_model.jsonl   what THEY believe / feel / don't know — theirs, not the truth
     own_desires.jsonl    the mind's OWN wants — rooted, staged, with a lifecycle
     expectations.jsonl   rooted predictions; surprise persists loud, confirmation fades
     reflections.jsonl    periodic distillations of lived time
@@ -97,6 +98,21 @@ alongside it.
   every inference is traceable back to an exchange.
 
 ## The stores
+
+### person_model.jsonl
+Their inner world, as distinct from the world: what the person **believes**
+(which may be false), **feels** (which may pass), and is **unaware** of (which
+may matter). Envelope plus `text` (one sentence), `kind`
+(`believes | feels | unaware`), and `entities`. The load-bearing distinction is
+the false-belief one: "their sister moved back" (a fact) and "they believe
+their sister is still in Portland" (their belief) coexist as separate records
+in separate stores, and readers must never collapse one into the other —
+representing someone's mistaken belief *as mistaken* is the milestone this
+store exists for. Write-time grounding applies exactly as for facts: the
+provenance quote must be verbatim from the PERSON's side, and a mental state
+is never extracted from the assistant's words. Mental states decay faster
+than facts — feelings pass; the store is a weather report on them, not a
+ledger of them.
 
 ### facts.jsonl
 What the mind knows about the person. Envelope plus `text` (one canonical
