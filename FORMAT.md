@@ -1,8 +1,9 @@
 # theMind — on-disk format
 
-**Version 0.3 — adds `inner_state.json` (the mind's own weather) and documents
-divergence tensions. Minor, additive; 0.2 added `own_desires.jsonl` (the mind's
-own wants). Older readers ignore unknown stores; older minds open unchanged.**
+**Version 0.4 — adds `expectations.jsonl` (the mind's model of its world, run
+forward). Minor, additive. History: 0.3 added `inner_state.json` and divergence
+tensions; 0.2 added `own_desires.jsonl`. Older readers ignore unknown stores;
+older minds open unchanged.**
 
 This document describes what a mind *is, at rest*: the directory a running mind
 reads and writes, and the single-file export it can be carried away in. It is
@@ -57,6 +58,7 @@ mind/
     aches.jsonl          held threads carried between sessions
     desires.jsonl        wants and anticipations, with decay
     own_desires.jsonl    the mind's OWN wants — rooted, staged, with a lifecycle
+    expectations.jsonl   rooted predictions; surprise persists loud, confirmation fades
     reflections.jsonl    periodic distillations of lived time
     growth.json          curiosities and shaped traits from this person
     inner_state.json     how the mind itself is lately, with revision history
@@ -185,6 +187,20 @@ want must matter to persist. Guards ride the format's semantics: never a want to
 extract something from, test, or change the person; never a mirror of their
 wants; at most a handful live at once — a mind with forty wants has none.
 
+### expectations.jsonl
+The mind's model of its world, run forward. Envelope plus `text` (one sentence,
+first person, "I expect…") and `roots` (ids of held records the prediction
+derives from — **no roots, no prediction**: an expectation with no basis in
+what the mind holds is a guess wearing a costume, and writers must drop it).
+The lifecycle enforces the asymmetry predictive processing is about: an
+expectation the mind judges **confirmed** is superseded by a LOW-salience
+reflection (the unsurprising is forgettable); one it judges **surprised** is
+superseded by a HIGH-salience reflection carrying what actually happened
+(prediction error is what deserves thought, and it colors the mind's weather
+and future recall). Unresolved expectations decay and are distilled before
+they drop. Exchanges that touch an expectation strengthen it — attention goes
+where predictions are being tested.
+
 ### reflections.jsonl
 Periodic first-person distillations of lived time. First person is enforced at
 write: a reflection in the third person is a narrator describing the mind, not
@@ -207,7 +223,7 @@ thinking; it is private weather, injected to color, never to announce.
 ### ledger.jsonl
 Every model call the mind initiates: `t`, `purpose` (`extract | challenge |
 consolidate | reflect | self | felt_sense | growth | desire | inner_state |
-divergence`), `model`,
+divergence | expect`), `model`,
 `tokens_in`, `tokens_out`. The mind
 spends the host's money; the ledger is the honesty mechanism. No entry, no call.
 

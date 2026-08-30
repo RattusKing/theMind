@@ -107,6 +107,18 @@ def build_blocks(mind, incoming_text=None):
                               "gently when it fits, never at their expense):",
                               ["- " + w.get("text", "") for w in own]), False))
 
+    expects = mind.live("expectations")
+    if expects:
+        expects = sorted(expects, key=lambda r: -r.get("salience", 0))[:2]
+        lines = ["- " + x.get("text", "") for x in expects]
+        surprises = [r for r in mind.live("reflections") if r.get("kind") == "surprise"]
+        if surprises:
+            lines.append("(recently wrong, worth remembering: "
+                         + surprises[-1].get("text", "")[:200] + ")")
+        blocks.append((_block("WHAT YOU FIND YOURSELF EXPECTING (check it gently against "
+                              "what actually happens — being wrong is worth noticing):",
+                              lines), False))
+
     growth = mind.growth_doc.load(default={})
     cur_g = (growth.get("curiosities") or [])[:3]
     if cur_g:

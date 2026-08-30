@@ -538,7 +538,85 @@ ok(len(mind14c.live("reflections")) >= 1 and "harbor" in mind14c.live("reflectio
 for d in (d14, d14b, d14c):
     shutil.rmtree(d, ignore_errors=True)
 
-# ── 15. the proxy: OpenAI wire in, OpenAI wire out, a mind in between ────────
+# ── 15. expectations: the mind predicts, and being wrong is the signal ───────
+print("expectations / surprise")
+from themind.cognition import expect as expect_mod
+
+mindE, dE = fresh()
+seed_fact = make_record("f", {"kind": "exchange", "quote": "i have my job interview on friday",
+                              "ref": None},
+                        salience=0.7, text="They have a job interview on Friday.",
+                        entities=["interview"], kind="event")
+mindE.stores["facts"].append(seed_fact)
+E_REPLY = {}
+def e_llm(system, user, max_tokens):
+    if system == expect_mod.SYSTEM:
+        return E_REPLY["text"]
+    return "NONE"
+mindE = Mind(dE, llm=e_llm, sync=True)
+E_REPLY["text"] = ("EXPECT: I expect they will hear about the interview soon. | ROOTS: %s\n"
+                   "EXPECT: I expect the lottery will make them rich. | ROOTS: f_nope"
+                   % seed_fact["id"])
+expect_mod.run(mindE)
+exps = mindE.live("expectations")
+ok(len(exps) == 1 and exps[0]["src"]["ref"] == seed_fact["id"]
+   and exps[0]["roots"] == [seed_fact["id"]],
+   "a rooted prediction stores with provenance; a rootless guess is dropped")
+ok(any(e.get("purpose") == "expect" for e in mindE.ledger.load()),
+   "the expect call is in the ledger")
+
+for _ in range(3):
+    expect_mod.touch(mindE, "any word about the interview yet?",
+                     "We should hear about the interview soon.")
+ok(mindE.live("expectations")[0]["salience"] > 0.5,
+   "attention follows predictions: exchanges testing one strengthen it")
+
+ctxE = Mind(dE, sync=True).context("hey")
+ok("EXPECTING" in ctxE and "interview" in ctxE,
+   "expectations inject, framed as checkable")
+tinyE = Mind(dE, budget_tokens=40, sync=True).context("hey")
+ok("EXPECTING" not in tinyE and "YOU STAND" in tinyE,
+   "expectations drop whole under budget; the reserved stance survives")
+
+xid = exps[0]["id"]
+E_REPLY["text"] = "SURPRISED: %s | ACTUALLY: I learned they never even got a callback." % xid
+expect_mod.run(mindE)
+ok(mindE.live("expectations") == [], "a settled expectation leaves the live store")
+sur = [r for r in mindE.live("reflections") if r.get("kind") == "surprise"]
+ok(len(sur) == 1 and sur[0]["salience"] > 0.8 and "callback" in sur[0]["text"],
+   "surprise persists LOUD: a high-salience reflection carrying what actually happened")
+archE = [json.loads(l) for l in open(mindE._p("archive", "expectations.jsonl"))]
+ok(archE and archE[0]["superseded_by"] == sur[0]["id"],
+   "the expectation archives naming the surprise as successor")
+
+E_REPLY["text"] = ("EXPECT: I expect they will tell me about their weekend hike. | ROOTS: %s"
+                   % seed_fact["id"])
+expect_mod.run(mindE)
+ctxE = Mind(dE, sync=True).context("hey")
+ok("recently wrong" in ctxE and "callback" in ctxE,
+   "the mind carries its recent wrongness into context")
+xid2 = mindE.live("expectations")[0]["id"]
+E_REPLY["text"] = "CONFIRMED: %s" % xid2
+expect_mod.run(mindE)
+conf = [r for r in mindE.live("reflections") if r.get("kind") == "confirmed"]
+ok(len(conf) == 1 and conf[0]["salience"] < 0.3,
+   "confirmation fades QUIET: the unsurprising is forgettable")
+ok(conf[0]["salience"] < sur[0]["salience"],
+   "the predictive-processing asymmetry: error outweighs success")
+
+for i in range(expect_mod.MAX_LIVE):
+    mindE.stores["expectations"].append(
+        make_record("x", {"kind": "inference", "ref": seed_fact["id"]}, salience=0.5,
+                    text="I expect distinct thing number %d to happen." % i,
+                    roots=[seed_fact["id"]]))
+E_REPLY["text"] = "EXPECT: I expect one more thing entirely. | ROOTS: %s" % seed_fact["id"]
+expect_mod.run(mindE)
+ok(len(mindE.live("expectations")) == expect_mod.MAX_LIVE,
+   "the live set is capped — a mind expecting everything expects nothing")
+
+shutil.rmtree(dE, ignore_errors=True)
+
+# ── 16. the proxy: OpenAI wire in, OpenAI wire out, a mind in between ────────
 # Loopback sockets only — a stub upstream on 127.0.0.1, no external network.
 print("proxy")
 import threading
