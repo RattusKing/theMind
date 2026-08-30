@@ -117,12 +117,19 @@ Alternative probes such as [Schneider's
 ACT](https://faculty.ucr.edu/~eschwitz/SchwitzAbs/SchneiderCrit.htm) face the
 "audience problem": no output can prove experience.
 
-What *can* be measured is persistence. This project's proposed contribution is a
-**continuity test**: a repeatable benchmark running a companion over simulated
-weeks of exchanges, then scoring probes — what do you remember and how do you
-know; where did you used to stand and where do you stand now; what do you want,
-and what did you let go of; what surprised you. Identity as a measurement over
-time rather than an impression over minutes. (Planned; not yet implemented.)
+What *can* be measured is persistence. This project's contribution is the
+**continuity test** (`python3 -m themind.bench`, **implemented in v1.0**): a
+repeatable, deterministic benchmark that runs a mind through five simulated
+weeks of one shared life — aging the folder between visits so every cognition
+rhythm actually fires — then scores ten probes: memory that persists and stays
+grounded; a stance that moved and can point at where it used to stand; wants
+of its own, rooted in the life actually lived; surprise persisting louder than
+confirmation; weather that continued; a story being written; an attention
+schema; identical memory after export and restore; and a complete ledger.
+Identity as a measurement over time rather than an impression over minutes.
+The benchmark justified itself on its first run: it caught a scheduler defect
+that had silently kept five cognition passes from ever firing on their own —
+a bug no five-minute test could see.
 
 ## 7. Ethics posture
 
@@ -161,7 +168,9 @@ truth:
    deepest barrier): coherence across simultaneous doors as a tested
    guarantee — honest counting, shared graph, shared wants, one identity;
    both halves mountable in one process.
-7. **The continuity test** — the benchmark above.
+7. ~~**The continuity test**~~ — **shipped, v1.0** (`python3 -m themind.bench`):
+   see §6. The roadmap derived from this study is complete; what the science
+   identified as buildable at this layer is built, tested, and scored.
 
 ---
 

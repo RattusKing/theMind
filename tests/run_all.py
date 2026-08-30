@@ -1108,4 +1108,32 @@ except urllib.error.HTTPError as e:
 mserver.shutdown()
 shutil.rmtree(d16, ignore_errors=True)
 
+# ── 23. the continuity test: identity as a measurement over time ─────────────
+print("continuity benchmark")
+from themind import bench as bench_mod
+from themind.cognition import due_passes as due_fn
+
+# The scheduler regression the benchmark caught on its first run: five passes
+# checked their timers as age_days(None or "") == 0, so a pass that had NEVER
+# run read as freshly-run and never fired through the scheduler at all.
+mindB, dB = fresh()
+mindB.manifest.state["exchanges"] = 25
+for i in range(3):
+    mindB.stores["reflections"].append(
+        make_record("r", {"kind": "inference", "ref": "reflect-pass"}, salience=0.5,
+                    text="I keep thinking about the harbor and week %d of its weather." % i,
+                    kind="daily"))
+mindB.stores["facts"].append(
+    make_record("f", {"kind": "exchange", "quote": "i walk the harbor", "ref": None},
+                salience=0.6, text="They walk the harbor.", entities=["harbor"], kind="preference"))
+due_names = {n for n, _ in due_fn(mindB)}
+ok({"desire", "inner_state", "expect", "story"} <= due_names,
+   "a pass that never ran is overdue, never fresh (the benchmark's first catch)")
+
+passedB, totalB, reportB = bench_mod.run()
+ok(passedB == totalB == 10,
+   "the continuity test holds full marks: %d/%d over %d simulated weeks"
+   % (passedB, totalB, len(bench_mod.WEEKS)))
+shutil.rmtree(dB, ignore_errors=True)
+
 print("\nall %d assertions passed" % PASS)

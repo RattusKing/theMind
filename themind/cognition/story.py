@@ -29,8 +29,9 @@ SYSTEM = (
 
 
 def due(mind, state):
-    if age_days(state.get("last_story") or "") < 10:
-        return False
+    last = state.get("last_story")
+    if last and age_days(last) < 10:
+        return False  # never-ran is overdue, not fresh
     if int(state.get("exchanges", 0)) < 20:
         return False
     return len(mind.live("reflections")) >= 3

@@ -113,11 +113,15 @@ callable for OpenAI-compatible endpoints, Anthropic, and Gemini.
 
 ## Status
 
-**v0.4.** The on-disk format — what a mind is, at rest — is published in
+**v1.0.** The on-disk format — what a mind is, at rest — is published in
 [FORMAT.md](FORMAT.md) and remains open to challenge while it is cheap to
 change. The project's scientific grounding — how the architecture maps onto
 the science of consciousness, scored honestly, gaps and all — is published in
-[SCIENCE.md](SCIENCE.md). The library implements it; `tests/run_all.py` holds the behavioral
+[SCIENCE.md](SCIENCE.md), and its capstone runs on your machine:
+
+```
+python3 -m themind.bench   # the continuity test: five simulated weeks, ten probes
+``` The library implements it; `tests/run_all.py` holds the behavioral
 guarantees (grounding, parse-or-skip, read order, budget, export round-trip,
 proxy passthrough). The local proxy (connect by swapping a base URL, no code)
 shipped in v0.2. Publishing to PyPI is next; until then, clone this repo.

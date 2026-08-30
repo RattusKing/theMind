@@ -38,8 +38,9 @@ SYSTEM = (
 
 
 def due(mind, state):
-    if age_days(state.get("last_expect") or "") < 2:
-        return False
+    last = state.get("last_expect")
+    if last and age_days(last) < 2:
+        return False  # never-ran is overdue, not fresh
     if int(state.get("exchanges", 0)) < 6:
         return False
     return bool(_material(mind))

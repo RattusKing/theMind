@@ -23,8 +23,9 @@ SYSTEM = (
 
 
 def due(mind, state):
-    if age_days(state.get("last_divergence") or "") < 5:
-        return False
+    last = state.get("last_divergence")
+    if last and age_days(last) < 5:
+        return False  # never-ran is overdue, not fresh
     if len(mind.live("self_memory")) < 3:
         return False
     return not mind.selfhood_bundle().get("default", True)  # needs a stance of its own
