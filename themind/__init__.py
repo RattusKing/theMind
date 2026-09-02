@@ -5,5 +5,5 @@ product story and FORMAT.md for what a mind is, at rest.
 """
 from .mind import Mind
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 __all__ = ["Mind", "__version__"]
