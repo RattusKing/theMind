@@ -44,7 +44,8 @@ def run(mind):
     if prior and norm_key(prior, width=500) != norm_key(position, width=500):
         history.append({"text": prior, "t": (doc.get("position") or {}).get("t") or now_iso()})
         history.sort(key=lambda h: h.get("t", ""))  # read order is identity
-        history = history[:1] + history[-3:] if len(history) > 4 else history
+        # Never capped: a life keeps every place it used to stand, as the
+        # story keeps every chapter. Injection shows only the most recent.
     merged = _merge_particulars(doc.get("particulars") or [], particulars)
     mind.self_doc.save({
         "position": {"text": position, "t": now_iso(),

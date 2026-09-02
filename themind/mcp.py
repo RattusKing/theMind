@@ -19,10 +19,14 @@ server-side on what comes back, so the mind stays honest no matter what the
 agent returns. The mind literally thinks inside the agent's head.
 """
 import argparse
+import hmac
 import json
+import os
 import sys
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import urlparse, parse_qs
 
 from . import __version__
 from .mind import Mind
@@ -95,6 +99,15 @@ class MindMCP:
                 return self._ok(msg_id, {})
             if method == "tools/list":
                 return self._ok(msg_id, {"tools": TOOLS})
+            # Real clients probe these on connect and treat an error as a broken
+            # server: answer honestly-empty rather than method-not-found.
+            if method in ("resources/list", "resources/templates/list"):
+                return self._ok(msg_id, {"resources": []} if method == "resources/list"
+                                else {"resourceTemplates": []})
+            if method == "prompts/list":
+                return self._ok(msg_id, {"prompts": []})
+            if method == "logging/setLevel":
+                return self._ok(msg_id, {})
             if method == "tools/call":
                 params = msg.get("params") or {}
                 return self._ok(msg_id, self._call_tool(
@@ -300,6 +313,10 @@ TOOLS = [
 
 
 # ── transports ───────────────────────────────────────────────────────────────
+MAX_BODY = 1024 * 1024        # a JSON-RPC message never needs more than this
+RATE_PER_MINUTE = 240         # per client address; well above any real agent's pace
+
+
 class MindMCPServer(ThreadingHTTPServer):
     daemon_threads = True
 
@@ -307,7 +324,43 @@ class MindMCPServer(ThreadingHTTPServer):
         self.core = core
         self.token = token
         self.quiet = quiet
+        self.session_id = os.urandom(16).hex()  # one server, one session id
+        self._rate = {}
+        self._rate_lock = threading.Lock()
         super().__init__(addr, _HTTPHandler)
+
+    def allow(self, client_ip):
+        """Fixed-window rate limit, per address. Stdlib, tiny, honest."""
+        now = int(time.time() // 60)
+        with self._rate_lock:
+            window, count = self._rate.get(client_ip, (now, 0))
+            if window != now:
+                window, count = now, 0
+            count += 1
+            self._rate[client_ip] = (window, count)
+            if len(self._rate) > 4096:  # forget addresses from old windows
+                self._rate = {ip: wc for ip, wc in self._rate.items() if wc[0] == now}
+            return count <= RATE_PER_MINUTE
+
+    def authorized(self, handler):
+        """No token configured → open (local use). With a token: accept it as a
+        Bearer header, as ?token= in the query, or as a path segment
+        (/<token>/mcp) — web platforms' connector settings can paste a URL but
+        cannot set a header. Constant-time comparison throughout."""
+        if not self.token:
+            return True
+        want = self.token.encode("utf-8")
+        auth = handler.headers.get("Authorization") or ""
+        if auth.startswith("Bearer ") and hmac.compare_digest(auth[7:].encode("utf-8"), want):
+            return True
+        parsed = urlparse(handler.path)
+        for cand in parse_qs(parsed.query).get("token", []):
+            if hmac.compare_digest(cand.encode("utf-8"), want):
+                return True
+        for seg in parsed.path.split("/"):
+            if seg and hmac.compare_digest(seg.encode("utf-8"), want):
+                return True
+        return False
 
 
 class _HTTPHandler(BaseHTTPRequestHandler):
@@ -317,26 +370,50 @@ class _HTTPHandler(BaseHTTPRequestHandler):
         if not self.server.quiet:
             BaseHTTPRequestHandler.log_message(self, fmt, *args)
 
+    def _cors(self):
+        # Browser-based MCP clients (inspectors, web apps) preflight; the mind
+        # is private by token, not by origin, so origins are open.
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers",
+                         "Content-Type, Authorization, Mcp-Session-Id, MCP-Protocol-Version")
+        self.send_header("Access-Control-Expose-Headers", "Mcp-Session-Id")
+
     def _send(self, status, data=b"", content_type="application/json"):
         self.send_response(status)
         if data:
             self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(data)))
+        self.send_header("Mcp-Session-Id", self.server.session_id)
+        self._cors()
         self.end_headers()
         if data:
             self.wfile.write(data)
 
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self.send_header("Content-Length", "0")
+        self._cors()
+        self.end_headers()
+
     def do_GET(self):
+        # No server-initiated stream: the spec lets a server decline the GET.
         self._send(405, json.dumps({"error": "POST JSON-RPC messages to this endpoint"}).encode())
 
     def do_POST(self):
-        if self.server.token:
-            auth = self.headers.get("Authorization") or ""
-            if auth != "Bearer " + self.server.token:
-                self._send(401, json.dumps({"error": "unauthorized"}).encode())
-                return
+        if not self.server.allow(self.client_address[0]):
+            self._send(429, json.dumps({"error": "too many requests"}).encode())
+            return
+        if not self.server.authorized(self):
+            self._send(401, json.dumps({"error": "unauthorized"}).encode())
+            return
         try:
-            raw = self.rfile.read(int(self.headers.get("Content-Length") or 0))
+            length = int(self.headers.get("Content-Length") or 0)
+            if length > MAX_BODY:
+                self.close_connection = True  # the unread body must not be parsed as a request
+                self._send(413, json.dumps({"error": "message too large"}).encode())
+                return
+            raw = self.rfile.read(length)
             msg = json.loads(raw.decode("utf-8"))
         except Exception:
             self._send(400, json.dumps(
@@ -387,7 +464,9 @@ def main(argv=None):
     p.add_argument("--port", type=int, default=DEFAULT_PORT)
     p.add_argument("--budget", type=int, default=2000)
     p.add_argument("--token", default=None,
-                   help="require 'Authorization: Bearer <token>' (use when tunneling)")
+                   help="require a secret: as 'Authorization: Bearer <token>', as ?token=, "
+                        "or in the URL path (/<token>/mcp) — the last works in web platforms' "
+                        "connector settings, which can paste a URL but not set a header")
     p.add_argument("--stdio", action="store_true",
                    help="speak MCP on stdin/stdout instead of HTTP")
     p.add_argument("--quiet", action="store_true")

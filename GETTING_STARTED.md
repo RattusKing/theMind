@@ -68,8 +68,10 @@ Then add `http://127.0.0.1:6464/mcp` wherever your platform takes MCP servers
 or custom connectors. Desktop apps and local tools connect to that address
 directly. Web platforms (claude.ai, ChatGPT) can't see your machine, so give
 them a public address with a free tunnel (cloudflared, ngrok, Tailscale) and
-protect it: run with `--token some-secret` and set the same token in the
-connector. Your mind's folder never leaves your disk either way.
+protect it: run with `--token some-secret` and give the connector the secret
+in the URL itself — `https://your-tunnel/some-secret/mcp` — since web
+connector settings can paste a URL but can't set a header (a Bearer header
+or `?token=` work too). Your mind's folder never leaves your disk either way.
 
 For the deepest integration, run **both** — one command does it:
 

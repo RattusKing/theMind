@@ -111,9 +111,24 @@ mind.observe(user_text, reply)       # after the reply
 That is the entire integration. See `examples/quickstart.py` for the llm
 callable for OpenAI-compatible endpoints, Anthropic, and Gemini.
 
+## Known limitations (honestly)
+
+- **The guards speak English.** First-person checks, the narrator-voice
+  rejection, stopwords, and the ban-vocabulary are English-only today. A
+  companion running in another language will have most of its reflections and
+  wants dropped by guards that can't read them. Internationalizing the guards
+  is a real chapter, not a patch; until then, theMind is an English-language
+  mind.
+- **One person per mind.** The felt sense, the person-model, and the facts all
+  assume a single "them." A household robot or a shared assistant needs
+  multi-person minds — a format-level design that hasn't happened yet.
+- **The MCP door is built to the spec and tested against our own client.** It
+  has not yet been exercised against every real platform's connector
+  implementation; report what you find.
+
 ## Status
 
-**v1.0.** The on-disk format — what a mind is, at rest — is published in
+**v1.1.** The on-disk format — what a mind is, at rest — is published in
 [FORMAT.md](FORMAT.md) and remains open to challenge while it is cheap to
 change. The project's scientific grounding — how the architecture maps onto
 the science of consciousness, scored honestly, gaps and all — is published in
@@ -121,7 +136,9 @@ the science of consciousness, scored honestly, gaps and all — is published in
 
 ```
 python3 -m themind.bench   # the continuity test: five simulated weeks, ten probes
-``` The library implements it; `tests/run_all.py` holds the behavioral
+```
+
+The library implements it; `tests/run_all.py` holds the behavioral
 guarantees (grounding, parse-or-skip, read order, budget, export round-trip,
 proxy passthrough). The local proxy (connect by swapping a base URL, no code)
 shipped in v0.2. Publishing to PyPI is next; until then, clone this repo.

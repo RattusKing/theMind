@@ -15,14 +15,22 @@ seam; `recent` ordering stays time-based on purpose.
 """
 from .envelope import age_days
 
-_STOP = set("the a an and or but for with from this that they them their have has was were will "
-            "would could been being just really very about into over under some any what when "
-            "where who how you your our its it's not don't didn't isn't".split())
+# Stopwords carry the load that a length floor used to: three-letter words are
+# admitted (dad, mom, son, job, sea, cat, dog, gym, car) and the noise among
+# them is named here instead. Two-letter words stay out.
+_STOP = set("""the a an and or but for with from this that they them their have has was were will
+would could been being just really very about into over under some any what when where who how you
+your our its it's not don't didn't isn't are can had her him his may now off old own per say see set
+too use way why yes yet did get got let one two all out she nor via ago yea nah hey hmm umm ok
+okay than then there these those thru till upon was were whom whose also both each else ever
+every few more most much must only same such very well went were what whom will with would
+i me my we us he she it him his her its they them our your yours theirs mine ours am is be do
+does done doing been being of in on at to by up so no as if or an the and but""".split())
 
 
 def _words(text):
     return set(w for w in "".join(ch if ch.isalnum() else " " for ch in (text or "").lower()).split()
-               if len(w) > 3 and w not in _STOP)
+               if len(w) >= 3 and w not in _STOP)
 
 
 def score(fact, message_words, lit_labels):

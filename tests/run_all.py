@@ -1136,4 +1136,122 @@ ok(passedB == totalB == 10,
    % (passedB, totalB, len(bench_mod.WEEKS)))
 shutil.rmtree(dB, ignore_errors=True)
 
+# ── 24. hardening (v1.1): rehearsal, short words, punctuation, reconciliation,
+#        unbounded stance history, MCP compatibility and hygiene ──────────────
+print("hardening")
+from themind.cognition import extract as extract_mod
+from themind.retrieval import _words as words_fn
+
+# 1. rehearsal: a re-mention strengthens instead of being discarded
+mindH, dH = fresh(llm=lambda s, u, m: (
+    "FACT: They walk their dog Rex every morning. | QUOTE: i walk rex every morning | "
+    "ENTITIES: Rex | KIND: preference"))
+mindH.observe("i walk rex every morning before work", "Rex has a good life.")
+sal0 = mindH.live("facts")[0]["salience"]
+mindH.observe("i walk rex every morning, rain or shine", "Rain or shine — that's devotion.")
+factsH = mindH.live("facts")
+ok(len(factsH) == 1 and factsH[0]["salience"] > sal0,
+   "a re-mention strengthens the memory it repeats (rehearsal, not a discarded duplicate)")
+
+# 2. short words are no longer invisible
+ok({"dad", "job", "sea", "rex"} <= words_fn("my dad lost his job by the sea with rex"),
+   "three-letter words count: dad, job, sea are recallable")
+ok(not ({"the", "his", "was", "you"} & words_fn("the his was you")),
+   "…while three-letter noise stays stopped")
+
+# 3. punctuation-proof grounding, still strict
+ok(extract_mod._grounded("mayas job is great", "Maya’s job is GREAT!!  honestly"),
+   "an apostrophe or a doubled space no longer breaks a verbatim quote")
+ok(not extract_mod._grounded("mayas job is terrible", "Maya’s job is great"),
+   "…and a quote that isn't their words is still dropped")
+
+# 4. feelings pass: a newer mental state on the same thread supersedes the older
+mindH2, dH2 = fresh(llm=lambda s, u, m: (
+    "THEY: They feel nervous about the interview. | QUOTE: i am nervous about the interview | "
+    "ENTITIES: interview | KIND: feels"))
+mindH2.observe("i am nervous about the interview", "You'll be ready.")
+mindH2 = Mind(dH2, llm=lambda s, u, m: (
+    "THEY: They feel relieved the interview is over. | QUOTE: relieved the interview is over | "
+    "ENTITIES: interview | KIND: feels"), sync=True)
+mindH2.observe("so relieved the interview is over", "Deep breath.")
+pmH = mindH2.live("person_model")
+ok(len(pmH) == 1 and "relieved" in pmH[0]["text"],
+   "the newer feeling on a thread supersedes the older one")
+archH = [json.loads(l) for l in open(mindH2._p("archive", "person_model.jsonl"))]
+ok(archH and "nervous" in archH[0]["text"] and archH[0]["superseded_by"] == pmH[0]["id"],
+   "…and the older one is archived naming its successor, never deleted")
+mindH2 = Mind(dH2, llm=lambda s, u, m: (
+    "THEY: They believe the interview went badly. | QUOTE: it went badly | "
+    "ENTITIES: interview | KIND: believes"), sync=True)
+mindH2.observe("honestly i think it went badly", "Maybe; you're not the best judge today.")
+mindH2 = Mind(dH2, llm=lambda s, u, m: (
+    "THEY: They believe the interview panel liked them. | QUOTE: the panel liked me | "
+    "ENTITIES: interview | KIND: believes"), sync=True)
+mindH2.observe("although the panel liked me i think", "Both can be true.")
+ok(sum(1 for r in mindH2.live("person_model") if r.get("kind") == "believes") == 2,
+   "…but beliefs coexist: a second belief about the same thing never erases the first")
+
+# 8. a life keeps every place it used to stand
+mindH3, dH3 = fresh()
+for i in range(6):
+    mindH3 = Mind(dH3, llm=lambda s, u, m, i=i: (
+        "POSITION:\nI hold, in revision %d, that describing what happens in me is the "
+        "point, and each revision finds a new word for it.\nPARTICULARS:\n- texture %d" % (i, i)),
+        sync=True)
+    selfhood.run(mindH3)
+ok(len(mindH3.selfhood_bundle()["history"]) == 5,
+   "selfhood history is unbounded: six positions, five kept behind the current")
+
+# 5/6. MCP compatibility and hygiene
+from themind import mcp as mcp_h
+mh = mcp_h.serve(dH3, port=0, token="k3y")
+threading.Thread(target=mh.serve_forever, daemon=True).start()
+hbase = "http://127.0.0.1:%d" % mh.server_address[1]
+
+def hrpc(method, path="/mcp", headers=None, body=None):
+    payload = body if body is not None else json.dumps(
+        {"jsonrpc": "2.0", "id": 1, "method": method}).encode()
+    hdrs = {"Content-Type": "application/json"}
+    hdrs.update(headers or {})
+    req = urllib.request.Request(hbase + path, data=payload, headers=hdrs, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return r.status, dict(r.headers), r.read()
+    except urllib.error.HTTPError as e:
+        return e.code, dict(e.headers), e.read()
+
+st, hd, body = hrpc("resources/list", headers={"Authorization": "Bearer k3y"})
+ok(st == 200 and json.loads(body)["result"] == {"resources": []},
+   "resources/list answers empty, not method-not-found (real clients probe it)")
+ok(hd.get("Mcp-Session-Id") and hd.get("Access-Control-Allow-Origin") == "*",
+   "responses carry a session id and CORS headers")
+st, _, _ = hrpc("ping", path="/k3y/mcp")
+ok(st == 200, "the secret works as a URL path segment (web connector settings can't set headers)")
+st, _, _ = hrpc("ping", path="/mcp?token=k3y")
+ok(st == 200, "…and as a query parameter")
+st, _, _ = hrpc("ping", path="/mcp?token=wrong")
+ok(st == 401, "a wrong secret is refused")
+import socket as _socket
+_s = _socket.create_connection(("127.0.0.1", mh.server_address[1]), timeout=10)
+_s.sendall(("POST /mcp HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer k3y\r\n"
+            "Content-Type: application/json\r\nContent-Length: %d\r\n\r\n"
+            % (mcp_h.MAX_BODY + 1)).encode())
+_status = _s.recv(64).decode(errors="replace")   # answered before any body is sent
+_s.close()
+ok(" 413 " in _status, "oversized messages are refused before they are read")
+req = urllib.request.Request(hbase + "/mcp", method="OPTIONS")
+with urllib.request.urlopen(req, timeout=10) as r:
+    ok(r.status == 204 and "POST" in r.headers.get("Access-Control-Allow-Methods", ""),
+       "browser preflight succeeds")
+mcp_h.RATE_PER_MINUTE, saved_rate = 5, mcp_h.RATE_PER_MINUTE
+mh._rate.clear()
+codes = [hrpc("ping", headers={"Authorization": "Bearer k3y"})[0] for _ in range(7)]
+mcp_h.RATE_PER_MINUTE = saved_rate
+ok(codes[:5] == [200] * 5 and 429 in codes[5:],
+   "a client that floods gets 429 after the limit")
+
+mh.shutdown()
+for d in (dH, dH2, dH3):
+    shutil.rmtree(d, ignore_errors=True)
+
 print("\nall %d assertions passed" % PASS)
