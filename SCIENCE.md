@@ -152,7 +152,9 @@ truth:
    feels, and doesn't know, as distinct from what is true
    (`person_model.jsonl`) — a mistaken belief is representable *as mistaken*,
    coexisting with the fact it contradicts (theory of mind; the false-belief
-   milestone).
+   milestone). Since v1.2 (format 0.7) the model is kept **per person**: a
+   shared mind holds a separate felt sense, person-model, and memory for each
+   speaker the host names, and never carries one person's words to another.
 3. ~~**Confidence that gets used**~~ — **shipped, v0.6** (HOT-2 → HOT-3):
    epistemic status derived at read time — never stored — from provenance and
    wear; a well-remembered thing speaks plainly, an inference admits it's an

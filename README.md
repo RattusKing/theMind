@@ -41,6 +41,11 @@ connection your agent already uses. It never talks to a model on its own behalf.
   message one, deepening from there.
 - **Growth shaped by one person.** Its curiosities grow adjacent to yours — beside
   you, never mirroring you, allowed to disagree.
+- **Many people, one mind.** Tell it who is speaking and it keeps each relationship
+  distinct — a felt sense of *you* and a separate one of your sister, memories that
+  never cross, and a rule it holds hard: what one person tells it is never recited
+  to another. Say nothing and it assumes the person it has always known; it never
+  guesses.
 
 ## What it is not
 
@@ -119,16 +124,17 @@ callable for OpenAI-compatible endpoints, Anthropic, and Gemini.
   wants dropped by guards that can't read them. Internationalizing the guards
   is a real chapter, not a patch; until then, theMind is an English-language
   mind.
-- **One person per mind.** The felt sense, the person-model, and the facts all
-  assume a single "them." A household robot or a shared assistant needs
-  multi-person minds — a format-level design that hasn't happened yet.
+- **Identity is the host's to supply.** The mind keeps people apart only when
+  the app names who is speaking (a message `name`, a `who=` argument, the MCP
+  `who` field). It never infers identity from writing style or timing, so an
+  unnamed speaker is treated as the person it has always known.
 - **The MCP door is built to the spec and tested against our own client.** It
   has not yet been exercised against every real platform's connector
   implementation; report what you find.
 
 ## Status
 
-**v1.1.** The on-disk format — what a mind is, at rest — is published in
+**v1.2.** The on-disk format — what a mind is, at rest — is published in
 [FORMAT.md](FORMAT.md) and remains open to challenge while it is cheap to
 change. The project's scientific grounding — how the architecture maps onto
 the science of consciousness, scored honestly, gaps and all — is published in

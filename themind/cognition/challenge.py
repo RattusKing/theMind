@@ -12,6 +12,7 @@ as a tension. The guard corrects drift from evidence, not people changing.
 """
 from ..envelope import make_record
 from ..retrieval import _words
+from ..people import owner
 
 SYSTEM = (
     "You are the challenge faculty of an AI companion's mind. A stored memory about a person "
@@ -41,8 +42,8 @@ def check(mind, new_facts):
         if not ents:
             continue
         for old in mind.live("facts"):
-            if old.get("id") == new.get("id"):
-                continue
+            if old.get("id") == new.get("id") or owner(old) != owner(new):
+                continue  # only this person's own memories are contested by their words
             if not (ents & set(e.lower() for e in old.get("entities") or [])):
                 continue
             src = old.get("src") or {}
@@ -70,6 +71,7 @@ def _challenge(mind, old, quote, new):
     rec = make_record("f", {"kind": "exchange", "quote": quote[:200], "ref": None},
                       salience=old.get("salience", 0.5), text=text,
                       entities=(old.get("entities") or [])[:5],
-                      kind=old.get("kind", "profile"))
+                      kind=old.get("kind", "profile"),
+                      **({"who": owner(old)} if owner(old) else {}))
     if mind.stores["facts"].append(rec):
         mind.stores["facts"].supersede(old["id"], rec["id"])

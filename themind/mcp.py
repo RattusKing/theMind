@@ -139,7 +139,7 @@ class MindMCP:
         return out
 
     def tool_open_inner_context(self, args):
-        ctx = self.mind.context(args.get("message"))
+        ctx = self.mind.context(args.get("message"), who=args.get("who"))
         return ctx or "(a newborn mind — nothing held yet; it will grow as you observe)"
 
     def tool_observe_exchange(self, args):
@@ -147,11 +147,13 @@ class MindMCP:
         reply = (args.get("your_reply") or "").strip()
         if not user_text:
             return "nothing to observe: user_text is empty"
+        who = (args.get("who") or "").strip()
         return (
             "Perform this act of remembering, then call submit_extraction with the same "
-            "user_text and your_reply plus your output as `lines`.\n\n"
-            "INSTRUCTIONS:\n%s\n\nTHE EXCHANGE:\nPERSON: %s\n\nCOMPANION: %s"
-            % (extract.SYSTEM, user_text[:2000], reply[:2000])
+            "user_text and your_reply%s plus your output as `lines`.\n\n"
+            "INSTRUCTIONS:\n%s\n\nTHE EXCHANGE:\nPERSON%s: %s\n\nCOMPANION: %s"
+            % (" and who" if who else "", extract.SYSTEM,
+               " (%s)" % who if who else "", user_text[:2000], reply[:2000])
         )
 
     def tool_submit_extraction(self, args):
@@ -161,8 +163,14 @@ class MindMCP:
         if not user_text or not lines:
             return "nothing submitted"
         self.mind.manifest.bump("exchanges")
+        who = (args.get("who") or "").strip() or None
+        try:
+            key = self.mind.people.resolve(who, bind=True)
+            self.mind.people.note_exchange(key, who)
+        except Exception:
+            key = None
         stored = self._one_shot_run("extract", lines,
-                                    lambda: extract.run(self.mind, user_text, reply))
+                                    lambda: extract.run(self.mind, user_text, reply, who=key))
         return "held: %s item(s) became part of you (everything ungrounded was dropped)" \
             % (stored if stored is not None else 0)
 
@@ -204,7 +212,8 @@ class MindMCP:
     def tool_remember(self, args):
         query = (args.get("query") or "").strip()
         from .retrieval import recall, recent
-        facts = self.mind.live("facts")
+        from .people import of
+        facts = of(self.mind.live("facts"), self.mind.people.resolve(args.get("who")))
         if not facts:
             return "(nothing remembered yet)"
         lit = self.mind.graph.constellation(query) if query else []
@@ -273,21 +282,30 @@ TOOLS = [
                     "Call at the START of every conversation and when the topic shifts; "
                     "let it inform you silently — never recite it.",
      "inputSchema": {"type": "object", "properties": {
-         "message": {"type": "string", "description": "the person's latest message, for recall"}},
+         "message": {"type": "string", "description": "the person's latest message, for recall"},
+         "who": {"type": "string", "description": "who is speaking, by name, ONLY if it is "
+                 "not the person you usually talk with (a group, a shared device, a friend); "
+                 "omit for the usual person. Never guess a name."}},
          "additionalProperties": False}},
     {"name": "observe_exchange",
      "description": "Begin remembering an exchange. Returns the act of remembering for "
                     "you to perform (you are the mind's model); finish by calling "
                     "submit_extraction. Call after each meaningful exchange.",
      "inputSchema": {"type": "object", "properties": {
-         "user_text": {"type": "string"}, "your_reply": {"type": "string"}},
+         "user_text": {"type": "string"}, "your_reply": {"type": "string"},
+         "who": {"type": "string", "description": "who is speaking, by name, ONLY if it is "
+                 "not the person you usually talk with (a group, a shared device, a friend); "
+                 "omit for the usual person. Never guess a name."}},
          "required": ["user_text", "your_reply"], "additionalProperties": False}},
     {"name": "submit_extraction",
      "description": "Second half of observe_exchange: submit the extraction lines you "
                     "produced. Grounding guards run server-side; ungrounded items drop.",
      "inputSchema": {"type": "object", "properties": {
          "user_text": {"type": "string"}, "your_reply": {"type": "string"},
-         "lines": {"type": "string", "description": "your extraction output, verbatim"}},
+         "lines": {"type": "string", "description": "your extraction output, verbatim"},
+         "who": {"type": "string", "description": "who is speaking, by name, ONLY if it is "
+                 "not the person you usually talk with (a group, a shared device, a friend); "
+                 "omit for the usual person. Never guess a name."}},
          "required": ["user_text", "your_reply", "lines"], "additionalProperties": False}},
     {"name": "begin_thought",
      "description": "A quiet moment: ask the mind what it owes itself (a reflection, a "
@@ -304,7 +322,10 @@ TOOLS = [
     {"name": "remember",
      "description": "Recall what you hold about the person, most relevant first.",
      "inputSchema": {"type": "object", "properties": {
-         "query": {"type": "string", "description": "what to recall around; empty = recent"}},
+         "query": {"type": "string", "description": "what to recall around; empty = recent"},
+         "who": {"type": "string", "description": "who is speaking, by name, ONLY if it is "
+                 "not the person you usually talk with (a group, a shared device, a friend); "
+                 "omit for the usual person. Never guess a name."}},
          "additionalProperties": False}},
     {"name": "my_stance",
      "description": "Your considered position on your own experience, with its history.",

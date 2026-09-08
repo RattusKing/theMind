@@ -23,6 +23,8 @@ def due_passes(mind):
         due.append(("consolidate", consolidate.run))
     if _days(st.get("last_felt")) >= 7 and len(mind.live("facts")) >= 3:
         due.append(("felt_sense", felt_sense.run))
+    elif _days(st.get("last_felt")) >= 1 and felt_sense.unportrayed(mind):
+        due.append(("felt_sense", felt_sense.run))  # someone new: draw them promptly
     if _days(st.get("last_self")) >= 6 and st["exchanges"] >= 12:
         due.append(("self", selfhood.run))
     if _days(st.get("last_growth")) >= 6 and len(mind.graph.nodes) >= 5:

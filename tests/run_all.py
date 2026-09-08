@@ -1254,4 +1254,259 @@ mh.shutdown()
 for d in (dH, dH2, dH3):
     shutil.rmtree(d, ignore_errors=True)
 
+# ── 25. multi-person minds (format 0.7) ──────────────────────────────────────
+print("multi-person")
+from themind.people import norm_who, of as of_fn, owner as owner_fn
+from themind.cognition import felt_sense as felt_mp
+from themind import inject as inject_mod
+
+ok(norm_who("  Maya  ") == "maya" and norm_who("MAYA") == "maya" and norm_who("") is None
+   and norm_who(None) is None and norm_who("Bob O'Neil!") == "bob o neil",
+   "speaker names normalize to one key; empty means the primary")
+
+def llm_fact(fact, quote, ents, kind="profile"):
+    # answers only the extraction prompt; every other pass gets nothing (a no-op)
+    return lambda s, u, m: ("FACT: %s | QUOTE: %s | ENTITIES: %s | KIND: %s"
+                            % (fact, quote, ents, kind)) if s == extract_mod.SYSTEM else ""
+
+# a legacy mind: records with no `who` are the primary's, and context is unchanged
+mindP, dP = fresh(llm=llm_fact("Their dog is named Rex.", "my dog rex", "Rex, dog"))
+mindP.observe("my dog rex is the best", "Rex sounds great.")
+recP = mindP.live("facts")[0]
+ok("who" not in recP, "the primary's records carry no `who` at all — an old mind reads unchanged")
+ok(mindP.context("rex") == mindP.context("rex", who=None) == mindP.context("rex", who=""),
+   "no name, empty name, and None all mean the primary")
+ok(mindP.people.primary_name is None and mindP.people.resolve("Sam") is None,
+   "an unnamed primary: a name on the read path resolves to the primary and binds nothing")
+ok(mindP.people.primary_name is None, "…and read paths never write people.json")
+
+# the first name a mind hears is the primary's
+mindP.observe("i am sam and rex loves the sea", "Nice.", who="Sam")
+ok(mindP.people.primary_name == "Sam" and all("who" not in r for r in mindP.live("facts")),
+   "the first name a mind hears is bound to the primary; nothing splits")
+ok(mindP.people.resolve("SAM") is None and mindP.people.resolve("sam ") is None,
+   "the primary's own name, however cased, still means the primary")
+
+# a second person: their records carry `who`; nothing crosses
+mindP = Mind(dP, llm=llm_fact("Their dog is named Biscuit.", "my dog biscuit", "Biscuit, dog"), sync=True)
+mindP.observe("my dog biscuit chewed a shoe", "Oh no.", who="Maya")
+maya = of_fn(mindP.live("facts"), "maya")
+ok(len(maya) == 1 and maya[0]["who"] == "maya" and "Biscuit" in maya[0]["text"],
+   "a second speaker's fact is stamped with their key")
+ok(len(of_fn(mindP.live("facts"), None)) == 1 and mindP.people.others() == ["maya"],
+   "…and the primary's records are untouched; people.json lists the newcomer")
+ctx_sam = mindP.context("dog")
+ctx_maya = mindP.context("dog", who="Maya")
+ok("Rex" in ctx_sam and "Biscuit" not in ctx_sam,
+   "talking with the primary: only their memories are served")
+ok("Biscuit" in ctx_maya and "Rex" not in ctx_maya,
+   "talking with Maya: only Maya's memories are served — what one person tells the mind is never recited to another")
+ok("WHAT YOU REMEMBER ABOUT MAYA:" in ctx_maya and "WHO IS SPEAKING:" in ctx_maya
+   and "still getting to know" in ctx_maya,
+   "a new person without a portrait is introduced honestly as someone still being learned")
+ok("OTHERS IN YOUR LIFE" in ctx_sam and "Maya" in ctx_sam.split("OTHERS IN YOUR LIFE", 1)[1],
+   "the primary's context names the others in the mind's life")
+ok("OTHERS IN YOUR LIFE" in ctx_maya and "Sam" in ctx_maya.split("OTHERS IN YOUR LIFE", 1)[1]
+   and "Maya" not in ctx_maya.split("OTHERS IN YOUR LIFE", 1)[1],
+   "…and Maya's names the primary, never herself")
+mindS, dS = fresh(llm=llm_fact("Their dog is named Rex.", "my dog rex", "Rex, dog"))
+mindS.observe("my dog rex is the best", "Rex sounds great.")
+ok("OTHERS IN YOUR LIFE" not in mindS.context("dog") and "WHO IS SPEAKING" not in mindS.context("dog"),
+   "a single-person mind shows no such block — byte-identical to before")
+shutil.rmtree(dS, ignore_errors=True)
+ok("Maya" not in mindP.context("dog") or "Biscuit" not in mindP.context("dog"),
+   "no scoped record leaks through the shared blocks")
+
+# dedupe and rehearsal are per person: the same words from two people are two facts
+mindP = Mind(dP, llm=llm_fact("Their dog is named Rex.", "my dog rex", "Rex, dog"), sync=True)
+mindP.observe("my dog rex too", "Two Rexes.", who="Maya")
+ok(len([f for f in mindP.live("facts") if "Rex" in f["text"]]) == 2,
+   "the same fact text from a second person is a second fact, not a duplicate")
+before = [f for f in mindP.live("facts") if "Rex" in f["text"] and owner_fn(f) is None][0]["salience"]
+mindP.observe("my dog rex again", "Rex again.", who="Maya")
+after_sam = [f for f in mindP.live("facts") if "Rex" in f["text"] and owner_fn(f) is None][0]["salience"]
+ok(after_sam == before, "…and Maya's re-mention reinforces Maya's record, never Sam's")
+
+# the challenge-time guard never crosses people
+calls = []
+def llm_watch(s, u, m):
+    if s == challenge_mod.SYSTEM:
+        calls.append(u)
+        return "REVISED: Their dog Rex is old."
+    if s != extract_mod.SYSTEM:
+        return ""
+    return "FACT: Their dog Rex is old. | QUOTE: rex is old | ENTITIES: Rex | KIND: profile"
+sam_rex = [f for f in mindP.live("facts") if "Rex" in f["text"] and owner_fn(f) is None][0]
+mindP = Mind(dP, llm=llm_watch, sync=True)
+mindP.observe("rex is old now", "Aw.", who="Maya")
+still = next((f for f in mindP.live("facts") if f["id"] == sam_rex["id"]), None)
+ok(still is not None and not still.get("superseded_by"),
+   "Maya's new fact about 'Rex' never challenges — or revises — Sam's fact about his Rex")
+ok(calls and all(sam_rex["text"] not in u or "STORED: " + sam_rex["text"] in u for u in calls)
+   and any(f.get("who") == "maya" and f["text"] == "Their dog Rex is old." for f in mindP.live("facts")),
+   "…while Maya's own same-entity memory is re-derived as before")
+
+# the person-model and its reconciliation are per person
+llm_feel = lambda s, u, m: ("THEY: They feel nervous about the exam. | QUOTE: nervous about the exam | "
+                            "ENTITIES: exam | KIND: feels") if s == extract_mod.SYSTEM else ""
+mindP = Mind(dP, llm=llm_feel, sync=True)
+mindP.observe("i am nervous about the exam", "You'll do fine.")
+mindP.observe("so nervous about the exam", "Breathe.", who="Maya")
+mindP = Mind(dP, llm=lambda s, u, m: ("THEY: They feel relieved the exam is done. | QUOTE: relieved the exam "
+                                       "is done | ENTITIES: exam | KIND: feels")
+             if s == extract_mod.SYSTEM else "", sync=True)
+mindP.observe("relieved the exam is done", "Well done.", who="Maya")
+pm = mindP.live("person_model")
+ok(len(of_fn(pm, None)) == 1 and "nervous" in of_fn(pm, None)[0]["text"],
+   "Maya's relief never closes Sam's nervousness")
+ok(len(of_fn(pm, "maya")) == 1 and "relieved" in of_fn(pm, "maya")[0]["text"],
+   "…while Maya's own older feeling is superseded as before")
+
+# consolidation never reconciles one person's records against another's
+seen_listing = {}
+def llm_consol(s, u, m):
+    if s == consolidate_mod.SYSTEM:
+        seen_listing["u"] = u
+        return "NONE"
+    return "NONE"
+mindP = Mind(dP, llm=llm_consol, sync=True)
+maya_before = {f["id"] for f in of_fn(mindP.live("facts"), "maya")}
+sam_before = {f["id"] for f in of_fn(mindP.live("facts"), None)}
+consolidate_mod.run(mindP)
+lst = seen_listing.get("u", "")
+ids_in = {f["id"] for f in mindP.live("facts") if f["id"] in lst}
+owners = {owner_fn(f) for f in mindP.live("facts") if f["id"] in ids_in}
+ok(ids_in and len(owners) == 1, "the consolidation listing holds one person's records only")
+maya_after = {f["id"] for f in of_fn(mindP.live("facts"), "maya")}
+arch_ids = {}
+for l in open(mindP._p("archive", "facts.jsonl")):
+    r = json.loads(l)
+    arch_ids[r["id"]] = r.get("superseded_by")
+folded_into_maya = all(arch_ids.get(i) in maya_after for i in maya_before - maya_after)
+ok({f["id"] for f in of_fn(mindP.live("facts"), None)} == sam_before and folded_into_maya,
+   "…and mechanical dedupe never folds one person's same-worded fact into another's")
+
+# one portrait per person, one call per pass, the most-owed person first
+seen_felt = []
+def llm_felt(s, u, m):
+    if s == felt_mp.SYSTEM:
+        seen_felt.append(u)
+        return "I keep noticing how much of this person's life circles their dog; " \
+               "there is a steadiness in the way they return to it, and I find myself " \
+               "settling into that rhythm with them, glad of it."
+    return "NONE"
+mindP = Mind(dP, llm=llm_fact("Their exam is on Friday.", "exam is friday", "exam"), sync=True)
+mindP.observe("my exam is friday", "Good luck.", who="Maya")
+mindP = Mind(dP, llm=llm_fact("Their sister lives by the sea.", "sister by the sea", "sister, sea"), sync=True)
+mindP.observe("my sister by the sea", "Lovely.", who="Maya")
+ok(felt_mp.unportrayed(mindP) == "maya", "a newcomer with enough held and no portrait yet is owed one")
+from themind.cognition import due_passes as due_fn
+ok("felt_sense" in [n for n, _ in due_fn(mindP)],
+   "…and the scheduler draws them promptly instead of waiting a week")
+mindP = Mind(dP, llm=llm_felt, sync=True)
+felt_mp.run(mindP)
+fd = mindP.felt_doc.load()
+ok(("others" in fd and "maya" in fd["others"] and fd["others"]["maya"]["current"]["text"].startswith("I keep")),
+   "the felt pass drew the most-owed person — Maya — under others[]")
+known = seen_felt[-1].split("WHAT YOU KNOW:")[1].split("WHAT'S GOING ON")[0]
+ok("Biscuit" in known and "Sundays" not in known and "sister" in known,
+   "…from Maya's material only")
+ok(not fd.get("current"), "…and the primary's portrait slot is untouched")
+ok(mindP.people.since_felt("maya") == 0 and mindP.people.since_felt(None) > 0,
+   "the counter resets for the person drawn, not for anyone else")
+ok(len(seen_felt) == 1, "one portrait, one call — the MCP borrow still holds")
+ctx_maya2 = mindP.context("dog", who="maya")
+ok("WHO MAYA IS TO YOU" in ctx_maya2 and "I keep noticing" in ctx_maya2 and "WHO IS SPEAKING" not in ctx_maya2,
+   "Maya's portrait is served when Maya speaks")
+ok("I keep noticing" not in mindP.context("dog"), "…and never when the primary speaks")
+mindP = Mind(dP, llm=llm_fact("They run on Sundays.", "run on sundays", "running"), sync=True)
+mindP.observe("i run on sundays", "Nice habit.")
+mindP = Mind(dP, llm=llm_fact("They bake bread on Saturdays.", "bake bread", "bread"), sync=True)
+mindP.observe("i bake bread saturdays", "Warm kitchen.")
+mindP = Mind(dP, llm=llm_felt, sync=True)
+felt_mp.run(mindP)
+fd = mindP.felt_doc.load()
+ok(fd.get("current", {}).get("text", "").startswith("I keep") and "maya" in fd.get("others", {}),
+   "the next pass draws the primary, keeping Maya's portrait beside it")
+
+# tensions and expectations belong to whoever their roots are about
+from themind.envelope import make_record as mk_mp
+fx = mk_mp("f", {"kind": "exchange", "quote": "q", "ref": None}, text="Maya's cat is grey.", entities=["cat"], who="maya")
+mindP.stores["facts"].append(fx)
+mindP = Mind(dP, llm=lambda s, u, m: ("EXPECT: I expect Maya will mention the cat again. | ROOTS: %s" % fx["id"])
+             if s == expect_mod.SYSTEM else "NONE", sync=True)
+expect_mod.run(mindP)
+xs = mindP.live("expectations")
+ok(xs and xs[-1].get("who") == "maya", "an expectation rooted in Maya's fact is Maya's")
+ok("I expect Maya" in mindP.context("cat", who="maya") and "I expect Maya" not in mindP.context("cat"),
+   "…served to Maya, never to the primary")
+sal = xs[-1]["salience"]
+expect_mod.touch(mindP, "the cat again mention", "yes", who=None)
+ok(mindP.live("expectations")[-1]["salience"] == sal, "the primary's words never test Maya's expectation")
+expect_mod.touch(mindP, "the cat again mention", "yes", who="maya")
+ok(mindP.live("expectations")[-1]["salience"] > sal, "…Maya's do")
+
+# enrich reads the speaker from the message `name`
+msgs = [{"role": "user", "content": "how is my dog", "name": "Maya"}]
+sysmsg = mindP.enrich(msgs)[0]["content"]
+ok("Biscuit" in sysmsg and "named Rex" not in sysmsg and "Sundays" not in sysmsg,
+   "enrich honors the last user message's `name`")
+ok(msgs == [{"role": "user", "content": "how is my dog", "name": "Maya"}], "…without mutating the input")
+
+# export carries everyone
+exp_p = mindP.export()
+dP2 = tempfile.mkdtemp(prefix="mind_")
+twin_p = Mind.restore(exp_p, dP2)
+ok(twin_p.people.others() == ["maya"] and twin_p.people.primary_name == "Sam"
+   and twin_p.context("dog", who="maya") == mindP.context("dog", who="maya"),
+   "export/restore carries people.json and every portrait")
+
+# the MCP door: who rides observe -> submit; remember is scoped
+core_p = mcp_core_mod.MindMCP(twin_p)
+prompt = core_p.tool_observe_exchange({"user_text": "my dog biscuit hates rain", "your_reply": "Poor Biscuit.", "who": "Maya"})
+ok("PERSON (Maya):" in prompt, "observe_exchange names the speaker in the act of remembering")
+core_p.tool_submit_extraction({"user_text": "my dog biscuit hates rain", "your_reply": "Poor Biscuit.", "who": "Maya",
+                               "lines": "FACT: Their dog Biscuit hates rain. | QUOTE: biscuit hates rain | ENTITIES: Biscuit | KIND: profile"})
+ok(any("hates rain" in f["text"] and f.get("who") == "maya" for f in twin_p.live("facts")),
+   "borrowed extraction stamps the speaker")
+rem = core_p.tool_remember({"query": "dog", "who": "Maya"})
+ok("Biscuit" in rem and "named Rex" not in rem and "Sundays" not in rem,
+   "remember(who=) is scoped like injection")
+ok("named Rex" in core_p.tool_remember({"query": "dog"}) and "Biscuit" not in core_p.tool_remember({"query": "dog"}),
+   "…and without who, the primary's")
+for d in (dP, dP2):
+    shutil.rmtree(d, ignore_errors=True)
+
+# the proxy: the message `name` names the speaker; body.user only when asked
+dPx = tempfile.mkdtemp(prefix="mind_")
+_StubUpstream.seen.clear()
+stub2 = ThreadingHTTPServer(("127.0.0.1", 0), _StubUpstream)  # loopback only, a fresh stub
+threading.Thread(target=stub2.serve_forever, daemon=True).start()
+px = proxy_mod.serve(dPx, "http://127.0.0.1:%d/v1" % stub2.server_port,
+                     port=0, quiet=True, sync=True, speaker_field="user")
+threading.Thread(target=px.serve_forever, daemon=True).start()
+pxbase = "http://127.0.0.1:%d" % px.server_address[1]
+def call_px(body):
+    data = json.dumps(body).encode("utf-8")
+    req = urllib.request.Request(pxbase + "/v1/chat/completions", data=data,
+                                 headers={"Content-Type": "application/json",
+                                          "Authorization": "Bearer k"}, method="POST")
+    with urllib.request.urlopen(req, timeout=30) as r:
+        return r.status, r.read()
+call_px({"model": "stub-model", "messages": [{"role": "user", "content": "hello there", "name": "Sam"}]})
+settle(lambda: read_exchanges(dPx) == 1)
+call_px({"model": "stub-model", "user": "Maya", "messages": [{"role": "user", "content": "hi again"}]})
+settle(lambda: read_exchanges(dPx) == 2)
+call_px({"model": "stub-model", "user": "sess-91f", "messages": [{"role": "user", "content": "and me", "name": "Ben"}]})
+settle(lambda: read_exchanges(dPx) == 3)
+settle(lambda: len(Mind(dPx, sync=True).people.others()) == 2, timeout=10)
+ppl = Mind(dPx, sync=True).people
+ok(ppl.primary_name == "Sam" and sorted(ppl.others()) == ["ben", "maya"],
+   "the proxy names speakers from the message `name`, and from body.user when asked; the message name wins")
+px.shutdown()
+px.server_close()
+stub2.shutdown()
+stub2.server_close()
+shutil.rmtree(dPx, ignore_errors=True)
+
 print("\nall %d assertions passed" % PASS)

@@ -101,6 +101,30 @@ OpenAI-compatible endpoints, Anthropic, and Gemini.
 
 ---
 
+## Talking with more than one person
+
+By default a mind assumes one person: whoever it has always talked with. If
+your companion is shared — a family device, a group chat, a friend who joins
+in — tell it who is speaking and it keeps each relationship separate. It will
+hold a felt sense of each person, remember each person's things for them only,
+and never repeat what one person said to another.
+
+- **Proxy:** put the speaker's name in the user message's `name` field (the
+  OpenAI format already has one). If your app names people in the request's
+  top-level `user` field instead, start the proxy with `--speaker-field user`
+  — but only if that field holds a person, not a session id.
+- **MCP:** the `observe_exchange`, `submit_extraction`, `open_inner_context`
+  and `remember` tools take an optional `who`. Leave it out for the usual
+  person.
+- **Library:** `mind.enrich(messages, who="Maya")` and
+  `mind.observe(user_text, reply, who="Maya")`; `enrich` also reads a
+  `name` on the last user message.
+
+The first name a mind ever hears is treated as the name of the person it
+already knows, so telling an existing mind "this is Sam" does not split it.
+Names are matched case-insensitively. A speaker you don't name is always the
+usual person — the mind never guesses who is talking.
+
 ## Common questions
 
 **Where is everything kept?** In the folder you chose (`./my-mind`). It's

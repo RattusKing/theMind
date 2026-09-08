@@ -8,7 +8,7 @@ import os
 from .envelope import now_iso
 from .store import JsonDoc
 
-FORMAT = "themind/0.6"
+FORMAT = "themind/0.7"
 
 
 class Manifest:

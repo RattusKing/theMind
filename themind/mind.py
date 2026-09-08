@@ -33,6 +33,7 @@ from .graph import Graph
 from . import inject, defaults
 from . import cognition
 from .cognition import extract
+from .people import People
 
 STORES = ("facts", "self_memory", "beliefs", "tensions", "aches", "desires",
           "person_model", "own_desires", "expectations", "reflections")
@@ -67,6 +68,7 @@ class Mind:
         self.growth_doc = JsonDoc(self._p("stores", "growth.json"))
         self.inner_doc = JsonDoc(self._p("stores", "inner_state.json"))
         self.story_doc = JsonDoc(self._p("stores", "story.json"))
+        self.people = People(JsonDoc(self._p("stores", "people.json")))
 
     def _p(self, *parts):
         return os.path.join(self.root, *parts)
@@ -98,22 +100,30 @@ class Mind:
                 "particulars": defaults.particulars_for(mid),
                 "history": [], "default": True}
 
-    def context(self, incoming_text=None):
+    def context(self, incoming_text=None, who=None):
         """The inner-context block for this turn. Empty string on any failure —
-        the host's chat path must never see an error from this layer."""
+        the host's chat path must never see an error from this layer.
+        `who` names the speaker when it isn't the person the mind usually
+        talks with; omitted means the primary person. Never guessed."""
         try:
-            return inject.build_context(self, incoming_text, self.budget_tokens)
+            key = self.people.resolve(who)
+            return inject.build_context(self, incoming_text, self.budget_tokens, who=key)
         except Exception:
             return ""
 
-    def enrich(self, messages):
+    def enrich(self, messages, who=None):
         """OpenAI-shaped messages in, same shape out with the inner context
-        folded into the system side. The original list is not mutated."""
+        folded into the system side. The original list is not mutated.
+        The speaker is `who`, else the last user message's `name`, else the
+        primary person."""
         try:
             msgs = [dict(m) for m in (messages or [])]
-            incoming = next((m.get("content") for m in reversed(msgs)
-                             if m.get("role") == "user" and isinstance(m.get("content"), str)), None)
-            ctx = self.context(incoming)
+            last_user = next((m for m in reversed(msgs)
+                              if m.get("role") == "user" and isinstance(m.get("content"), str)), None)
+            incoming = last_user.get("content") if last_user else None
+            if who is None and last_user and isinstance(last_user.get("name"), str):
+                who = last_user.get("name")
+            ctx = self.context(incoming, who=who)
             if not ctx:
                 return msgs
             for m in msgs:
@@ -125,23 +135,30 @@ class Mind:
             return messages
 
     # ── learning ─────────────────────────────────────────────────────────────
-    def observe(self, user_text, assistant_text):
+    def observe(self, user_text, assistant_text, who=None):
         """Learn from one exchange. Extraction plus at most one due deep pass —
-        on a background thread by default so the host's turn never waits."""
+        on a background thread by default so the host's turn never waits.
+        `who` names the speaker (omitted = the primary person; the first name
+        a mind ever hears becomes the primary's)."""
         self.manifest.bump("exchanges")
+        try:
+            key = self.people.resolve(who, bind=True)
+            self.people.note_exchange(key, who)
+        except Exception:
+            key = None
         if self.llm is None:
             return
         if self.sync:
-            self._learn(user_text, assistant_text)
+            self._learn(user_text, assistant_text, key)
         else:
-            threading.Thread(target=self._learn, args=(user_text, assistant_text),
+            threading.Thread(target=self._learn, args=(user_text, assistant_text, key),
                              daemon=True).start()
 
-    def _learn(self, user_text, assistant_text):
+    def _learn(self, user_text, assistant_text, who=None):
         if not self._busy.acquire(blocking=False):
             return  # a prior pass is still thinking; this turn's learning is skipped, not queued
         try:
-            extract.run(self, user_text, assistant_text)
+            extract.run(self, user_text, assistant_text, who=who)
             due = cognition.due_passes(self)
             if due:
                 name, fn = due[0]  # one deep pass per turn, never the whole backlog
@@ -195,7 +212,7 @@ class Mind:
         for name, doc in (("graph", JsonDoc(self._p("stores", "graph.json"))),
                           ("self", self.self_doc), ("felt_sense", self.felt_doc),
                           ("growth", self.growth_doc), ("inner_state", self.inner_doc),
-                          ("story", self.story_doc)):
+                          ("story", self.story_doc), ("people", self.people.doc)):
             data["stores"][name] = doc.load(default={})
         data["stores"]["ledger"] = self.ledger.load()
         for name in STORES:
@@ -222,7 +239,7 @@ class Mind:
         for name in STORES:
             Jsonl(os.path.join(dest_dir, "stores", name + ".jsonl"),
                   validate=False).rewrite(stores.get(name) or [])
-        for name in ("graph", "self", "felt_sense", "growth", "inner_state", "story"):
+        for name in ("graph", "self", "felt_sense", "growth", "inner_state", "story", "people"):
             if stores.get(name):
                 JsonDoc(os.path.join(dest_dir, "stores", name + ".json")).save(stores[name])
         if stores.get("ledger"):
