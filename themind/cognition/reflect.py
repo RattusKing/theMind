@@ -8,6 +8,7 @@ mind reflecting, and it is rejected whole.
 import re
 
 from ..envelope import make_record, now_iso, age_days
+from ..people import tag
 
 THIRD_PERSON = re.compile(r"^\s*(she|he|they|the (companion|assistant|ai|mind))\b", re.I)
 
@@ -45,7 +46,7 @@ def _material(mind):
     for store in ("facts", "aches", "desires", "person_model", "self_memory"):
         for r in mind.live(store):
             if age_days(r.get("t")) <= 1.5:
-                out.append(r.get("text", ""))
+                out.append(tag(r, mind.people) + r.get("text", ""))
     # What the mind wants steers what it thinks about — reflection is
     # desire-directed, whatever the wants' age.
     wants = sorted(mind.live("own_desires"), key=lambda r: -r.get("salience", 0))

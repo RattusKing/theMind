@@ -55,6 +55,22 @@ def _last_user_text(messages):
     return None
 
 
+def _speaker(body, messages, field):
+    """Who is speaking, if the app says. The last user message's `name` is
+    always honored (it exists to name the speaker). The request's top-level
+    `user` field is honored only when the operator asked (`--speaker-field
+    user`): many apps fill it with a session or install id, and a mind must
+    never be split by an id that isn't a person."""
+    for m in reversed(messages):
+        if isinstance(m, dict) and m.get("role") == "user":
+            if isinstance(m.get("name"), str) and m["name"].strip():
+                return m["name"]
+            break
+    if field == "user" and isinstance(body.get("user"), str) and body["user"].strip():
+        return body["user"]
+    return None
+
+
 class Upstream:
     """The real endpoint, plus the transient state cognition rides on: the
     last Authorization header and model seen on the chat path. In memory
@@ -109,10 +125,11 @@ class Upstream:
 class MindProxy(ThreadingHTTPServer):
     daemon_threads = True
 
-    def __init__(self, addr, mind, upstream, quiet=False):
+    def __init__(self, addr, mind, upstream, quiet=False, speaker_field=None):
         self.mind = mind
         self.upstream = upstream
         self.quiet = quiet
+        self.speaker_field = speaker_field  # None: message `name` only; "user": also body.user
         super().__init__(addr, _Handler)
 
 
@@ -189,17 +206,18 @@ class _Handler(BaseHTTPRequestHandler):
     # ── the chat path ────────────────────────────────────────────────────────
     def _chat(self):
         raw = self._read_body()
-        out, user_text, wants_stream = raw, None, False
+        out, user_text, wants_stream, who = raw, None, False, None
         try:
             body = json.loads(raw.decode("utf-8"))
             wants_stream = bool(body.get("stream"))
             messages = body.get("messages")
             if isinstance(body, dict) and isinstance(messages, list):
                 user_text = _last_user_text(messages)
+                who = _speaker(body, messages, getattr(self.server, "speaker_field", None))
                 self.server.upstream.note(self.headers.get("Authorization"),
                                           body.get("model"))
                 enriched = dict(body)
-                enriched["messages"] = self.server.mind.enrich(messages)
+                enriched["messages"] = self.server.mind.enrich(messages, who=who)
                 out = json.dumps(enriched).encode("utf-8")
         except Exception:
             out = raw  # any mind-layer failure: forward the request untouched
@@ -219,7 +237,7 @@ class _Handler(BaseHTTPRequestHandler):
 
         if user_text and reply:
             try:
-                self.server.mind.observe(user_text, reply)
+                self.server.mind.observe(user_text, reply, who=who)
             except Exception:
                 pass  # learning must never take the chat path down with it
 
@@ -271,11 +289,11 @@ class _Handler(BaseHTTPRequestHandler):
 
 
 def serve(mind_path, upstream_base, host="127.0.0.1", port=DEFAULT_PORT,
-          budget=2000, model=None, quiet=False, sync=False):
+          budget=2000, model=None, quiet=False, sync=False, speaker_field=None):
     """Build the server (used by main() and the tests)."""
     upstream = Upstream(upstream_base, model=model)
     mind = Mind(mind_path, llm=upstream.llm, budget_tokens=budget, sync=sync)
-    return MindProxy((host, port), mind, upstream, quiet=quiet)
+    return MindProxy((host, port), mind, upstream, quiet=quiet, speaker_field=speaker_field)
 
 
 def start_idle(mind, interval=900.0):
@@ -319,11 +337,17 @@ def main(argv=None):
     p.add_argument("--idle", type=float, default=900.0,
                    help="seconds between idle thoughts while nobody is talking "
                         "(default 900; 0 disables the idle life)")
+    p.add_argument("--speaker-field", choices=["name", "user"], default="name",
+                   help="how the app names who is speaking: 'name' (default) honors the "
+                        "last user message's `name`; 'user' also honors the request's "
+                        "top-level `user` field (only if your app puts a PERSON there, "
+                        "not a session id — the mind must never be split by an id)")
     p.add_argument("--quiet", action="store_true")
     args = p.parse_args(argv)
 
     server = serve(args.mind, args.upstream, host=args.host, port=args.port,
-                   budget=args.budget, model=args.model, quiet=args.quiet)
+                   budget=args.budget, model=args.model, quiet=args.quiet,
+                   speaker_field=args.speaker_field)
     if args.idle > 0:
         start_idle(server.mind, args.idle)
     if args.mcp_port > 0:

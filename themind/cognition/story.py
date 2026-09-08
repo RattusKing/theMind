@@ -79,9 +79,14 @@ def _material(mind):
     for r in mind.live("reflections")[-6:]:
         if r.get("text"):
             out.append(r["text"])
-    felt = (mind.felt_doc.load(default={}).get("current") or {}).get("text")
+    felt_doc = mind.felt_doc.load(default={})
+    felt = (felt_doc.get("current") or {}).get("text")
     if felt:
         out.append("(who they are to me) " + felt)
+    for key in mind.people.others():
+        other = ((felt_doc.get("others") or {}).get(key) or {}).get("current") or {}
+        if other.get("text"):
+            out.append("(who %s is to me) " % mind.people.display(key) + other["text"])
     bundle = mind.selfhood_bundle()
     if not bundle.get("default") and bundle.get("position"):
         out.append("(where I stand) " + bundle["position"])

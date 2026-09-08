@@ -13,6 +13,7 @@ import re
 
 from ..envelope import make_record, norm_key
 from ..retrieval import _words
+from ..people import owner
 from . import challenge, desire, expect
 
 REINFORCE = 0.05  # a re-mention strengthens what it repeats (the spacing effect)
@@ -58,9 +59,13 @@ def _field(part, name):
     return part[len(name):].strip() if part.upper().startswith(name.upper()) else None
 
 
-def run(mind, user_text, assistant_text):
+def run(mind, user_text, assistant_text, who=None):
+    """`who` is the speaker's record key (None = the primary person). Every
+    person-shaped record this turn writes belongs to them; nothing about one
+    person is ever compared against, or reconciled with, another's."""
     if not (user_text or "").strip():
         return 0
+    stamp = {"who": who} if who else {}
     out = mind._call(
         "extract", SYSTEM,
         "PERSON: %s\n\nCOMPANION: %s" % (user_text[:2000], (assistant_text or "")[:2000]),
@@ -85,7 +90,7 @@ def run(mind, user_text, assistant_text):
                 entities = [e.strip() for e in ents.split(",") if e.strip()][:5]
                 rec = make_record("f", {"kind": "exchange", "quote": quote[:200], "ref": None},
                                   salience=0.6, text=_field(head, "FACT:"),
-                                  entities=entities, kind=kind.strip().lower()[:20])
+                                  entities=entities, kind=kind.strip().lower()[:20], **stamp)
                 if not _is_new(mind, "facts", rec):
                     _reinforce(mind, "facts", rec)  # said again: it matters more, not less
                 elif mind.stores["facts"].append(rec):
@@ -105,7 +110,7 @@ def run(mind, user_text, assistant_text):
                 entities = [e.strip() for e in ents.split(",") if e.strip()][:5]
                 rec = make_record("pm", {"kind": "exchange", "quote": quote[:200], "ref": None},
                                   salience=0.55, text=_field(head, "THEY:"),
-                                  entities=entities, kind=kind)
+                                  entities=entities, kind=kind, **stamp)
                 if not _is_new(mind, "person_model", rec):
                     _reinforce(mind, "person_model", rec)
                 elif mind.stores["person_model"].append(rec):
@@ -119,7 +124,7 @@ def run(mind, user_text, assistant_text):
                     continue
                 store = "aches" if name == "ACHE:" else "desires"
                 rec = make_record(store[0], {"kind": "exchange", "quote": quote[:200], "ref": None},
-                                  salience=0.6, text=_field(head, name))
+                                  salience=0.6, text=_field(head, name), **stamp)
                 if not _is_new(mind, store, rec):
                     _reinforce(mind, store, rec)
                 elif mind.stores[store].append(rec):
@@ -130,7 +135,7 @@ def run(mind, user_text, assistant_text):
                     continue  # the mind can't invent its own commitments either
                 kind = next((_field(p, "KIND:") for p in parts if _field(p, "KIND:")), "claim") or "claim"
                 rec = make_record("sm", {"kind": "exchange", "quote": (assistant_text or "")[:200], "ref": None},
-                                  salience=0.5, text=text, kind=kind.strip().lower()[:12])
+                                  salience=0.5, text=text, kind=kind.strip().lower()[:12], **stamp)
                 if _is_new(mind, "self_memory", rec) and mind.stores["self_memory"].append(rec):
                     stored += 1
         except Exception:
@@ -142,7 +147,7 @@ def run(mind, user_text, assistant_text):
             pass  # the guard protects the store; it never breaks the turn
     try:
         desire.touch(mind, user_text, assistant_text)   # mechanical; no model call
-        expect.touch(mind, user_text, assistant_text)   # attention follows predictions
+        expect.touch(mind, user_text, assistant_text, who=who)   # attention follows predictions
     except Exception:
         pass
     return stored
@@ -152,7 +157,9 @@ def _is_new(mind, store, rec):
     key = norm_key(rec.get("text", ""))
     if not key:
         return False
-    return all(norm_key(r.get("text", "")) != key for r in mind.live(store))
+    who = owner(rec)
+    return all(norm_key(r.get("text", "")) != key or owner(r) != who
+               for r in mind.live(store))
 
 
 def _reinforce(mind, store, rec):
@@ -163,10 +170,11 @@ def _reinforce(mind, store, rec):
     key = norm_key(rec.get("text", ""))
     if not key:
         return False
+    who = owner(rec)
     recs = mind.stores[store].load()  # the whole file, so a rewrite loses nothing
     hit = False
     for r in recs:
-        if r.get("superseded_by"):
+        if r.get("superseded_by") or owner(r) != who:
             continue
         if norm_key(r.get("text", "")) == key:
             r["salience"] = min(1.0, round(float(r.get("salience", 0.5)) + REINFORCE, 4))
@@ -190,5 +198,7 @@ def _reconcile_mental_states(mind, new):
     for old in mind.live("person_model"):
         if old.get("id") == new.get("id") or old.get("kind") != new.get("kind"):
             continue
+        if owner(old) != owner(new):
+            continue  # one person's feeling never closes another's
         if ents & {e.lower() for e in (old.get("entities") or [])}:
             mind.stores["person_model"].supersede(old["id"], new["id"])

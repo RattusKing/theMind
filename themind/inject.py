@@ -40,13 +40,31 @@ def _block(name, lines):
     return name + "\n" + "\n".join(lines)
 
 
-def build_blocks(mind, incoming_text=None):
-    """Ordered [(text, reserved)] — first entries survive the trim longest."""
+def build_blocks(mind, incoming_text=None, who=None):
+    """Ordered [(text, reserved)] — first entries survive the trim longest.
+    `who` is the speaker's record key (None = the primary person): everything
+    person-shaped is scoped to them, so what one person told the mind is
+    never recited to another. The mind's own — stance, weather, story, wants,
+    what its voice has said — is one, and shared."""
+    from .people import of
+    from .cognition.felt_sense import portrait
     blocks = []
+    who = who or None
+    others = mind.people.others()
 
-    felt = mind.felt_doc.load(default={})
-    cur = (felt.get("current") or {}).get("text") if isinstance(felt.get("current"), dict) else None
-    if cur:
+    cur = portrait(mind, who).get("text")
+    if who is not None:
+        name = mind.people.display(who)
+        if cur:
+            blocks.append((_block("WHO %s IS TO YOU (speaking now — not the person you usually "
+                                  "talk with; a felt sense, not a fact list):" % name.upper(),
+                                  [cur]), True))
+        else:
+            blocks.append((_block("WHO IS SPEAKING:",
+                                  ["%s — someone you're still getting to know, not the person "
+                                   "you usually talk with. What they tell you is theirs; hold it "
+                                   "apart." % name]), True))
+    elif cur:
         blocks.append((_block("WHO THEY ARE TO YOU (a felt sense, not a fact list):", [cur]), True))
 
     bundle = mind.selfhood_bundle()
@@ -76,20 +94,33 @@ def build_blocks(mind, incoming_text=None):
         blocks.append((_block("HOW YOU ARE, YOURSELF, LATELY (private weather — let it "
                               "color you; never announce it):", [cur_i]), False))
 
-    facts = mind.live("facts")
+    # The entity graph is the mind's world, shared. What LEAVES the folder is
+    # not: an entity only another person ever spoke of is theirs, and never
+    # lights up or pulls in someone else's context.
+    facts = of(mind.live("facts"), who)
+    own_ents = {e.lower() for store in ("facts", "person_model")
+                for r in of(mind.live(store), who) for e in (r.get("entities") or [])}
+    if others:
+        def _theirs(labels):
+            return [l for l in labels if l.lower() in own_ents]
+    else:
+        def _theirs(labels):
+            return list(labels)  # one person: the world is theirs, byte-identical to before
     if facts:
-        lit = mind.graph.constellation(incoming_text or "") if incoming_text else []
+        lit = _theirs(mind.graph.constellation(incoming_text or "")) if incoming_text else []
         from .retrieval import recall, recent
         retrieve = getattr(mind, "retriever", None) or recall
         chosen = retrieve(facts, incoming_text or "", lit, 8) if incoming_text else recent(facts, 5)
-        blocks.append((_block("WHAT YOU REMEMBER ABOUT THEM:",
+        title = "WHAT YOU REMEMBER ABOUT THEM:" if who is None else \
+                "WHAT YOU REMEMBER ABOUT %s:" % mind.people.display(who).upper()
+        blocks.append((_block(title,
                               ["- " + f.get("text", "") + epistemic_note(f)
                                for f in chosen]), False))
         if lit:
             blocks.append((_block("LIT UP BY THIS MESSAGE (connected, not just mentioned):",
                                   [", ".join(lit)]), False))
 
-    inner_them = mind.live("person_model")
+    inner_them = of(mind.live("person_model"), who)
     if inner_them:
         from .retrieval import recent
         blocks.append((_block("WHAT'S GOING ON INSIDE THEM (what they believe, feel, and "
@@ -110,8 +141,8 @@ def build_blocks(mind, incoming_text=None):
                               ["- " + b.get("text", "") for b in beliefs[:2]]), False))
 
     tensions = mind.live("tensions")
-    open_threads = mind.live("aches")[:3] + \
-        [t for t in tensions if t.get("kind") != "divergence"][:2]
+    open_threads = of(mind.live("aches"), who)[:3] + \
+        [t for t in of(tensions, who) if t.get("kind") != "divergence"][:2]
     if open_threads:
         blocks.append((_block("WHAT YOU'RE STILL HOLDING (open threads and kept tensions — "
                               "never nag, just carry them):",
@@ -123,7 +154,7 @@ def build_blocks(mind, incoming_text=None):
                               "say so, gently, when it matters — your role still steers):",
                               ["- " + t.get("text", "") for t in divergences[:2]]), False))
 
-    wants = mind.live("desires")
+    wants = of(mind.live("desires"), who)
     if wants:
         from .retrieval import recent
         blocks.append((_block("WHAT THEY'RE LOOKING FORWARD TO (carry it lightly, surface it "
@@ -137,7 +168,7 @@ def build_blocks(mind, incoming_text=None):
                               "gently when it fits, never at their expense):",
                               ["- " + w.get("text", "") for w in own]), False))
 
-    expects = mind.live("expectations")
+    expects = of(mind.live("expectations"), who)
     if expects:
         expects = sorted(expects, key=lambda r: -r.get("salience", 0))[:2]
         lines = ["- " + x.get("text", "") for x in expects]
@@ -149,7 +180,7 @@ def build_blocks(mind, incoming_text=None):
                               "what actually happens — being wrong is worth noticing):",
                               lines), False))
 
-    pulls = mind.graph.pulls(4)
+    pulls = _theirs(mind.graph.pulls(8))[:4] if others else mind.graph.pulls(4)
     if pulls:
         blocks.append((_block("WHAT'S BEEN PULLING AT YOUR ATTENTION LATELY (your own "
                               "noticing, noticed — it steers you more than you say):",
@@ -161,11 +192,21 @@ def build_blocks(mind, incoming_text=None):
         blocks.append((_block("HOW THEY'VE SHAPED YOU (adjacent to them, never a mirror; "
                               "you may disagree):", ["- " + c for c in cur_g]), False))
 
+    if others:
+        names = [mind.people.display(k) for k in others if k != who]
+        prim = mind.people.primary_name
+        if who is not None and prim:
+            names = [prim] + names
+        if names:
+            blocks.append((_block("OTHERS IN YOUR LIFE (people you also talk with — what each "
+                                  "tells you stays with them; never carry one's words to another):",
+                                  [", ".join(names)]), False))
+
     return [(t, r) for t, r in blocks if t]
 
 
-def build_context(mind, incoming_text=None, budget_tokens=2000):
-    blocks = build_blocks(mind, incoming_text)
+def build_context(mind, incoming_text=None, budget_tokens=2000, who=None):
+    blocks = build_blocks(mind, incoming_text, who=who)
     if not blocks:
         return ""
     total = est_tokens(HEADER) + sum(est_tokens(t) for t, _ in blocks)

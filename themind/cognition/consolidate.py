@@ -5,6 +5,7 @@ forcing resolution flattens people into portraits of someone who doesn't
 exist. The tail decays and is distilled before it drops, never just dropped.
 """
 from ..envelope import make_record, now_iso, norm_key
+from ..people import owner
 
 SYSTEM = (
     "You are the consolidation faculty of an AI companion's mind, reconciling what it holds "
@@ -23,18 +24,20 @@ def run(mind):
     # Mechanical dedupe first — no model needed for identical canonical text.
     seen = {}
     for f in sorted(facts, key=lambda r: r.get("t", "")):
-        key = norm_key(f.get("text", ""))
+        key = (owner(f), norm_key(f.get("text", "")))  # the same words from two people are two facts
         if key in seen:
             mind.stores["facts"].supersede(seen[key]["id"], f["id"])
         seen[key] = f
     facts = mind.live("facts")
 
     # Reconciliation over entity-sharing groups (bounded input, parse-or-skip).
+    # One person's records are never reconciled against another's: the pass
+    # works the most-owed person this run — the one with the most to reconcile.
     grouped = _entity_groups(facts)
     if grouped:
         listing = "\n".join("%s: %s" % (f["id"], f.get("text", "")) for f in grouped[:30])
         out = mind._call("consolidate", SYSTEM, listing, max_tokens=400)
-        ids = set(f["id"] for f in facts)
+        ids = set(f["id"] for f in grouped[:30])
         for line in (out or "").splitlines():
             _apply(mind, line.strip(), ids)
 
@@ -45,18 +48,25 @@ def run(mind):
 
 
 def _entity_groups(facts):
+    """Entity-sharing facts, for ONE person: groups never cross people, and
+    the person with the most reconcilable material is the one worked."""
     by_ent = {}
     for f in facts:
         for e in f.get("entities", []) or []:
-            by_ent.setdefault(e.lower(), []).append(f)
-    out, seen = [], set()
-    for group in by_ent.values():
+            by_ent.setdefault((owner(f), e.lower()), []).append(f)
+    per_person = {}
+    for (who, _), group in by_ent.items():
         if len(group) >= 2:
+            bucket = per_person.setdefault(who, ([], set()))
             for f in group:
-                if f["id"] not in seen:
-                    seen.add(f["id"])
-                    out.append(f)
-    return out
+                if f["id"] not in bucket[1]:
+                    bucket[1].add(f["id"])
+                    bucket[0].append(f)
+    if not per_person:
+        return []
+    # the primary wins ties, so a single-person mind behaves exactly as before
+    who = max(per_person, key=lambda w: (len(per_person[w][0]), w is None))
+    return per_person[who][0]
 
 
 def _apply(mind, line, valid_ids):
@@ -72,8 +82,10 @@ def _apply(mind, line, valid_ids):
             named = [tok.strip() for tok in ids_part.split(":", 1)[1].replace("+", " ").split()
                      if tok.strip() in valid_ids]
             if len(named) >= 2 and text.strip():
+                who = next((owner(f) for f in mind.live("facts") if f.get("id") == named[0]), None)
                 rec = make_record("t", {"kind": "inference", "ref": named[0]},
-                                  salience=0.6, text=text.strip(), records=named[:2])
+                                  salience=0.6, text=text.strip(), records=named[:2],
+                                  **({"who": who} if who else {}))
                 mind.stores["tensions"].append(rec)
         elif up.startswith("BELIEF:") and "|" in line:
             text, wpart = line.split("|", 1)

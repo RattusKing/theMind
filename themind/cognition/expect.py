@@ -13,6 +13,7 @@ no prediction — an expectation with no basis is a guess wearing a costume.
 """
 from ..envelope import make_record, now_iso, age_days, norm_key
 from ..retrieval import _words
+from ..people import owner, of, tag
 
 MAX_LIVE = 6
 TOUCH_OVERLAP = 2   # content words an exchange must share to test a prediction
@@ -90,9 +91,15 @@ def _store(mind, line, valid_ids):
     key = norm_key(text)
     if not key or any(norm_key(x.get("text", "")) == key for x in live):
         return
+    who = None  # the prediction belongs to whoever its roots are about
+    for store in ("facts", "aches", "desires"):
+        who = next((owner(r) for r in mind.live(store) if r.get("id") in roots and owner(r)), None)
+        if who:
+            break
     mind.stores["expectations"].append(
         make_record("x", {"kind": "inference", "ref": roots[0]},
-                    salience=0.5, text=text, roots=roots[:4]))
+                    salience=0.5, text=text, roots=roots[:4],
+                    **({"who": who} if who else {})))
 
 
 def _settle(mind, exp_id, note):
@@ -113,15 +120,18 @@ def _settle(mind, exp_id, note):
         mind.stores["expectations"].supersede(exp_id, digest["id"])
 
 
-def touch(mind, user_text, assistant_text):
+def touch(mind, user_text, assistant_text, who=None):
     """Mechanical (no model call): attention goes where predictions are being
-    tested — an exchange sharing real words with an expectation strengthens it."""
+    tested — an exchange sharing real words with an expectation strengthens it.
+    Only the speaker's own expectations are tested by what they say."""
     words = _words((user_text or "") + " " + (assistant_text or ""))
     if not words:
         return
     recs = mind.live("expectations")
     changed = False
     for r in recs:
+        if owner(r) != (who or None):
+            continue
         if len(words & _words(r.get("text", ""))) >= TOUCH_OVERLAP:
             r["salience"] = min(1.0, round(r.get("salience", 0.5) + TOUCH_BUMP, 4))
             changed = True
@@ -134,10 +144,10 @@ def _material(mind):
     out = []
     for f in mind.live("facts")[-8:]:
         if f.get("text"):
-            out.append((f["id"], "(about them) " + f["text"]))
+            out.append((f["id"], tag(f, mind.people) + "(about them) " + f["text"]))
     for store, label in (("aches", "(still open) "), ("desires", "(they want) "),
                          ("own_desires", "(you want) "), ("tensions", "(a tension) ")):
         for r in mind.live(store)[-3:]:
             if r.get("text"):
-                out.append((r["id"], label + r["text"]))
+                out.append((r["id"], tag(r, mind.people) + label + r["text"]))
     return out

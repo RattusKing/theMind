@@ -1,10 +1,10 @@
 # theMind — on-disk format
 
-**Version 0.6 — adds `story.json` (the autobiographical self: the life story,
-continuing). Minor, additive. History: 0.5 added `person_model.jsonl`; 0.4
-added `expectations.jsonl`; 0.3 added `inner_state.json` and divergence
-tensions; 0.2 added `own_desires.jsonl`. Older readers ignore unknown stores;
-older minds open unchanged.**
+**Version 0.7 — adds `people.json` and the optional `who` field (one mind,
+many people). Minor, additive. History: 0.6 added `story.json`; 0.5 added
+`person_model.jsonl`; 0.4 added `expectations.jsonl`; 0.3 added
+`inner_state.json` and divergence tensions; 0.2 added `own_desires.jsonl`.
+Older readers ignore unknown stores and fields; older minds open unchanged.**
 
 This document describes what a mind *is, at rest*: the directory a running mind
 reads and writes, and the single-file export it can be carried away in. It is
@@ -65,6 +65,7 @@ mind/
     growth.json          curiosities and shaped traits from this person
     inner_state.json     how the mind itself is lately, with revision history
     story.json           the autobiographical self: a living chapter + closed chapters
+    people.json          who the mind talks with: the primary, and everyone else
   archive/
     <store>.jsonl        superseded records, moved here verbatim + a tombstone
 ```
@@ -98,6 +99,13 @@ alongside it.
 - `src.kind: "inference"` marks records derived by the mind's own passes
   (consolidation, reconciliation); `ref` names what they were derived from, so
   every inference is traceable back to an exchange.
+- `who` (optional, format 0.7) names whose record this is on every
+  person-shaped store (`facts`, `person_model`, `aches`, `desires`,
+  `expectations`, `tensions`, `self_memory`): the key of a person in
+  `people.json`. **Absent means the primary person** — the one the mind has
+  always known — which is why a mind written before 0.7 reads exactly as it
+  did. Readers must scope by `who`: what one person told the mind is never
+  served to another.
 
 ## The stores
 
@@ -164,6 +172,34 @@ Who the person *is* to the mind — a portrait, not a fact list. Same shape as
 `self.json`: current text plus dated revision history. The contract on revision
 is **continue, never restart**: each regeneration receives its predecessor and
 must evolve it.
+
+One portrait per person (0.7): the primary's is `current` / `history` as
+always; everyone else's lives under `others[<key>]` with the same shape.
+Writers revise one portrait per pass — the person most owed one — so a mind
+that knows a household still thinks one thought at a time.
+
+### people.json
+Who the mind talks with (0.7).
+```json
+{
+  "primary": { "name": "Sam", "first_t": "...", "last_t": "...",
+               "exchanges": 120, "since_felt": 4 },
+  "others":  { "maya": { "name": "Maya", "first_t": "...", "last_t": "...",
+                         "exchanges": 9, "since_felt": 9 } }
+}
+```
+- The **primary** is the person whose records carry no `who`. `name` is null
+  until the mind hears a name; **the first name a mind hears becomes the
+  primary's** — a person who starts naming themself to an existing mind does
+  not split it, and a group's first speaker is simply the one whose records
+  carry no key. Keys are the normalized name (casefolded, punctuation
+  collapsed); `name` keeps the spelling as first heard.
+- **Never guess.** A speaker the host does not name is the primary. Readers
+  and writers must not infer identity from style, content, or timing.
+- Counters are advisory (they schedule portraits); nothing else derives from
+  them. The entity graph is shared — it is about the world, not the person —
+  and so is everything that is the mind's own: its stance, weather, story,
+  own wants, and what its voice has said.
 
 ### self_memory.jsonl
 Durable statements the mind's own voice made — opinions, claims, promises.
@@ -270,7 +306,7 @@ holds.
 
 `export` produces one file: `mind-export.json` — the manifest, every live store,
 and optionally the archive, embedded verbatim under their store names with a
-top-level `format: "themind/0.1"`. Import recreates the directory exactly. The
+top-level `format` (the current version). Import recreates the directory exactly. The
 export is the disconnect story (leave, and take the mind with you) and the
 interop story (two substrates exchanging minds) in one artifact.
 

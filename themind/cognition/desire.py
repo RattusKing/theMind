@@ -11,6 +11,7 @@ like any held thread. A mind with forty wants has none: the live set is capped.
 """
 from ..envelope import make_record, now_iso, age_days, norm_key
 from ..retrieval import _words
+from ..people import tag
 from .selfhood import BAN
 
 MAX_LIVE = 5
@@ -142,8 +143,8 @@ def _material(mind):
                          ("aches", "(still open) "), ("self_memory", "(you said) ")):
         for r in mind.live(store)[-4:]:
             if r.get("text"):
-                out.append((r["id"], label + r["text"]))
+                out.append((r["id"], tag(r, mind.people) + label + r["text"]))
     for f in mind.live("facts")[-6:]:
         if f.get("text"):
-            out.append((f["id"], "(about them) " + f["text"]))
+            out.append((f["id"], tag(f, mind.people) + "(about them) " + f["text"]))
     return out
