@@ -74,12 +74,15 @@ def run(mind, user_text, assistant_text, who=None):
     if not out or out.strip().upper() == "NONE":
         return 0
     stored = 0
+    proposed = 0  # lines the model offered as memory; kept/proposed is the extract_quality signal
     new_facts = []
     asst_words = _words(assistant_text or "")
     for line in out.splitlines():
         line = line.strip().lstrip("-").strip()
         parts = line.split("|")
         head = parts[0].strip()
+        if head.upper().startswith(("FACT:", "THEY:", "ACHE:", "WANT:", "SAID:")):
+            proposed += 1
         try:
             if head.upper().startswith("FACT:"):
                 quote = next((_field(p, "QUOTE:") for p in parts if _field(p, "QUOTE:")), None)
@@ -93,6 +96,7 @@ def run(mind, user_text, assistant_text, who=None):
                                   entities=entities, kind=kind.strip().lower()[:20], **stamp)
                 if not _is_new(mind, "facts", rec):
                     _reinforce(mind, "facts", rec)  # said again: it matters more, not less
+                    stored += 1  # grounded and held, even if already known
                 elif mind.stores["facts"].append(rec):
                     mind.graph.touch(entities, src_ref=rec["id"])
                     new_facts.append(rec)
@@ -113,6 +117,7 @@ def run(mind, user_text, assistant_text, who=None):
                                   entities=entities, kind=kind, **stamp)
                 if not _is_new(mind, "person_model", rec):
                     _reinforce(mind, "person_model", rec)
+                    stored += 1
                 elif mind.stores["person_model"].append(rec):
                     mind.graph.touch(entities, src_ref=rec["id"])
                     _reconcile_mental_states(mind, rec)  # feelings pass: the newer one on a thread wins
@@ -127,6 +132,7 @@ def run(mind, user_text, assistant_text, who=None):
                                   salience=0.6, text=_field(head, name), **stamp)
                 if not _is_new(mind, store, rec):
                     _reinforce(mind, store, rec)
+                    stored += 1
                 elif mind.stores[store].append(rec):
                     stored += 1
             elif head.upper().startswith("SAID:"):
@@ -140,6 +146,11 @@ def run(mind, user_text, assistant_text, who=None):
                     stored += 1
         except Exception:
             continue  # one bad line never poisons the rest
+    try:
+        mind.tuning.bump("extract_proposed", proposed)
+        mind.tuning.bump("extract_kept", min(stored, proposed))
+    except Exception:
+        pass  # a signal is advisory; it never breaks the turn
     if new_facts:
         try:
             challenge.check(mind, new_facts)

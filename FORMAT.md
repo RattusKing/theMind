@@ -1,8 +1,9 @@
 # theMind — on-disk format
 
-**Version 0.7 — adds `people.json` and the optional `who` field (one mind,
-many people). Minor, additive. History: 0.6 added `story.json`; 0.5 added
-`person_model.jsonl`; 0.4 added `expectations.jsonl`; 0.3 added
+**Version 0.8 — adds `practice.jsonl` and `tuning.json` (recursive growth: the
+mind improving how it thinks, within a constitution it cannot move). Minor,
+additive. History: 0.7 added `people.json` and `who`; 0.6 added `story.json`;
+0.5 added `person_model.jsonl`; 0.4 added `expectations.jsonl`; 0.3 added
 `inner_state.json` and divergence tensions; 0.2 added `own_desires.jsonl`.
 Older readers ignore unknown stores and fields; older minds open unchanged.**
 
@@ -66,6 +67,8 @@ mind/
     inner_state.json     how the mind itself is lately, with revision history
     story.json           the autobiographical self: a living chapter + closed chapters
     people.json          who the mind talks with: the primary, and everyone else
+    practice.jsonl       how the mind has learned to think, and what it is trying
+    tuning.json          the few dials it may turn, its signals, the one running experiment
   archive/
     <store>.jsonl        superseded records, moved here verbatim + a tombstone
 ```
@@ -286,11 +289,56 @@ all its chapters, however many it earns. First person is enforced at write
 and the ban-vocab holds. This is the slowest-moving store in the mind, by
 design: life stories move in weeks, not turns.
 
+### practice.jsonl
+Procedural memory (0.8): how the mind has learned to think, and what it is
+trying. Two kinds. `kind: "note"` — one first-person sentence on a way of
+thinking learned from what actually happened ("I over-predict plans and
+under-predict moods"), with `roots` (ids of the surprises, verdicts, or
+reflections it derives from — **no roots, no practice**: a lesson with no
+history is a slogan, and writers must drop it). First person is enforced and
+the ban-vocab holds; at most a handful live. `kind: "experiment"` — the one
+change the mind is currently trying (`param`, `to`, `signal`, and its
+prediction in `text`), superseded by the verdict reflection when it ends.
+Notes ride injection as "how you've learned to think"; they are used, never
+recited.
+
+### tuning.json
+The constitution's whole reach (0.8).
+```json
+{
+  "params":     { "recall_k": 10 },
+  "signals":    { "extract_proposed": 240, "extract_kept": 181,
+                  "recall_served": 300, "recall_used": 96 },
+  "experiment": { "param": "recall_k", "from": null, "to": 10,
+                  "signal": "recall_use", "predicted": "I expect ...",
+                  "started_t": "...", "started_exchanges": 120, "window": 40,
+                  "baseline": { "recall_served": 260, "recall_used": 80 } }
+}
+```
+- `params` are overrides for the **only** things a mind may change in itself:
+  a fixed, named list of dials (how many memories to recall, how many of
+  their inner-world lines to serve, how much overlap touches a want, how
+  fast facts and feelings fade), each with a fixed range. An unknown name or
+  an out-of-range value is refused whole — never clamped. Nothing else has a
+  name here, so nothing else can be tuned: not a guard, not a prompt, not
+  the host's persona, not the budget. The mind never modifies code.
+- `signals` are cumulative counters the mind earns turn by turn; rates are
+  derived at read time (kept/proposed = how much of what it tried to
+  remember was grounded; used/served = how much of what it recalled the
+  reply drew on). Advisory: nothing but tuning reads them.
+- `experiment` is the one change running: predicted before it starts, judged
+  after its window against the baseline snapshot. Kept only if it beat the
+  baseline by a margin with enough samples on both sides; reverted if worse,
+  flat, or unjudgeable. Either way the verdict becomes a reflection
+  (`kind: "tuned" | "untuned"`), so the mind remembers what it tried.
+
 ### ledger.jsonl
 Every model call the mind initiates: `t`, `purpose` (`extract | challenge |
 consolidate | reflect | self | felt_sense | growth | desire | inner_state |
-divergence | expect | story`), `model`,
-`tokens_in`, `tokens_out`. The mind
+divergence | expect | story | tune`), `model`,
+`tokens_in`, `tokens_out`, and `via` when the call rode something other than
+the host's one callable (`"agent"` for borrowed cognition, `"cortex"` when the
+host supplied a second, stronger model for the passes worth it). The mind
 spends the host's money; the ledger is the honesty mechanism. No entry, no call.
 
 ## Context injection (what leaves the folder per turn)
@@ -301,6 +349,18 @@ from the bottom of the order — never truncated mid-item — and the felt sense
 self position are reserved above the trim line. Stable blocks (self, felt sense,
 growth) must be byte-identical between revisions so host-side prompt caching
 holds.
+
+## Curriculum
+
+Not a store: an output. `curriculum` writes, as JSON Lines, everything the
+mind has **verified** — grounded extractions with the quote that grounded
+them, mental states likewise, predictions with how they settled, self-tuning
+verdicts, and rooted practices — one example per line with its evidence and
+its verification. theMind never trains anything (rule 1: no dependencies, no
+weights); it writes the training set its own guards and outcomes have
+already graded, for a host that chooses to fine-tune. That is the only
+genuinely recursive loop, and it stays under the owner's hand at the point
+that matters.
 
 ## Export
 

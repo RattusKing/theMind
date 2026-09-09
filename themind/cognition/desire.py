@@ -12,6 +12,7 @@ like any held thread. A mind with forty wants has none: the live set is capped.
 from ..envelope import make_record, now_iso, age_days, norm_key
 from ..retrieval import _words
 from ..people import tag
+from ..tuning import param
 from .selfhood import BAN
 
 MAX_LIVE = 5
@@ -123,7 +124,7 @@ def touch(mind, user_text, assistant_text):
     recs = mind.live("own_desires")
     changed = False
     for r in recs:
-        if len(words & _words(r.get("text", ""))) >= TOUCH_OVERLAP:
+        if len(words & _words(r.get("text", ""))) >= param(mind, "touch_overlap"):
             r["salience"] = min(1.0, round(r.get("salience", 0.45) + TOUCH_BUMP, 4))
             r["stage"] = ("longing" if r["salience"] > 0.75
                           else "wanting" if r["salience"] > 0.55 else "stirring")

@@ -125,6 +125,24 @@ already knows, so telling an existing mind "this is Sam" does not split it.
 Names are matched case-insensitively. A speaker you don't name is always the
 usual person — the mind never guesses who is talking.
 
+## Does it get smarter?
+
+In a specific, checkable way, yes. The mind keeps a few signals on itself
+(how much of what it tries to remember survives its own grounding checks, how
+much of what it recalls the reply actually draws on, how often its predictions
+hold), writes down what it learns about how to think, and runs small
+experiments on a handful of its own dials. Each experiment is predicted before
+it starts and judged afterwards against a baseline. A change that measurably
+helped stays; anything else is put back. You can read every verdict in the
+mind's reflections, and every dial in `stores/tuning.json`.
+
+It cannot make the model you connected smarter. If you want that loop, run
+`python3 -m themind curriculum ./my-mind`: it writes everything the mind has
+verified as training data, for you to fine-tune with if you choose. theMind
+itself never trains anything. If you have a stronger model available, pass it
+as `cortex=` in the library and the mind will spend it only on the passes
+worth it (its story, its stance, contested memories, tuning).
+
 ## Common questions
 
 **Where is everything kept?** In the folder you chose (`./my-mind`). It's
