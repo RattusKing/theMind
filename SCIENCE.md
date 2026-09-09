@@ -173,6 +173,17 @@ truth:
 7. ~~**The continuity test**~~ — **shipped, v1.0** (`python3 -m themind.bench`):
    see §6. The roadmap derived from this study is complete; what the science
    identified as buildable at this layer is built, tested, and scored.
+8. ~~**Recursive growth**~~ — **shipped, v1.3, format 0.8** (HOT-2 extended
+   into metacognitive *control*, not just monitoring): the mind measures its
+   own thinking (grounding rate, recall usage, calibration), keeps rooted
+   first-person practices on how to think (`practice.jsonl`), and tunes a
+   few bounded dials of its own by experiment — predicted first, judged
+   against a baseline, kept only if it measurably helped (`tuning.json`).
+   The constitution is structural: nothing outside the named dials can be
+   changed, and never code. Honest scope: the host's model is fixed; what
+   compounds is how the mind uses it. The `curriculum` output (verified
+   outcomes as training pairs) is the bridge to the only truly recursive
+   loop, and it stays in the owner's hands.
 
 ---
 

@@ -48,6 +48,7 @@ def build_blocks(mind, incoming_text=None, who=None):
     what its voice has said — is one, and shared."""
     from .people import of
     from .cognition.felt_sense import portrait
+    from .tuning import param
     blocks = []
     who = who or None
     others = mind.people.others()
@@ -110,7 +111,12 @@ def build_blocks(mind, incoming_text=None, who=None):
         lit = _theirs(mind.graph.constellation(incoming_text or "")) if incoming_text else []
         from .retrieval import recall, recent
         retrieve = getattr(mind, "retriever", None) or recall
-        chosen = retrieve(facts, incoming_text or "", lit, 8) if incoming_text else recent(facts, 5)
+        chosen = retrieve(facts, incoming_text or "", lit, param(mind, "recall_k")) \
+            if incoming_text else recent(facts, 5)
+        try:
+            mind._served[who] = [f.get("text", "") for f in chosen]  # for the recall signal
+        except Exception:
+            pass
         title = "WHAT YOU REMEMBER ABOUT THEM:" if who is None else \
                 "WHAT YOU REMEMBER ABOUT %s:" % mind.people.display(who).upper()
         blocks.append((_block(title,
@@ -126,7 +132,7 @@ def build_blocks(mind, incoming_text=None, who=None):
         blocks.append((_block("WHAT'S GOING ON INSIDE THEM (what they believe, feel, and "
                               "don't yet know — theirs, and distinct from what's true; "
                               "hold it with care):",
-                              ["- " + p.get("text", "") for p in recent(inner_them, 4)]), False))
+                              ["- " + p.get("text", "") for p in recent(inner_them, param(mind, "inner_them_k"))]), False))
 
     said = mind.live("self_memory")
     if said:
@@ -191,6 +197,13 @@ def build_blocks(mind, incoming_text=None, who=None):
     if cur_g:
         blocks.append((_block("HOW THEY'VE SHAPED YOU (adjacent to them, never a mirror; "
                               "you may disagree):", ["- " + c for c in cur_g]), False))
+
+    practices = [p for p in mind.live("practice") if p.get("kind") == "note"]
+    if practices:
+        practices = sorted(practices, key=lambda r: -r.get("salience", 0))[:4]
+        blocks.append((_block("HOW YOU'VE LEARNED TO THINK (practices you earned from what "
+                              "actually happened — use them, never recite them):",
+                              ["- " + p.get("text", "") for p in practices]), False))
 
     if others:
         names = [mind.people.display(k) for k in others if k != who]

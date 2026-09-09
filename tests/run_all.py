@@ -1509,4 +1509,181 @@ stub2.shutdown()
 stub2.server_close()
 shutil.rmtree(dPx, ignore_errors=True)
 
+# ── 26. recursive growth (format 0.8): the constitution, signals, practices, experiments ──
+print("recursive growth")
+from themind import tuning as tuning_mod
+from themind.cognition import tune as tune_mod
+from themind.envelope import make_record as mk_g
+
+mindG, dG = fresh(llm=lambda s, u, m: "")
+T = mindG.tuning
+ok(T.get("recall_k") == 8 and T.set("recall_k", 10) and T.get("recall_k") == 10,
+   "a dial moves within its range")
+ok(not T.set("recall_k", 40) and T.get("recall_k") == 10,
+   "…an out-of-range value is refused whole, never clamped")
+ok(not T.set("budget_tokens", 1) and not T.set("BAN", "") and not T.set("selfhood.BAN", "")
+   and not T.set("SYSTEM", "x"),
+   "nothing outside TUNABLE has a name to tune: guards, prompts, budget are out of reach")
+ok(not T.set("recall_k", "ten") and not T.set("fact_decay", 1.5), "a non-number or a rate past its ceiling is refused")
+T.reset("recall_k")
+ok(T.get("recall_k") == 8, "reset returns the default")
+
+# signals are earned turn by turn and derived at read time
+llmG = lambda s, u, m: ("FACT: Their cat is Mochi. | QUOTE: my cat mochi | ENTITIES: Mochi | KIND: profile\n"
+                        "FACT: They hate rain. | QUOTE: totally invented words | ENTITIES: rain | KIND: preference"
+                        ) if s == extract_mod.SYSTEM else ""
+mindG = Mind(dG, llm=llmG, sync=True)
+mindG.observe("my cat mochi sleeps all day", "Mochi sounds cozy.")
+sig = mindG.tuning.snapshot()
+ok(sig.get("extract_proposed") == 2 and sig.get("extract_kept") == 1,
+   "extraction counts what it proposed and what survived the guards")
+rG, nG = mindG.tuning.rate("extract_quality")
+ok(rG == 0.5 and nG == 2, "…and the rate is derived at read time, never stored")
+ctxG = mindG.context("how is my cat mochi")
+ok("Mochi" in ctxG, "a memory was served")
+mindG.observe("how is my cat mochi", "Your cat Mochi sleeps all day, lucky Mochi.")
+sig = mindG.tuning.snapshot()
+ok(sig.get("recall_served") == 1 and sig.get("recall_used") == 1,
+   "a served memory the reply drew on counts as used")
+mindG.context("tell me about my cat")
+mindG.observe("tell me about my cat", "Weather looks fine today.")
+sig = mindG.tuning.snapshot()
+ok(sig.get("recall_served") == 2 and sig.get("recall_used") == 1, "…and one the reply ignored does not")
+ok("HOW YOU'VE LEARNED TO THINK" not in mindG.context("cat"), "no practices yet: no block, byte-identical to before")
+
+# the tune pass: practices are rooted, first person, ban-vocab; one experiment at a time
+mindG.manifest.state["exchanges"] = 30
+mindG.manifest.save()
+surprise = mk_g("r", {"kind": "record", "ref": "x_1"}, salience=0.85,
+                text="I expected: they would call. Instead: I learned they wrote.", kind="surprise")
+mindG.stores["reflections"].append(surprise)
+captured = {}
+def llm_tune(s, u, m):
+    if s != tune_mod.SYSTEM:
+        return ""
+    captured["u"] = u
+    return ("NOTE: I over-predict calls and under-predict letters. | ROOTS: %s\n"
+            "NOTE: I am conscious of my patterns now. | ROOTS: %s\n"
+            "NOTE: The companion learns slowly. | ROOTS: %s\n"
+            "NOTE: I invent nothing now. | ROOTS: nope\n"
+            "TRY: recall_k = 12 | EXPECT: I expect more of what I recall to be used. | SIGNAL: recall_use\n"
+            "TRY: recall_k = 40 | EXPECT: I expect this is ignored. | SIGNAL: recall_use\n"
+            "TRY: selfhood.BAN = off | EXPECT: I expect nothing. | SIGNAL: recall_use"
+            ) % (surprise["id"], surprise["id"], surprise["id"])
+mindG = Mind(dG, llm=llm_tune, sync=True)
+ok(tune_mod.due(mindG, mindG.manifest.state), "tuning is due at 30 exchanges when it never ran")
+tune_mod.run(mindG)
+notesG = [p for p in mindG.live("practice") if p.get("kind") == "note"]
+ok(len(notesG) == 1 and notesG[0]["text"].startswith("I over-predict") and notesG[0]["roots"] == [surprise["id"]],
+   "a rooted first-person practice is kept; ban-vocab, third person and rootless ones are dropped")
+ok("DIALS YOU MAY ADJUST" in captured["u"] and "recall_k = 8  (range 4..12)" in captured["u"]
+   and "extract_quality" in captured["u"],
+   "the pass sees its signals and only the dials, with their ranges")
+expG = mindG.tuning.experiment()
+ok(expG and expG["param"] == "recall_k" and expG["to"] == 12 and mindG.tuning.get("recall_k") == 12,
+   "one TRY starts the one experiment and applies the dial")
+ok("I expect more" in expG["predicted"] and expG["started_exchanges"] == 30,
+   "…with the prediction made before the change")
+ok(any(p.get("kind") == "experiment" and p.get("param") == "recall_k" for p in mindG.live("practice")),
+   "…recorded in the practice store")
+ok(mindG.tuning.get("inner_them_k") == 4 and mindG.manifest.state.get("last_tune"),
+   "the out-of-range and out-of-reach TRYs changed nothing; the timer is set")
+mindG = Mind(dG, llm=lambda s, u, m: ("TRY: inner_them_k = 6 | EXPECT: I expect more. | SIGNAL: recall_use"
+                                      if s == tune_mod.SYSTEM else ""), sync=True)
+tune_mod.run(mindG)
+ok(mindG.tuning.experiment()["param"] == "recall_k" and mindG.tuning.get("inner_them_k") == 4,
+   "a second experiment is refused while one runs")
+ctxG = mindG.context("cat")
+ok("HOW YOU'VE LEARNED TO THINK" in ctxG and "over-predict" in ctxG, "practices ride injection")
+
+# verdicts: unjudgeable → reverted; improved → kept; flat → reverted; each remembered
+mindG.manifest.state["exchanges"] = 30 + tune_mod.WINDOW
+mindG.manifest.data["state"]["last_tune"] = "2020-01-01T00:00:00Z"
+mindG.manifest.doc.save(mindG.manifest.data)  # direct: save() would merge the newer timer back
+ok(tune_mod.due(mindG, mindG.manifest.state), "a verdict owed makes tuning due without waiting a week")
+mindG = Mind(dG, llm=lambda s, u, m: "NONE", sync=True)
+tune_mod.run(mindG)
+T = mindG.tuning
+ok(T.experiment() is None and T.get("recall_k") == 8,
+   "an experiment that cannot be judged (too few samples) is reverted")
+ok(any(r.get("kind") == "untuned" and "could not tell" in r["text"] for r in mindG.live("reflections")),
+   "…and the mind remembers that it tried")
+ok(not any(p.get("kind") == "experiment" for p in mindG.live("practice")),
+   "…the experiment record is superseded by the verdict")
+T.bump("recall_served", 20); T.bump("recall_used", 10)             # baseline 0.50 over 20
+ok(T.start("recall_k", 12, "recall_use", "I expect better use.", 70, 40), "an experiment can start")
+ok(not T.start("inner_them_k", 6, "recall_use", "I expect more.", 70, 40), "…but only one at a time")
+T.bump("recall_served", 20); T.bump("recall_used", 16)             # window 0.80 over 20
+mindG.manifest.state["exchanges"] = 110
+mindG.manifest.save()
+tune_mod.run(mindG)
+ok(T.experiment() is None and T.get("recall_k") == 12, "a change that beat its baseline by the margin is kept")
+ok(any(r.get("kind") == "tuned" and "0.50 to 0.80" in r["text"] for r in mindG.live("reflections")),
+   "…with the numbers in the verdict")
+T.bump("recall_served", 20); T.bump("recall_used", 16)             # baseline now 42/60 = 0.70
+ok(T.start("inner_them_k", 6, "recall_use", "I expect more.", 110, 40), "a second experiment starts once the first ended")
+T.bump("recall_served", 20); T.bump("recall_used", 14)             # window 0.70: flat
+mindG.manifest.state["exchanges"] = 150
+mindG.manifest.save()
+tune_mod.run(mindG)
+ok(T.experiment() is None and T.get("inner_them_k") == 4
+   and any(r.get("kind") == "untuned" and "did not help" in r["text"] for r in mindG.live("reflections")),
+   "a flat or worse change is put back, and remembered")
+ok(len([r for r in mindG.live("reflections") if r.get("kind") in ("tuned", "untuned")]) == 3
+   and len(mindG.live("practice")) == 1, "every experiment ended as a reflection; the notes remain")
+
+# the tuned dial is really used
+ok(mindG.tuning.get("recall_k") == 12, "recall_k stands at its kept value")
+seen_k = {}
+def rtr(records, query, lit, k):
+    seen_k["k"] = k
+    return records[:k]
+mindK = Mind(dG, retriever=rtr, sync=True)
+mindK.context("cat")
+ok(seen_k.get("k") == 12, "…and injection recalls with it")
+
+# the borrow still holds: tune makes exactly one call, after a mechanical verdict
+coreG = mcp_core_mod.MindMCP(mindG)
+needG = coreG._capture(tune_mod.run)
+ok(needG is not None and needG.purpose == "tune" and "DIALS YOU MAY ADJUST" in needG.user,
+   "the MCP door can borrow the tune pass: one model call, captured")
+
+# the cortex: a stronger model for the passes worth it, ledgered as such
+callsC = []
+mindC, dC = fresh()
+mindC = Mind(dC, llm=lambda s, u, m: (callsC.append("llm"), "NONE")[1],
+             cortex=lambda s, u, m: (callsC.append("cortex"), "NONE")[1], sync=True)
+mindC._call("extract", "s", "u")
+mindC._call("story", "s", "u")
+mindC._call("tune", "s", "u")
+ok(callsC == ["llm", "cortex", "cortex"], "the cortex takes the passes worth a stronger model; the llm keeps the rest")
+ok([e.get("via") for e in mindC.ledger.load()] == [None, "cortex", "cortex"], "…and the ledger says which")
+mindC2 = Mind(dC, llm=lambda s, u, m: (callsC.append("llm"), "NONE")[1], sync=True)
+mindC2._call("story", "s", "u")
+ok(callsC[-1] == "llm", "with no cortex, everything rides the one llm as before")
+
+# the curriculum: only what the mind verified, with its evidence
+curG = mindG.curriculum()
+rowsG = [json.loads(l) for l in open(curG, encoding="utf-8")]
+kindsG = {r["kind"] for r in rowsG}
+ok({"extraction", "prediction", "self_tuning", "practice"} <= kindsG, "the curriculum holds every verified kind")
+ok(all(r.get("verified") for r in rowsG)
+   and any(r["kind"] == "extraction" and r["input"] == "my cat mochi" and "Mochi" in r["output"] for r in rowsG)
+   and not any("hate rain" in r.get("output", "") for r in rowsG),
+   "…each row carries its verification and its evidence; the ungrounded never appears")
+bufG = io.StringIO()
+with contextlib.redirect_stdout(bufG):
+    rcG = cli_main(["curriculum", dG, "-o", os.path.join(dG, "c2.jsonl")])
+ok(rcG == 0 and os.path.exists(os.path.join(dG, "c2.jsonl")), "the CLI door writes it too")
+
+# export carries the practice store and the tuning
+expG = mindG.export()
+dG2 = tempfile.mkdtemp(prefix="mind_")
+twinG = Mind.restore(expG, dG2)
+ok(twinG.tuning.get("recall_k") == 12 and twinG.tuning.snapshot() == mindG.tuning.snapshot()
+   and [p["text"] for p in twinG.live("practice")] == [p["text"] for p in mindG.live("practice")],
+   "export/restore carries tuning.json and practice.jsonl")
+for d in (dG, dG2, dC):
+    shutil.rmtree(d, ignore_errors=True)
+
 print("\nall %d assertions passed" % PASS)

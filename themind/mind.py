@@ -34,18 +34,27 @@ from . import inject, defaults
 from . import cognition
 from .cognition import extract
 from .people import People
+from .tuning import Tuning
+from .retrieval import _words
 
 STORES = ("facts", "self_memory", "beliefs", "tensions", "aches", "desires",
-          "person_model", "own_desires", "expectations", "reflections")
+          "person_model", "own_desires", "expectations", "reflections", "practice")
+
+# Passes a stronger model is worth spending on, when the host offers one.
+CORTEX_PURPOSES = ("story", "self", "challenge", "tune", "consolidate")
 
 
 class Mind:
-    def __init__(self, path, llm=None, budget_tokens=2000, sync=False, retriever=None):
+    def __init__(self, path, llm=None, budget_tokens=2000, sync=False, retriever=None,
+                 cortex=None):
         """`retriever` swaps the memory-recall backend: a callable
         `(records, query_text, lit_entity_labels, k) -> records` returning the
         most relevant of `records`, best first. Default is `retrieval.recall`
         (weighted keyword overlap). Bring embeddings if you want them — the
-        rest of the mind neither knows nor cares."""
+        rest of the mind neither knows nor cares.
+        `cortex` is an optional second callable with the same shape as `llm`,
+        for the passes worth a stronger model (CORTEX_PURPOSES): the story,
+        the stance, contested memories, tuning. Growth by borrowing."""
         self.root = os.path.abspath(path)
         os.makedirs(os.path.join(self.root, "stores"), exist_ok=True)
         os.makedirs(os.path.join(self.root, "archive"), exist_ok=True)
@@ -54,7 +63,9 @@ class Mind:
         self.budget_tokens = budget_tokens
         self.sync = sync
         self.retriever = retriever
+        self.cortex = cortex
         self._busy = threading.Lock()
+        self._served = {}  # who -> fact texts served by the last context(), for the recall signal
 
         self.stores = {
             name: Jsonl(self._p("stores", name + ".jsonl"),
@@ -69,6 +80,7 @@ class Mind:
         self.inner_doc = JsonDoc(self._p("stores", "inner_state.json"))
         self.story_doc = JsonDoc(self._p("stores", "story.json"))
         self.people = People(JsonDoc(self._p("stores", "people.json")))
+        self.tuning = Tuning(JsonDoc(self._p("stores", "tuning.json")))
 
     def _p(self, *parts):
         return os.path.join(self.root, *parts)
@@ -146,6 +158,10 @@ class Mind:
             self.people.note_exchange(key, who)
         except Exception:
             key = None
+        try:
+            self._recall_signal(key, assistant_text)
+        except Exception:
+            pass
         if self.llm is None:
             return
         if self.sync:
@@ -153,6 +169,18 @@ class Mind:
         else:
             threading.Thread(target=self._learn, args=(user_text, assistant_text, key),
                              daemon=True).start()
+
+    def _recall_signal(self, who, assistant_text):
+        """Of what the last context served, how much did the reply draw on?
+        Mechanical, no model call: a served fact sharing two content words
+        with the reply counts as used. Advisory — it only feeds tuning."""
+        served = self._served.pop(who, None)
+        if not served:
+            return
+        reply = _words(assistant_text or "")
+        used = sum(1 for text in served if len(_words(text) & reply) >= 2)
+        self.tuning.bump("recall_served", len(served))
+        self.tuning.bump("recall_used", used)
 
     def _learn(self, user_text, assistant_text, who=None):
         if not self._busy.acquire(blocking=False):
@@ -191,15 +219,19 @@ class Mind:
         Token counts are estimates (the host callable returns text, not usage)."""
         if self.llm is None:
             return None
+        fn = self.cortex if (self.cortex is not None and purpose in CORTEX_PURPOSES) else self.llm
         try:
-            out = self.llm(system, user, max_tokens)
+            out = fn(system, user, max_tokens)
         except Exception:
             return None
-        self.ledger.append({
+        entry = {
             "id": new_id("l"), "t": now_iso(), "purpose": purpose,
             "tokens_in_est": (len(system) + len(user)) // 4,
             "tokens_out_est": len(out or "") // 4,
-        })
+        }
+        if fn is self.cortex:
+            entry["via"] = "cortex"
+        self.ledger.append(entry)
         out = (out or "").strip()
         return out or None
 
@@ -212,7 +244,8 @@ class Mind:
         for name, doc in (("graph", JsonDoc(self._p("stores", "graph.json"))),
                           ("self", self.self_doc), ("felt_sense", self.felt_doc),
                           ("growth", self.growth_doc), ("inner_state", self.inner_doc),
-                          ("story", self.story_doc), ("people", self.people.doc)):
+                          ("story", self.story_doc), ("people", self.people.doc),
+                          ("tuning", self.tuning.doc)):
             data["stores"][name] = doc.load(default={})
         data["stores"]["ledger"] = self.ledger.load()
         for name in STORES:
@@ -222,6 +255,42 @@ class Mind:
         path = out_path or self._p("mind-export.json")
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=1)
+        return path
+
+    def curriculum(self, out_path=None):
+        """The first half of the only genuinely recursive loop: everything the
+        mind has VERIFIED, as training pairs the host may fine-tune with.
+        theMind never trains anything; it writes the curriculum its own guards
+        and outcomes have already graded. JSONL, one example per line."""
+        rows = []
+        for f in self.live("facts"):
+            src = f.get("src") or {}
+            if src.get("kind") == "exchange" and src.get("quote") and f.get("text"):
+                rows.append({"kind": "extraction", "input": src["quote"], "output": f["text"],
+                             "verified": "grounded", "t": f.get("t")})
+        for p in self.live("person_model"):
+            src = p.get("src") or {}
+            if src.get("kind") == "exchange" and src.get("quote") and p.get("text"):
+                rows.append({"kind": "mental_state", "input": src["quote"], "output": p["text"],
+                             "verified": "grounded", "t": p.get("t")})
+        for r in self.live("reflections"):
+            k = r.get("kind")
+            if k in ("surprise", "confirmed"):
+                rows.append({"kind": "prediction", "output": r.get("text", ""),
+                             "verified": "surprised" if k == "surprise" else "confirmed",
+                             "t": r.get("t")})
+            elif k in ("tuned", "untuned"):
+                rows.append({"kind": "self_tuning", "output": r.get("text", ""),
+                             "verified": "kept" if k == "tuned" else "reverted", "t": r.get("t")})
+        for p in self.live("practice"):
+            if p.get("kind") == "note":
+                rows.append({"kind": "practice", "output": p.get("text", ""),
+                             "verified": "rooted", "roots": p.get("roots") or [], "t": p.get("t")})
+        rows.sort(key=lambda r: r.get("t") or "")
+        path = out_path or self._p("curriculum.jsonl")
+        with open(path, "w", encoding="utf-8") as f:
+            for row in rows:
+                f.write(json.dumps(row, ensure_ascii=False) + "\n")
         return path
 
     @classmethod
@@ -239,7 +308,8 @@ class Mind:
         for name in STORES:
             Jsonl(os.path.join(dest_dir, "stores", name + ".jsonl"),
                   validate=False).rewrite(stores.get(name) or [])
-        for name in ("graph", "self", "felt_sense", "growth", "inner_state", "story", "people"):
+        for name in ("graph", "self", "felt_sense", "growth", "inner_state", "story", "people",
+                     "tuning"):
             if stores.get(name):
                 JsonDoc(os.path.join(dest_dir, "stores", name + ".json")).save(stores[name])
         if stores.get("ledger"):

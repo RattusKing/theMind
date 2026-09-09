@@ -14,6 +14,7 @@ no prediction — an expectation with no basis is a guess wearing a costume.
 from ..envelope import make_record, now_iso, age_days, norm_key
 from ..retrieval import _words
 from ..people import owner, of, tag
+from ..tuning import param
 
 MAX_LIVE = 6
 TOUCH_OVERLAP = 2   # content words an exchange must share to test a prediction
@@ -132,7 +133,7 @@ def touch(mind, user_text, assistant_text, who=None):
     for r in recs:
         if owner(r) != (who or None):
             continue
-        if len(words & _words(r.get("text", ""))) >= TOUCH_OVERLAP:
+        if len(words & _words(r.get("text", ""))) >= param(mind, "touch_overlap"):
             r["salience"] = min(1.0, round(r.get("salience", 0.5) + TOUCH_BUMP, 4))
             changed = True
     if changed:

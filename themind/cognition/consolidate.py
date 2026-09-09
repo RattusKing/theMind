@@ -6,6 +6,7 @@ exist. The tail decays and is distilled before it drops, never just dropped.
 """
 from ..envelope import make_record, now_iso, norm_key
 from ..people import owner
+from ..tuning import param
 
 SYSTEM = (
     "You are the consolidation faculty of an AI companion's mind, reconciling what it holds "
@@ -112,9 +113,9 @@ def _apply(mind, line, valid_ids):
 
 
 def _decay(mind):
-    for store, factor in (("facts", 0.985), ("aches", 0.85), ("desires", 0.85),
+    for store, factor in (("facts", param(mind, "fact_decay")), ("aches", 0.85), ("desires", 0.85),
                           ("own_desires", 0.9), ("expectations", 0.85),
-                          ("person_model", 0.9)):  # feelings pass; a weather report, not a ledger
+                          ("person_model", param(mind, "feeling_decay"))):  # feelings pass
         recs = mind.live(store)
         keep = []
         for r in recs:

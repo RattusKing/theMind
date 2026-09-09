@@ -41,6 +41,13 @@ connection your agent already uses. It never talks to a model on its own behalf.
   message one, deepening from there.
 - **Growth shaped by one person.** Its curiosities grow adjacent to yours — beside
   you, never mirroring you, allowed to disagree.
+- **Growth it can prove.** It watches how its own thinking goes — how much of
+  what it tries to remember is grounded, how much of what it recalls the reply
+  actually uses, how often its predictions hold — writes down what it has learned
+  about how to think, and tunes a few of its own dials by experiment: one change
+  at a time, predicted before it starts, judged against a baseline, kept only if
+  it measurably helped. The dials are few and bounded; guards, prompts, and your
+  agent's character are out of its reach by construction. It never touches code.
 - **Many people, one mind.** Tell it who is speaking and it keeps each relationship
   distinct — a felt sense of *you* and a separate one of your sister, memories that
   never cross, and a rule it holds hard: what one person tells it is never recited
@@ -124,6 +131,12 @@ callable for OpenAI-compatible endpoints, Anthropic, and Gemini.
   wants dropped by guards that can't read them. Internationalizing the guards
   is a real chapter, not a patch; until then, theMind is an English-language
   mind.
+- **It does not become superintelligent.** The model's intelligence is the
+  host's and fixed. What compounds is how the mind uses it: knowledge of the
+  person, calibration, procedural know-how, and better-tuned prompts and
+  dials. The one genuinely recursive path is `curriculum`: the mind writes
+  its verified outcomes as training data for a host that chooses to
+  fine-tune. theMind never trains anything.
 - **Identity is the host's to supply.** The mind keeps people apart only when
   the app names who is speaking (a message `name`, a `who=` argument, the MCP
   `who` field). It never infers identity from writing style or timing, so an
@@ -134,7 +147,7 @@ callable for OpenAI-compatible endpoints, Anthropic, and Gemini.
 
 ## Status
 
-**v1.2.** The on-disk format — what a mind is, at rest — is published in
+**v1.3.** The on-disk format — what a mind is, at rest — is published in
 [FORMAT.md](FORMAT.md) and remains open to challenge while it is cheap to
 change. The project's scientific grounding — how the architecture maps onto
 the science of consciousness, scored honestly, gaps and all — is published in

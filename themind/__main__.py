@@ -27,6 +27,11 @@ def main(argv=None):
     e.add_argument("-o", "--out", default=None,
                    help="where to write it (default: <mind>/mind-export.json)")
 
+    c = sub.add_parser("curriculum", help="write the mind's verified outcomes as training pairs (JSONL)")
+    c.add_argument("mind", help="the mind's folder")
+    c.add_argument("-o", "--out", default=None,
+                   help="where to write it (default: <mind>/curriculum.jsonl)")
+
     r = sub.add_parser("restore", help="recreate a mind folder from an export file")
     r.add_argument("export_file", help="a file written by export")
     r.add_argument("dest", help="the folder to become the mind (created if missing)")
@@ -38,6 +43,12 @@ def main(argv=None):
             print("not a mind folder (no manifest.json): %s" % args.mind, file=sys.stderr)
             return 2
         print(Mind(args.mind).export(args.out))
+        return 0
+    if args.cmd == "curriculum":
+        if not os.path.isfile(os.path.join(args.mind, "manifest.json")):
+            print("not a mind folder (no manifest.json): %s" % args.mind, file=sys.stderr)
+            return 2
+        print(Mind(args.mind).curriculum(args.out))
         return 0
     try:
         Mind.restore(args.export_file, args.dest)

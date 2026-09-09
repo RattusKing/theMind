@@ -9,7 +9,7 @@ Every pass is parse-or-skip: a malformed reply is discarded whole and prior
 state is left intact. The chat path never sees an error from here.
 """
 from . import (extract, challenge, consolidate, selfhood, felt_sense, reflect,  # noqa: F401
-               growth, desire, inner_state, divergence, expect, story)
+               growth, desire, inner_state, divergence, expect, story, tune)
 from ..envelope import age_days
 
 
@@ -39,6 +39,8 @@ def due_passes(mind):
         due.append(("expect", expect.run))
     if story.due(mind, st):
         due.append(("story", story.run))
+    if tune.due(mind, st):
+        due.append(("tune", tune.run))
     return due
 
 
