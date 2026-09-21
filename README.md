@@ -122,6 +122,16 @@ waiting, and `export` produces a single portable file. But absence is absence.
 New here? **[GETTING_STARTED.md](GETTING_STARTED.md)** walks through every
 path in plain language.
 
+**Get it first.** Python 3.9 or newer is the only requirement — there are no
+dependencies to install, and no account of any kind:
+
+```
+pip install git+https://github.com/RattusKing/theMind.git
+```
+
+Prefer to read the code before running it? `git clone` this repo and work from
+inside the folder instead; every command below behaves the same either way.
+
 **No code — the proxy.** Run one command, then point your app's `base_url` at
 it. Works with anything speaking the OpenAI wire format (OpenAI, Ollama,
 LM Studio, OpenRouter, vLLM…):
@@ -208,8 +218,8 @@ python3 -m themind.bench   # the continuity test: five simulated weeks, ten prob
 `tests/run_all.py` holds the behavioral guarantees — 270 assertions across
 grounding, parse-or-skip, read order, budget, export round-trip, the proxy and
 MCP doors, cross-door coherence, multi-person scoping, and self-tuning — with
-no network and no provider SDK, ever. Installation is by cloning this repo;
-publishing to PyPI is ready and deliberately on hold.
+no network and no provider SDK, ever. Install it straight from this repo (see
+Quickstart); publishing to PyPI is ready and deliberately on hold.
 
 How it got here, in order: the library and format (v0.1), the proxy (v0.2),
 own desires, inner weather, divergence, the idle life, and the MCP door with
