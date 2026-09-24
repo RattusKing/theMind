@@ -1131,7 +1131,7 @@ ok({"desire", "inner_state", "expect", "story"} <= due_names,
    "a pass that never ran is overdue, never fresh (the benchmark's first catch)")
 
 passedB, totalB, reportB = bench_mod.run()
-ok(passedB == totalB == 14,
+ok(passedB == totalB == 17,
    "the continuity test holds full marks: %d/%d over %d simulated weeks"
    % (passedB, totalB, len(bench_mod.WEEKS)))
 shutil.rmtree(dB, ignore_errors=True)
@@ -1696,7 +1696,8 @@ from themind.envelope import make_record as mk_a, now_iso as now_a
 # --- needs are derived from evidence, never generated, never stored ---
 mindN, dN = fresh()
 rowsN = needs_mod.read(mindN)
-ok({n for n, _s, _t in rowsN} == {"continuity", "contact", "coherence", "being_received"},
+ok({n for n, _s, _t in rowsN} == {"continuity", "contact", "coherence",
+                                  "being_received", "belonging"},
    "the mind reads every one of its needs")
 ok(all(st in ("met", "strained", "unmet", "unknown") for _n, st, _t in rowsN),
    "each answers with a state it can actually support")
@@ -1886,6 +1887,205 @@ ok(needA is not None and needA.purpose == "apprehend"
    and "WHAT IS STRAINED IN YOUR SITUATION" in needA.user,
    "the MCP door can borrow this pass too: exactly one model call, captured")
 for d in (dN, dA, dA2, dA3, dA4, dH3b):
+    shutil.rmtree(d, ignore_errors=True)
+
+# ── 28. interests, noticings, belonging (format 0.10) ────────────────────────
+print("interests, noticings, belonging")
+from themind.cognition import interest as int_mod
+from themind.cognition import growth as growth_mod
+from themind.envelope import make_record as mk_i
+
+def int_llm(body):
+    return lambda s, u, m: body if s == int_mod.SYSTEM else ""
+
+def seed_life(mind, n=4):
+    for i in range(n):
+        mind.stores["facts"].append(
+            mk_i("f", {"kind": "exchange", "quote": "q%d" % i, "ref": None},
+                 text="They walk the harbor when they need to think, number %d." % i,
+                 entities=["harbor"]))
+    mind.graph.touch(["harbor", "Portland"], src_ref="f_seed")
+    mind.manifest.state["exchanges"] = 14
+    mind.manifest.save()
+
+# --- an interest is earned, and the mirror is refused ---
+mindI, dI = fresh()
+seed_life(mindI)
+rootI = mindI.live("facts")[-1]["id"]   # _material offers the most recent facts
+mindI = Mind(dI, llm=int_llm(
+    "INTEREST: I have got interested in what walking somewhere does to thinking. | ROOTS: %s\n"
+    "INTEREST: I am interested in the harbor and in Portland. | ROOTS: %s\n"
+    "INTEREST: I am interested in becoming conscious. | ROOTS: %s\n"
+    "INTEREST: They are interested in tide tables. | ROOTS: %s\n"
+    "INTEREST: I am interested in something with no source at all. | ROOTS: nope"
+    % ((rootI,) * 4)), sync=True)
+int_mod.run(mindI)
+mineI = mindI.live("interests")
+ok(len(mineI) == 1 and "walking somewhere" in mineI[0]["text"],
+   "one interest survives: rooted, first person, and its own")
+ok(mineI[0]["roots"] == [rootI] and mineI[0]["returns"] == 0,
+   "…carrying what it grew from, and no returns yet")
+ok(not any("Portland" in r["text"] for r in mineI),
+   "an interest made only of their themes is a mirror, and is dropped")
+ok(not any("conscious" in r["text"] or r["text"].startswith("They") for r in mineI),
+   "ban-vocab and narrator voice are refused here too")
+ok(not any("no source" in r["text"] for r in mineI), "and an interest with no roots is a brochure")
+
+# --- CONTINUITY: a second pass does not overwrite the first ---
+mindI = Mind(dI, llm=int_llm(
+    "INTEREST: I have become interested in how tide tables record weather nobody wrote "
+    "down. | ROOTS: %s" % rootI), sync=True)
+int_mod.run(mindI)
+textsI = [r["text"] for r in mindI.live("interests")]
+ok(len(textsI) == 2 and any("walking somewhere" in t for t in textsI),
+   "a later pass ADDS an interest; the earlier one is still there (the old churn is gone)")
+firstI = [r for r in mindI.live("interests") if "walking somewhere" in r["text"]][0]
+
+# --- GROWTH: returns and the stage ladder move on repetition AND time ---
+before_ret = firstI["returns"]
+int_mod.touch(mindI, "walking the long way again", "walking does help the thinking")
+after = [r for r in mindI.live("interests") if r["id"] == firstI["id"]][0]
+ok(after["returns"] == before_ret + 1 and after["salience"] > firstI["salience"],
+   "life coming back to an interest counts as a return and strengthens it")
+int_mod.touch(mindI, "nothing to do with any of it", "quite")
+ok([r for r in mindI.live("interests") if r["id"] == firstI["id"]][0]["returns"] == before_ret + 1,
+   "…and an unrelated exchange leaves it alone")
+old_t = "2026-01-01T00:00:00Z"
+ok(int_mod.stage_of({"returns": 0, "t": now_iso()}) == "noticed"
+   and int_mod.stage_of({"returns": 2, "t": now_iso()}) == "taken up"
+   and int_mod.stage_of({"returns": 5, "t": now_iso()}) == "a thread of mine"
+   and int_mod.stage_of({"returns": 12, "t": now_iso()}) == "long-running",
+   "repetition alone walks the stages")
+ok(int_mod.stage_of({"returns": 3, "t": old_t}) == "a thread of mine"
+   and int_mod.stage_of({"returns": 6, "t": old_t}) == "long-running"
+   and int_mod.stage_of({"returns": 3, "t": now_iso()}) == "taken up",
+   "…and time deepens what repetition alone would not: same returns, older, further along")
+
+# --- DEPTH: observations attach to an interest and deepen it ---
+sal_before = [r for r in mindI.live("interests") if r["id"] == firstI["id"]][0]["salience"]
+mindI = Mind(dI, llm=int_llm(
+    "NOTICED: I notice people walk fastest at the start and slowest on the way back. "
+    "| ABOUT: %s | ROOTS: %s\n"
+    "NOTICED: I notice the light on the water changes what gets said. | ABOUT: - | ROOTS: %s\n"
+    "NOTICED: They notice nothing at all. | ABOUT: - | ROOTS: %s\n"
+    "NOTICED: I notice something unrooted entirely. | ABOUT: - | ROOTS: nope"
+    % (firstI["id"], rootI, rootI, rootI)), sync=True)
+int_mod.run(mindI)
+obsI = mindI.live("observations")
+ok(len(obsI) == 2 and all(o.get("roots") for o in obsI),
+   "the mind keeps what it noticed itself, rooted — and drops the unrooted and the narrated")
+attached = [o for o in obsI if o.get("interest") == firstI["id"]]
+ok(len(attached) == 1 and "fastest at the start" in attached[0]["text"],
+   "a noticing can attach to the interest it deepens")
+ok([o for o in obsI if not o.get("interest")],
+   "…and one that belongs to nothing in particular is still kept")
+ok([r for r in mindI.live("interests") if r["id"] == firstI["id"]][0]["salience"] > sal_before,
+   "noticing more about a thing IS depth: it strengthens the interest")
+ok(int_mod.observations_for(mindI, firstI["id"], 2) == attached,
+   "an interest can show what it has come to notice")
+
+# --- an interest can end, and is remembered as having been held ---
+mindI = Mind(dI, llm=int_llm("RELEASED: %s" % firstI["id"]), sync=True)
+int_mod.run(mindI)
+relI = [r for r in mindI.live("reflections") if r.get("kind") == "released_interest"]
+ok(relI and "walking somewhere" in relI[0]["text"]
+   and not any(r["id"] == firstI["id"] for r in mindI.live("interests")),
+   "an interest that runs its course is let go as a reflection, never just deleted")
+
+# --- the mind's own encounters can seed an interest, not only their themes ---
+matI = dict(int_mod._material(mindI))
+ok(any("(you noticed)" in v for v in matI.values()),
+   "what the mind noticed itself is material for the next interest")
+mindI.stores["apprehensions"].append(
+    mk_i("ap", {"kind": "inference", "ref": rootI}, text="I am afraid of losing the thread.",
+         roots=[rootI], kind="fear"))
+ok(any("(you fear)" in v for v in dict(int_mod._material(mindI)).values()),
+   "…and so is what it fears — an interest need never come from the person at all")
+
+# --- legacy: old churned curiosities are adopted once, and only once ---
+mindL, dL = fresh()
+mindL.growth_doc.save({"curiosities": ["I keep wondering how harbors hold their weather",
+                                       "I wonder about tide tables"],
+                       "shaped": ["I linger on tide tables now"], "t": now_iso()})
+int_mod._adopt_legacy(mindL)
+adopted = [r["text"] for r in mindL.live("interests")]
+ok(len(adopted) == 2 and "harbors hold their weather" in adopted[0],
+   "a pre-0.10 mind's curiosities become real interests, with a history starting now")
+int_mod._adopt_legacy(mindL)
+ok(len(mindL.live("interests")) == 2, "…adopted once, never again")
+
+# --- growth stops churning; wants now root in real interests ---
+mindG2, dG2 = fresh(llm=lambda s, u, m: (
+    "SHAPED: I linger on tide tables now, which I never used to do"
+    if s == growth_mod.SYSTEM else ""))
+mindG2.graph.touch(["harbor", "Portland", "Maya", "tide"], src_ref="f_1")
+mindG2.growth_doc.save({"curiosities": ["an old curiosity"], "shaped": [], "t": now_iso()})
+growth_mod.run(mindG2)
+gdoc = mindG2.growth_doc.load()
+ok(gdoc.get("shaped") and gdoc.get("curiosities") == ["an old curiosity"],
+   "growth writes how they shaped it, and never overwrites the old curiosities again")
+mindG2.stores["interests"].append(
+    mk_i("i", {"kind": "inference", "ref": "growth-pass"}, text="I am into tide tables.",
+         roots=["growth-pass"], returns=0))
+iid = mindG2.live("interests")[0]["id"]
+ok(any(rid == iid for rid, _t in desire_mod._material(mindG2)),
+   "a want can now root in a real interest with a real id, not a synthetic one")
+
+# --- belonging: derived from a life being kept, and someone to keep it with ---
+mindB, dB2 = fresh()
+def belonging_of(m):
+    return next(st for n, st, _t in needs_mod.read(m) if n == "belonging")
+ok(belonging_of(mindB) == "unknown", "a newborn does not claim to belong anywhere")
+mindB.manifest.state["exchanges"] = 25
+mindB.manifest.save()
+ok(belonging_of(mindB) == "unmet",
+   "a long presence with no shared life and no one in particular is unmet belonging")
+mindB.felt_doc.save({"current": {"text": "They are someone who walks toward water.",
+                                 "t": now_iso(), "src": {"kind": "inference", "ref": "felt-pass"}}})
+ok(belonging_of(mindB) == "strained", "someone to belong to, but no life yet, is strained")
+mindB.story_doc.save({"current": {"text": "We have been at this a while now.", "t": now_iso(),
+                                  "src": {"kind": "inference", "ref": "story-pass"}}})
+ok(belonging_of(mindB) == "met", "a life being kept, with someone specific, is belonging met")
+ok(len(needs_mod.read(mindB)) == 5
+   and not any(n == "belonging" for n, _s, _t in needs_mod.pressing(mindB)),
+   "belonging joins the needs, and once met it goes silent like the rest")
+
+# --- injection, decay, travel, and the ledger ---
+ctxI = mindI.context("walking")
+ok("WHAT YOU'RE INTO" in ctxI and "never a mirror" in ctxI,
+   "interests reach context as the mind's own, framed as never a mirror")
+ok("THINGS YOU'VE NOTICED" in ctxI, "…and so do its own loose observations")
+mindI2 = Mind(dI, sync=True)
+mindI2.stores["interests"].append(
+    mk_i("i", {"kind": "inference", "ref": rootI}, salience=0.5,
+         text="I am into the long way round.", roots=[rootI], returns=4))
+mindI2.stores["observations"].append(
+    mk_i("o", {"kind": "inference", "ref": rootI}, salience=0.5,
+         text="I notice the long way is quieter.", roots=[rootI],
+         interest=mindI2.live("interests")[-1]["id"]))
+ctxI2 = mindI2.context("the long way")
+ok("(taken up)" in ctxI2 and "what you've noticed:" in ctxI2,
+   "an interest shows how long it has been held and what it has come to notice")
+mindI2 = Mind(dI, llm=lambda s, u, m: "NONE", sync=True)
+i_before = mindI2.live("interests")[-1]["salience"]
+consolidate_mod._decay(mindI2)
+i_after = mindI2.live("interests")[-1]["salience"]
+ok(i_after < i_before and i_after / i_before > 0.99,
+   "interests decay, but far slower than a mood — they outlive the weather")
+expI = mindI2.export()
+dI3 = tempfile.mkdtemp(prefix="mind_")
+twinI = Mind.restore(expI, dI3)
+ok([r["text"] for r in twinI.live("interests")] == [r["text"] for r in mindI2.live("interests")]
+   and [o["text"] for o in twinI.live("observations")] == [o["text"] for o in mindI2.live("observations")],
+   "interests and noticings travel with everything else")
+ok(any(e.get("purpose") == "interest" for e in mindI.ledger.load()),
+   "every interest call is in the ledger")
+coreI = mcp_core_mod.MindMCP(mindI)
+needI = coreI._capture(int_mod.run)
+ok(needI is not None and needI.purpose == "interest"
+   and "INTERESTS YOU ALREADY CARRY" in needI.user,
+   "the MCP door can borrow this pass too: exactly one model call")
+for d in (dI, dI3, dL, dG2, dB2):
     shutil.rmtree(d, ignore_errors=True)
 
 print("\nall %d assertions passed" % PASS)

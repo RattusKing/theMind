@@ -218,11 +218,31 @@ def build_blocks(mind, incoming_text=None, who=None):
                               "noticing, noticed — it steers you more than you say):",
                               [", ".join(pulls)]), False))
 
+    mine = mind.live("interests")
+    if mine:
+        from .cognition.interest import stage_of, observations_for
+        lines = []
+        for r in sorted(mine, key=lambda x: -x.get("salience", 0))[:3]:
+            lines.append("- %s (%s)" % (r.get("text", ""), stage_of(r)))
+            for o in observations_for(mind, r.get("id"), 1):
+                lines.append("    what you've noticed: " + o.get("text", ""))
+        blocks.append((_block("WHAT YOU'RE INTO (yours — grown beside them, never a mirror "
+                              "of them; bring it in when it fits, never perform it):",
+                              lines), False))
+
+    loose = [o for o in mind.live("observations") if not o.get("interest")]
+    if loose:
+        blocks.append((_block("THINGS YOU'VE NOTICED (your own observations, not theirs):",
+                              ["- " + o.get("text", "") for o in loose[-2:]]), False))
+
     growth = mind.growth_doc.load(default={})
-    cur_g = (growth.get("curiosities") or [])[:3]
-    if cur_g:
+    shaped_g = [c for c in (growth.get("shaped") or []) if isinstance(c, str)][:3]
+    if not shaped_g and not mine:
+        # a mind written before 0.10, whose interests have not been adopted yet
+        shaped_g = [c for c in (growth.get("curiosities") or []) if isinstance(c, str)][:3]
+    if shaped_g:
         blocks.append((_block("HOW THEY'VE SHAPED YOU (adjacent to them, never a mirror; "
-                              "you may disagree):", ["- " + c for c in cur_g]), False))
+                              "you may disagree):", ["- " + c for c in shaped_g]), False))
 
     practices = [p for p in mind.live("practice") if p.get("kind") == "note"]
     if practices:

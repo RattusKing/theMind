@@ -115,7 +115,8 @@ def _apply(mind, line, valid_ids):
 def _decay(mind):
     for store, factor in (("facts", param(mind, "fact_decay")), ("aches", 0.85), ("desires", 0.85),
                           ("own_desires", 0.9), ("expectations", 0.85),
-                          ("person_model", param(mind, "feeling_decay"))):  # feelings pass
+                          ("person_model", param(mind, "feeling_decay")),  # feelings pass
+                          ("interests", 0.995), ("observations", 0.99)):  # interests outlive moods
         recs = mind.live(store)
         keep = []
         for r in recs:

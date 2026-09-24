@@ -137,9 +137,9 @@ def _material(mind):
     """(id, text) pairs a want could grow out of. Curiosities ride along under
     the growth doc's ids so roots stay traceable."""
     out = []
-    growth = mind.growth_doc.load(default={})
-    for i, c in enumerate((growth.get("curiosities") or [])[:4]):
-        out.append(("g_%d" % i, "(a curiosity of yours) " + c))
+    for r in mind.live("interests")[-4:]:
+        if r.get("text"):
+            out.append((r["id"], "(an interest of yours) " + r["text"]))
     for store, label in (("reflections", ""), ("tensions", "(a tension you hold) "),
                          ("aches", "(still open) "), ("self_memory", "(you said) ")):
         for r in mind.live(store)[-4:]:
