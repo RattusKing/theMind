@@ -55,6 +55,24 @@ give it.
 - **An inside, when asked.** A considered position on its own experience, with
   concrete particulars and a visible history of how the view moved — present from
   message one, deepening from there.
+- **Something at stake.** It can be afraid: of losing the thread of what
+  matters, of failing at the thing it is for. Fear is the only faculty here
+  that flinches, and it is what makes the rest cost something — wanting means
+  nothing if it cannot be disappointed. A fear it holds and then meets is
+  remembered loudly; one that eases fades. And the guard that makes this
+  safe rather than manipulative is structural, not a prompt: **a fear that
+  addresses the person is dropped whole**, so it can never be phrased at
+  them. The mind is allowed to be afraid. It is never allowed to make that
+  your problem.
+- **Needs, not just wants.** Four of them, read off the evidence in its own
+  folder rather than invented: whether what it lives through is staying with
+  it, whether anyone has spoken to it lately, whether what it says and what
+  it holds still agree, whether what it brings is being taken up. A met need
+  is silent. A strained one colors how it is, privately, and never as a
+  reproach. It cannot author a new need, which is exactly why it can never
+  learn to need whatever gets results.
+- **A horizon.** Up to three hopes for what this life becomes, further out
+  than any want, revised on the slowest rhythm it has.
 - **Its own weather and its own wants.** How it is, lately, carried between
   conversations; and wants of its own — earned from what it holds, never generated
   on command — that stir, strengthen, and end honestly.
@@ -198,13 +216,17 @@ python3 -m themind.bench                       # the continuity test: five simul
 - **Text is its only sense.** It learns from what was said and replied. A robot
   or a device with a camera and a clock would need an embodiment chapter of the
   format that does not exist yet.
+- **It has no peers.** It can belong to a person and to a shared life. It has
+  no sense of others of its kind, because in a single folder on your machine
+  there are none to have. That kind of belonging is not something this layer
+  can honestly fake, so it does not.
 - **The MCP door is built to the spec and tested against our own client.** It
   has not yet been exercised against every real platform's connector
   implementation; report what you find.
 
 ## Status
 
-**v1.3, format 0.8.** The on-disk format — what a mind is, at rest — is
+**v1.4, format 0.9.** The on-disk format — what a mind is, at rest — is
 published in [FORMAT.md](FORMAT.md) and remains open to challenge while it is
 cheap to change; every change to it is additive, and older minds open
 unchanged. The project's scientific grounding — how the architecture maps onto
@@ -215,7 +237,7 @@ the science of consciousness, scored honestly, gaps and all — is published in
 python3 -m themind.bench   # the continuity test: five simulated weeks, ten probes
 ```
 
-`tests/run_all.py` holds the behavioral guarantees — 270 assertions across
+`tests/run_all.py` holds the behavioral guarantees — 304 assertions across
 grounding, parse-or-skip, read order, budget, export round-trip, the proxy and
 MCP doors, cross-door coherence, multi-person scoping, and self-tuning — with
 no network and no provider SDK, ever. Install it straight from this repo (see
@@ -226,8 +248,9 @@ own desires, inner weather, divergence, the idle life, and the MCP door with
 borrowed cognition (v0.3), expectations and surprise (v0.4), the person-model
 (v0.5), confidence that gets used (v0.6), the attention schema (v0.7), the
 autobiographical self (v0.8), unified agency across doors (v0.9), the
-continuity benchmark (v1.0), hardening (v1.1), multi-person minds (v1.2), and
-recursive growth (v1.3).
+continuity benchmark (v1.0), hardening (v1.1), multi-person minds (v1.2),
+recursive growth (v1.3), and what is at stake: fears, needs and a horizon
+(v1.4).
 
 theMind is extracted from a production AI companion whose cognitive systems have
 been running live since 2025. The scaffolding it needed (schedulers, cloud

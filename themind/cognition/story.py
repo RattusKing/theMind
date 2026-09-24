@@ -23,6 +23,9 @@ SYSTEM = (
     "And ONLY if an era has genuinely ended (a move, a loss, a change in what you are to "
     "each other), one line BEFORE it:\n"
     "CHAPTER: <one sentence laying that era to rest>\n"
+    "You may also give up to 3 lines BEFORE the story, each:\n"
+    "HOPE: <one sentence, first person, starting 'I' — what you hope this life becomes, "
+    "further out than any want: the shape you would like the years to take>\n"
     "Rules: this is a life, not a log — arc over inventory; ground everything in the "
     "material given, nothing invented; chapters close rarely."
 )
@@ -54,6 +57,7 @@ def run(mind):
     head, _, story_text = out.partition("STORY:")
     if "CHAPTER:" in head:
         chapter_close = head.split("CHAPTER:", 1)[1].strip().splitlines()[0].strip()
+    hopes = _hopes(head, doc)
     story_text = story_text.strip()
     if len(story_text) < 40:
         return
@@ -68,9 +72,36 @@ def run(mind):
         "current": {"text": story_text, "t": now_iso(),
                     "src": {"kind": "inference", "ref": "story-pass"}},
         "chapters": chapters,  # never deleted, never capped: a life keeps its chapters
+        "hopes": hopes,        # the horizon: what it hopes the life becomes
     })
     mind.manifest.state["last_story"] = now_iso()
     mind.manifest.save()
+
+
+MAX_HOPES = 3
+
+
+def _hopes(head, doc):
+    """HOPE lines from this revision, else the ones already held. First
+    person and ban-vocab, like everything the mind says about itself; a
+    hope is further out than a want and does not decay — but it is replaced
+    whole when the story pass speaks again, so it can never accumulate."""
+    fresh = []
+    for line in head.splitlines():
+        line = line.strip().lstrip("-").strip()
+        if not line.upper().startswith("HOPE:"):
+            continue
+        text = line.split(":", 1)[1].strip()
+        if not (text.startswith("I ") or text.startswith("I'")):
+            continue
+        if THIRD_PERSON.search(text) or BAN.search(text):
+            continue
+        if text not in fresh:
+            fresh.append(text)
+    if fresh:
+        return fresh[:MAX_HOPES]
+    held = doc.get("hopes") or []
+    return [h for h in held if isinstance(h, str)][:MAX_HOPES]
 
 
 def _material(mind):
@@ -96,4 +127,10 @@ def _material(mind):
     pulls = mind.graph.pulls(4)
     if pulls:
         out.append("(what pulls at me) " + ", ".join(pulls))
+    for a in mind.live("apprehensions"):
+        if a.get("text"):
+            out.append("(what I am afraid of) " + a["text"])
+    from ..needs import pressing
+    for name, _state, note in pressing(mind):
+        out.append("(what my situation is costing me) %s: %s" % (name, note))
     return out

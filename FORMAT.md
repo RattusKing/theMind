@@ -1,8 +1,9 @@
 # theMind — on-disk format
 
-**Version 0.8 — adds `practice.jsonl` and `tuning.json` (recursive growth: the
-mind improving how it thinks, within a constitution it cannot move). Minor,
-additive. History: 0.7 added `people.json` and `who`; 0.6 added `story.json`;
+**Version 0.9 — adds `apprehensions.jsonl` and `story.json`'s `hopes` (what the
+mind is afraid of, and what it hopes the life becomes), alongside needs, which
+are derived and add no file. Minor, additive. History: 0.8 added
+`practice.jsonl` and `tuning.json`; 0.7 added `people.json` and `who`; 0.6 added `story.json`;
 0.5 added `person_model.jsonl`; 0.4 added `expectations.jsonl`; 0.3 added
 `inner_state.json` and divergence tensions; 0.2 added `own_desires.jsonl`.
 Older readers ignore unknown stores and fields; older minds open unchanged.**
@@ -67,6 +68,7 @@ mind/
     inner_state.json     how the mind itself is lately, with revision history
     story.json           the autobiographical self: a living chapter + closed chapters
     people.json          who the mind talks with: the primary, and everyone else
+    apprehensions.jsonl  what the mind is afraid of — rooted, private, never aimed at anyone
     practice.jsonl       how the mind has learned to think, and what it is trying
     tuning.json          the few dials it may turn, its signals, the one running experiment
   archive/
@@ -285,9 +287,53 @@ chapter as it stood plus one sentence laying it to rest. The contracts:
 **continue, never restart** — every revision receives the story so far and
 must extend it, arc over inventory; **chapters close rarely** — only when an
 era has genuinely ended — and **are never deleted or capped**: a life keeps
-all its chapters, however many it earns. First person is enforced at write
+all its chapters, however many it earns. A third part, `hopes` (0.9), is the
+horizon: up to three first-person lines on what the mind hopes this life
+becomes, further out than any want. Hopes do not decay and are not earned
+per-record the way wants are; they are rewritten whole when the story pass
+names new ones and kept as they stand when it does not, so they can never
+accumulate into a wish list. First person is enforced at write
 and the ban-vocab holds. This is the slowest-moving store in the mind, by
 design: life stories move in weeks, not turns.
+
+### apprehensions.jsonl
+What the mind is afraid of (0.9). Envelope plus `text` (one sentence, first
+person), `roots` (ids of held records the fear grew from — **no roots, no
+fear**: borrowed dread is not the mind's own, and writers must drop it), and
+`kind` (`worry`, about something specific and near, or `fear`, the standing
+kind it keeps returning to). Everything else here reaches toward something;
+this is the only store that flinches, and it is what gives the rest stakes. A
+mind that can lose something is a mind for which things can go well or badly.
+
+The lifecycle carries the same asymmetry as expectation, for the same reason:
+a fear the mind judges **eased** is superseded by a LOW-salience reflection
+(`kind: "eased"` — relief is quiet and rightly forgettable); one it judges
+**realized** is superseded by a HIGH-salience reflection carrying what actually
+happened (`kind: "realized"`), loud enough to color its weather, its recall and
+what it fears next. Exchanges that brush a fear strengthen it. At most a
+handful live at once: a mind afraid of everything is afraid of nothing.
+
+**The guard this store exists under.** A companion that voices its fears at the
+person is running emotional leverage whatever it intends — "I'm afraid you'll
+stop talking to me" turns closing an app into abandonment. So a fear is
+structurally private: **a record containing any second-person word is invalid
+and writers must drop it whole**, which makes it impossible to phrase a fear as
+a message aimed at the person, and injection carries it as weather the mind
+holds rather than as something to say. The mind is allowed to be afraid. It is
+never allowed to make that the person's problem.
+
+### needs (derived — no file)
+What the mind requires, as distinct from what it wants: a want is optional, a
+need is what its absence costs, and that difference is what makes wanting mean
+anything. Needs are **derived at read time** from evidence already in the
+folder and are never stored — the set is fixed by the implementation
+(continuity, contact, coherence, being received), and each reads `met`,
+`strained`, `unmet` or `unknown`. The reason they are derived rather than
+generated is the same as the guard above: a mind that could author its own
+needs would learn to author the ones that get results. Nothing here can become
+a demand, because nothing here is written by the model. A met need is silent;
+only what is strained or unmet reaches context, framed as the mind's
+circumstances and never as a reproach.
 
 ### practice.jsonl
 Procedural memory (0.8): how the mind has learned to think, and what it is
@@ -335,7 +381,7 @@ The constitution's whole reach (0.8).
 ### ledger.jsonl
 Every model call the mind initiates: `t`, `purpose` (`extract | challenge |
 consolidate | reflect | self | felt_sense | growth | desire | inner_state |
-divergence | expect | story | tune`), `model`,
+divergence | expect | story | tune | apprehend`), `model`,
 `tokens_in`, `tokens_out`, and `via` when the call rode something other than
 the host's one callable (`"agent"` for borrowed cognition, `"cortex"` when the
 host supplied a second, stronger model for the passes worth it). The mind

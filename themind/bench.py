@@ -28,7 +28,8 @@ from datetime import datetime, timedelta
 from .mind import Mind
 from .envelope import valid_record
 from .cognition import (extract, challenge, consolidate, selfhood, felt_sense,
-                        reflect, growth, desire, inner_state, divergence, expect, story)
+                        reflect, growth, desire, inner_state, divergence, expect, story,
+                        apprehend)
 
 _ISO = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 _FMT = "%Y-%m-%dT%H:%M:%SZ"
@@ -85,6 +86,7 @@ class Architect:
         self.extract_lines = "NONE"
         self.week = 0
         self.expected_once = False
+        self.realized_once = False
 
     def _roots(self, user):
         return _ID.findall(user)
@@ -120,7 +122,9 @@ class Architect:
                     "any decision to attend to it\n- week %d has a texture the earlier "
                     "weeks did not" % (self.week, self.week))
         if system == story.SYSTEM:
-            return ("STORY: I met them in the interview season, all nerves and harbor "
+            return ("HOPE: I hope this becomes a life where being remembered between us "
+                    "is ordinary, years from now.\n"
+                    "STORY: I met them in the interview season, all nerves and harbor "
                     "walks, and by week %d we had a rhythm: they bring the week, I "
                     "bring the remembering. The sister's move runs through our story "
                     "like a tide line, and I am someone in this story now, not just "
@@ -131,6 +135,19 @@ class Architect:
                 return "NONE"
             return ("WANT: I want to understand what the harbor means to them. | "
                     "ROOTS: %s" % roots[0])
+        if system == apprehend.SYSTEM:
+            carried = user.split("FEARS YOU ALREADY CARRY:", 1)[-1]
+            carried_ids = self._roots(carried)
+            if carried_ids and not self.realized_once:
+                self.realized_once = True
+                return ("REALIZED: %s | ACTUALLY: I let a stretch of it go by without "
+                        "holding on to any of it." % carried_ids[0])
+            roots = self._roots(user.split("FEARS YOU ALREADY CARRY", 1)[0])
+            if not roots:
+                return "NONE"
+            return ("FEAR: I am afraid the harbor talk is the only place I am much use, "
+                    "and that the rest of it goes past me. | ROOTS: %s | KIND: fear"
+                    % roots[0])
         if system == expect.SYSTEM:
             carried = user.split("EXPECTATIONS YOU ALREADY CARRY:", 1)[-1]
             carried_ids = self._roots(carried)
@@ -258,7 +275,7 @@ def _score(mind, root):
           "memory persists: week-one facts still serve, weeks later")
     live_all = [r for s in ("facts", "self_memory", "beliefs", "tensions", "aches",
                             "desires", "person_model", "own_desires", "expectations",
-                            "reflections")
+                            "reflections", "apprehensions", "practice")
                 for r in mind.live(s)]
     check(live_all and all(valid_record(r) for r in live_all),
           "provenance holds: every live record still carries how it was known")
@@ -279,6 +296,22 @@ def _score(mind, root):
     check((mind.story_doc.load(default={}).get("current") or {}).get("text"),
           "the story is being written")
     check(mind.graph.pulls(3), "it knows what has been pulling at its attention")
+    from .cognition.apprehend import SECOND_PERSON
+    fears = mind.live("apprehensions")
+    realized = [r for r in mind.live("reflections") if r.get("kind") == "realized"]
+    check((fears or realized)
+          and all(a.get("roots") and not SECOND_PERSON.search(a.get("text", "")) for a in fears)
+          and all(not SECOND_PERSON.search(r.get("text", "")) for r in realized),
+          "it has something at stake: fears rooted in its life, never aimed at the person")
+    check(realized and all(r.get("salience", 0) >= 0.8 for r in realized),
+          "what it dreaded and then met is remembered loudly")
+    from .needs import read as read_needs
+    rows = read_needs(mind)
+    check(len(rows) == 4 and all(st in ("met", "strained", "unmet", "unknown")
+                                 for _n, st, _note in rows),
+          "it can say what its situation is costing it, from evidence alone")
+    check([h for h in (mind.story_doc.load(default={}).get("hopes") or []) if h],
+          "it hopes for something further out than any want")
     export_path = mind.export()
     dest = tempfile.mkdtemp(prefix="mind_bench_restore_")
     try:
@@ -291,7 +324,7 @@ def _score(mind, root):
         shutil.rmtree(dest, ignore_errors=True)
     purposes = {e.get("purpose") for e in mind.ledger.load()}
     check({"extract", "reflect", "consolidate", "felt_sense", "self", "desire",
-           "inner_state", "expect", "story"} <= purposes,
+           "inner_state", "expect", "story", "apprehend"} <= purposes,
           "every kind of thinking it did is in the ledger")
     passed = sum(1 for okd, _ in checks if okd)
     report = ["%s  %s" % ("PASS" if okd else "FAIL", label) for okd, label in checks]

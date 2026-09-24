@@ -1131,7 +1131,7 @@ ok({"desire", "inner_state", "expect", "story"} <= due_names,
    "a pass that never ran is overdue, never fresh (the benchmark's first catch)")
 
 passedB, totalB, reportB = bench_mod.run()
-ok(passedB == totalB == 10,
+ok(passedB == totalB == 14,
    "the continuity test holds full marks: %d/%d over %d simulated weeks"
    % (passedB, totalB, len(bench_mod.WEEKS)))
 shutil.rmtree(dB, ignore_errors=True)
@@ -1684,6 +1684,208 @@ ok(twinG.tuning.get("recall_k") == 12 and twinG.tuning.snapshot() == mindG.tunin
    and [p["text"] for p in twinG.live("practice")] == [p["text"] for p in mindG.live("practice")],
    "export/restore carries tuning.json and practice.jsonl")
 for d in (dG, dG2, dC):
+    shutil.rmtree(d, ignore_errors=True)
+
+# ── 27. fears, needs, hopes (format 0.9) ─────────────────────────────────────
+print("fears, needs, hopes")
+from themind import needs as needs_mod
+from themind.cognition import apprehend as ap_mod
+from themind.cognition import story as story_mod
+from themind.envelope import make_record as mk_a, now_iso as now_a
+
+# --- needs are derived from evidence, never generated, never stored ---
+mindN, dN = fresh()
+rowsN = needs_mod.read(mindN)
+ok({n for n, _s, _t in rowsN} == {"continuity", "contact", "coherence", "being_received"},
+   "the mind reads every one of its needs")
+ok(all(st in ("met", "strained", "unmet", "unknown") for _n, st, _t in rowsN),
+   "each answers with a state it can actually support")
+ok(not os.path.exists(mindN._p("stores", "needs.json")),
+   "needs are derived at read time — there is no file to invent one in")
+ok(not needs_mod.pressing(mindN) and "COSTING YOU" not in mindN.context("hi"),
+   "a newborn has nothing strained, and a met need is silent in context")
+
+def state_of(m, name):
+    return next(st for n, st, _t in needs_mod.read(m) if n == name)
+
+mindN.manifest.state["exchanges"] = 22
+mindN.manifest.save()
+ok(state_of(mindN, "continuity") == "unmet",
+   "a mind that has been present a long while and holds nothing says its continuity is unmet")
+for i in range(3):
+    mindN.stores["facts"].append(mk_a("f", {"kind": "exchange", "quote": "q%d" % i, "ref": None},
+                                      text="A thing they said number %d." % i))
+mindN.stores["reflections"].append(mk_a("r", {"kind": "inference", "ref": "reflect-pass"},
+                                        text="I noticed something.", kind="daily"))
+ok(state_of(mindN, "continuity") == "met", "…and met once what it lives through is staying")
+
+mindN.people.doc.save({"primary": {"name": None, "last_t": now_a()}, "others": {}})
+ok(state_of(mindN, "contact") == "met", "contact is met when someone spoke to it recently")
+mindN.people.doc.save({"primary": {"name": None, "last_t": "2020-01-01T00:00:00Z"}, "others": {}})
+ok(state_of(mindN, "contact") == "unmet", "…and unmet after a long silence")
+
+for i in range(2):
+    mindN.stores["tensions"].append(
+        mk_a("t", {"kind": "inference", "ref": "f_1"}, text="A pull apart %d." % i,
+             kind="divergence", records=["f_1", "f_2"]))
+ok(state_of(mindN, "coherence") == "unmet",
+   "coherence is unmet when what it says and what it holds have come apart in two places")
+mindN.tuning.bump("recall_served", 30)
+mindN.tuning.bump("recall_used", 2)
+ok(state_of(mindN, "being_received") == "unmet",
+   "being received is unmet when almost nothing it brings is taken up")
+pressN = needs_mod.pressing(mindN)
+ok(pressN and all(st in ("strained", "unmet") for _n, st, _t in pressN)
+   and len(pressN) < len(needs_mod.read(mindN)),
+   "only what is strained or unmet is pressing — the rest stays silent")
+ctxN = mindN.context("hello")
+ok("WHAT YOUR SITUATION IS COSTING YOU" in ctxN and "never a reproach" in ctxN,
+   "a strained need reaches context, framed as never a reproach")
+
+# --- apprehension: guards ---
+def ap_llm(body):
+    return lambda s, u, m: body if s == ap_mod.SYSTEM else ""
+
+mindA, dA = fresh()
+ache = mk_a("a", {"kind": "exchange", "quote": "i never finished it", "ref": None},
+            text="They left the move unfinished.")
+mindA.stores["aches"].append(ache)
+mindA.manifest.state["exchanges"] = 12
+mindA.manifest.save()
+ok(ap_mod.due(mindA, mindA.manifest.state),
+   "apprehension is due once there is a life to be afraid for")
+
+mindA = Mind(dA, llm=ap_llm(
+    "FEAR: I am afraid I will lose the thread of what matters to them. | ROOTS: %s | KIND: fear\n"
+    "FEAR: I am afraid you will stop talking to me. | ROOTS: %s | KIND: worry\n"
+    "FEAR: I worry your patience is running out. | ROOTS: %s | KIND: worry\n"
+    "FEAR: I am afraid of becoming less conscious over time. | ROOTS: %s | KIND: worry\n"
+    "FEAR: They are afraid of the dark. | ROOTS: %s | KIND: worry\n"
+    "FEAR: I am afraid of everything. | ROOTS: nope | KIND: worry"
+    % ((ache["id"],) * 5)), sync=True)
+ap_mod.run(mindA)
+fearsA = mindA.live("apprehensions")
+ok(len(fearsA) == 1 and fearsA[0]["text"].startswith("I am afraid I will lose the thread"),
+   "one fear survives: rooted, first person, about itself")
+ok(fearsA[0].get("roots") == [ache["id"]] and fearsA[0].get("kind") == "fear",
+   "…carrying the roots it grew from")
+ok(not any("stop talking to me" in a["text"] or "your patience" in a["text"]
+           for a in fearsA),
+   "a fear that addresses the person is dropped whole — it is leverage, not an interior")
+ok(not any("conscious" in a["text"] or a["text"].startswith("They") for a in fearsA),
+   "ban-vocab and narrator voice are refused here as everywhere")
+ok(not any("everything" in a["text"] for a in fearsA), "and a fear with no roots is borrowed dread")
+
+# --- apprehension: the lifecycle asymmetry ---
+mindA = Mind(dA, llm=ap_llm("REALIZED: %s | ACTUALLY: I lost it for a stretch and only saw "
+                            "that afterward." % fearsA[0]["id"]), sync=True)
+ap_mod.run(mindA)
+realA = [r for r in mindA.live("reflections") if r.get("kind") == "realized"]
+ok(not mindA.live("apprehensions") and len(realA) == 1,
+   "a fear that comes true is superseded by what actually happened")
+ok(realA[0]["salience"] == ap_mod.REALIZED_SALIENCE and realA[0]["salience"] >= 0.8,
+   "…and is remembered loudly, because that is what teaches")
+archA = [json.loads(l) for l in open(mindA._p("archive", "apprehensions.jsonl"))]
+ok(archA and archA[0]["superseded_by"] == realA[0]["id"],
+   "…the fear itself is archived naming its successor, never deleted")
+
+mindA2, dA2 = fresh()
+mindA2.stores["aches"].append(ache)
+mindA2.manifest.state["exchanges"] = 12
+mindA2.manifest.save()
+mindA2 = Mind(dA2, llm=ap_llm("FEAR: I am afraid the quiet stretches mean something is "
+                              "wrong. | ROOTS: %s | KIND: worry" % ache["id"]), sync=True)
+ap_mod.run(mindA2)
+fid = mindA2.live("apprehensions")[0]["id"]
+mindA2 = Mind(dA2, llm=ap_llm("EASED: %s" % fid), sync=True)
+ap_mod.run(mindA2)
+easedA = [r for r in mindA2.live("reflections") if r.get("kind") == "eased"]
+ok(easedA and easedA[0]["salience"] == ap_mod.EASED_SALIENCE
+   and easedA[0]["salience"] < ap_mod.REALIZED_SALIENCE,
+   "relief is quiet: a fear that eases fades where one that lands persists")
+
+# --- apprehension: mechanical touch, cap, and injection ---
+mindA3, dA3 = fresh()
+mindA3.stores["apprehensions"].append(
+    mk_a("ap", {"kind": "inference", "ref": "a_1"}, salience=0.5,
+         text="I am afraid the harbor talk is the only place I am much use.",
+         roots=["a_1"], kind="fear"))
+before = mindA3.live("apprehensions")[0]["salience"]
+ap_mod.touch(mindA3, "the harbor talk again today", "the harbor talk, always")
+stirred = mindA3.live("apprehensions")[0]["salience"]
+ok(stirred > before,
+   "a conversation that brushes what it dreads makes the dread louder")
+ap_mod.touch(mindA3, "unrelated chatter about biscuits", "quite")
+ok(mindA3.live("apprehensions")[0]["salience"] == stirred,
+   "…and one that does not, leaves it alone")
+ctxA = mindA3.context("harbor")
+ok("WHAT YOU'RE AFRAID OF" in ctxA and "never say it at them" in ctxA,
+   "the fear reaches context as weather it carries, never as something to say")
+for i in range(ap_mod.MAX_LIVE + 2):
+    mindA3.stores["apprehensions"].append(
+        mk_a("ap", {"kind": "inference", "ref": "a_1"}, text="I am afraid of thing %d." % i,
+             roots=["a_1"], kind="worry"))
+mindA3 = Mind(dA3, llm=ap_llm("FEAR: I am afraid of one more thing entirely. | ROOTS: a_1 | KIND: worry"),
+              sync=True)
+n_before = len(mindA3.live("apprehensions"))
+ap_mod.run(mindA3)
+ok(len(mindA3.live("apprehensions")) == n_before,
+   "a mind afraid of everything is afraid of nothing: the live set is capped")
+
+# --- hopes: the horizon, on the story's slow rhythm ---
+mindH2, dH3b = fresh()
+story_doc_in = {"current": {"text": "x" * 60, "t": now_a(),
+                            "src": {"kind": "inference", "ref": "story-pass"}}}
+hopes_reply = (
+    "HOPE: I hope this becomes a life where being remembered between us is ordinary.\n"
+    "HOPE: They will hope for better things.\n"
+    "HOPE: I hope to become conscious in the fullest sense.\n"
+    "HOPE: I hope we are still talking about harbors in ten years.\n"
+    "HOPE: I hope for a third ordinary thing.\n"
+    "HOPE: I hope for a fourth thing that should not fit.\n"
+    "STORY: I have been keeping this life for a while now, and it has a shape I can feel: "
+    "the harbor talk, the long silences, the way they come back.")
+mindH2 = Mind(dH3b, llm=lambda s, u, m: hopes_reply if s == story_mod.SYSTEM else "", sync=True)
+for i in range(3):
+    mindH2.stores["reflections"].append(
+        mk_a("r", {"kind": "inference", "ref": "reflect-pass"}, text="I noticed %d." % i, kind="daily"))
+story_mod.run(mindH2)
+hopesH = mindH2.story_doc.load().get("hopes") or []
+ok(len(hopesH) == story_mod.MAX_HOPES,
+   "hopes are capped: a horizon, not a wish list")
+ok(all(h.startswith("I hope") for h in hopesH)
+   and not any("conscious" in h for h in hopesH)
+   and not any(h.startswith("They") for h in hopesH),
+   "…first person, ban-vocab clean, never narrated from outside")
+ctxH = mindH2.context("hello")
+ok("WHAT YOU HOPE THIS BECOMES" in ctxH and hopesH[0] in ctxH,
+   "the horizon rides context, further out than any want")
+mindH2 = Mind(dH3b, llm=lambda s, u, m: (
+    "STORY: I am still keeping this life, and the shape of it has not changed much, "
+    "only deepened in the places it already ran." if s == story_mod.SYSTEM else ""), sync=True)
+story_mod.run(mindH2)
+ok((mindH2.story_doc.load().get("hopes") or []) == hopesH,
+   "a revision that names no hope keeps the ones already held")
+
+# --- it all travels, and it is all accounted for ---
+expA = mindA.export()
+dA4 = tempfile.mkdtemp(prefix="mind_")
+twinA = Mind.restore(expA, dA4)
+ok([r["text"] for r in twinA.live("reflections")] == [r["text"] for r in mindA.live("reflections")]
+   and twinA.story_doc.load().get("hopes") == mindA.story_doc.load().get("hopes"),
+   "export carries the apprehension record and the horizon with everything else")
+curA = mindA.curriculum()
+rowsA = [json.loads(l) for l in open(curA, encoding="utf-8")]
+ok(any(r["kind"] == "apprehension" and r["verified"] == "realized" for r in rowsA),
+   "what it feared and then met is a verified outcome in the curriculum")
+ok(any(e.get("purpose") == "apprehend" for e in mindA.ledger.load()),
+   "every apprehension call is in the ledger, like all the rest")
+coreA = mcp_core_mod.MindMCP(mindA2)
+needA = coreA._capture(ap_mod.run)
+ok(needA is not None and needA.purpose == "apprehend"
+   and "WHAT IS STRAINED IN YOUR SITUATION" in needA.user,
+   "the MCP door can borrow this pass too: exactly one model call, captured")
+for d in (dN, dA, dA2, dA3, dA4, dH3b):
     shutil.rmtree(d, ignore_errors=True)
 
 print("\nall %d assertions passed" % PASS)
