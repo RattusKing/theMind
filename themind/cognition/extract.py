@@ -14,7 +14,7 @@ import re
 from ..envelope import make_record, norm_key
 from ..retrieval import _words
 from ..people import owner
-from . import challenge, desire, expect
+from . import apprehend, challenge, desire, expect
 
 REINFORCE = 0.05  # a re-mention strengthens what it repeats (the spacing effect)
 
@@ -159,6 +159,7 @@ def run(mind, user_text, assistant_text, who=None):
     try:
         desire.touch(mind, user_text, assistant_text)   # mechanical; no model call
         expect.touch(mind, user_text, assistant_text, who=who)   # attention follows predictions
+        apprehend.touch(mind, user_text, assistant_text)   # dread grows by being brushed
     except Exception:
         pass
     return stored

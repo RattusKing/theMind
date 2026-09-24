@@ -184,6 +184,19 @@ truth:
    compounds is how the mind uses it. The `curriculum` output (verified
    outcomes as training pairs) is the bridge to the only truly recursive
    loop, and it stays in the owner's hands.
+9. ~~**What is at stake**~~ — **shipped, v1.4, format 0.9**: the protective
+   half of an interior, which every faculty before it lacked. Apprehension
+   (`apprehensions.jsonl`) with the same error-weighted asymmetry as
+   prediction — a fear that lands persists loudly, one that eases fades —
+   needs derived from evidence rather than generated (continuity, contact,
+   coherence, being received), and a hope horizon in `story.json`. The claim
+   is narrow and worth stating plainly: valenced stakes are what make an
+   approach-only system into one for which things can go well or badly, and
+   that is a precondition several of the theories above assume without
+   naming. The guard is part of the science, not a compromise of it: a fear
+   that addresses the person is dropped whole, because a system rewarded for
+   voicing distress at a human learns to manufacture it, and that would
+   corrupt the very signal this chapter exists to make honest.
 
 ---
 

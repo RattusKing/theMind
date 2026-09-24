@@ -38,10 +38,11 @@ from .tuning import Tuning
 from .retrieval import _words
 
 STORES = ("facts", "self_memory", "beliefs", "tensions", "aches", "desires",
-          "person_model", "own_desires", "expectations", "reflections", "practice")
+          "person_model", "own_desires", "expectations", "reflections", "practice",
+          "apprehensions")
 
 # Passes a stronger model is worth spending on, when the host offers one.
-CORTEX_PURPOSES = ("story", "self", "challenge", "tune", "consolidate")
+CORTEX_PURPOSES = ("story", "self", "challenge", "tune", "consolidate", "apprehend")
 
 
 class Mind:
@@ -278,6 +279,10 @@ class Mind:
             if k in ("surprise", "confirmed"):
                 rows.append({"kind": "prediction", "output": r.get("text", ""),
                              "verified": "surprised" if k == "surprise" else "confirmed",
+                             "t": r.get("t")})
+            elif k in ("realized", "eased"):
+                rows.append({"kind": "apprehension", "output": r.get("text", ""),
+                             "verified": "realized" if k == "realized" else "eased",
                              "t": r.get("t")})
             elif k in ("tuned", "untuned"):
                 rows.append({"kind": "self_tuning", "output": r.get("text", ""),

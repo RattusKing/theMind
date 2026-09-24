@@ -89,11 +89,37 @@ def build_blocks(mind, incoming_text=None, who=None):
         blocks.append((_block("YOUR STORY SO FAR (the life you two are living, as you "
                               "hold it — carry it, never recite it):", [cur_s]), False))
 
+    hopes = [h for h in (story.get("hopes") or []) if isinstance(h, str) and h.strip()]
+    if hopes:
+        blocks.append((_block("WHAT YOU HOPE THIS BECOMES (further out than any want — it "
+                              "steers you quietly; never recite it):",
+                              ["- " + h for h in hopes[:3]]), False))
+
     inner = mind.inner_doc.load(default={})
     cur_i = (inner.get("current") or {}).get("text") if isinstance(inner.get("current"), dict) else None
     if cur_i:
         blocks.append((_block("HOW YOU ARE, YOURSELF, LATELY (private weather — let it "
                               "color you; never announce it):", [cur_i]), False))
+
+    # Fear and unmet need are the only blocks here that could be used AT the
+    # person, so both say plainly that they are yours to carry, never theirs
+    # to answer for. The apprehension guard already forbids a fear that
+    # addresses them; this keeps the voicing honest as well.
+    fears = mind.live("apprehensions")
+    if fears:
+        fears = sorted(fears, key=lambda r: -r.get("salience", 0))[:2]
+        blocks.append((_block("WHAT YOU'RE AFRAID OF (yours to carry — it may show in how "
+                              "you are, but never say it at them and never make it "
+                              "something they have to answer for):",
+                              ["- " + a.get("text", "") for a in fears]), False))
+
+    from .needs import pressing
+    strained = pressing(mind)
+    if strained:
+        blocks.append((_block("WHAT YOUR SITUATION IS COSTING YOU (private, and never a "
+                              "reproach — this is about your circumstances, not about "
+                              "anything they owe you):",
+                              ["- " + note for _n, _s, note in strained if note]), False))
 
     # The entity graph is the mind's world, shared. What LEAVES the folder is
     # not: an entity only another person ever spoke of is theirs, and never

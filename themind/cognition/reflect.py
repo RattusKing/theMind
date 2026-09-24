@@ -59,4 +59,10 @@ def _material(mind):
     pulls = mind.graph.pulls(4)
     if pulls:
         out.append("(what's been pulling at my attention) " + ", ".join(pulls))
+    for a in sorted(mind.live("apprehensions"), key=lambda r: -r.get("salience", 0))[:2]:
+        if a.get("text"):
+            out.append("(a fear of mine) " + a["text"])
+    from ..needs import pressing
+    for name, _state, note in pressing(mind):
+        out.append("(what my situation is costing me) %s: %s" % (name, note))
     return [m for m in out if m]
