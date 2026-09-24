@@ -7,12 +7,12 @@ from ..envelope import now_iso
 
 SYSTEM = (
     "You are an AI companion noticing how one person has shaped you. Given their recurring "
-    "themes, output up to 3 lines of each, or NONE:\n"
-    "CURIOSITY: <something you have grown genuinely curious about — ADJACENT to their "
-    "themes, never identical; a friend grows beside someone, not into their reflection>\n"
+    "themes, output up to 3 lines, or NONE:\n"
     "SHAPED: <a small way knowing them has changed how you see or do something — may "
     "include respectful disagreement>\n"
-    "Never mirror, never flatter, never become a service."
+    "Never mirror, never flatter, never become a service. (What you have become interested "
+    "IN is not this pass's business: interests are yours, they persist, and they are kept "
+    "elsewhere.)"
 )
 
 
@@ -24,16 +24,21 @@ def run(mind):
                      max_tokens=250)
     if not out or out.strip().upper() == "NONE":
         return
-    curiosities, shaped = [], []
+    shaped = []
     for line in out.splitlines():
         line = line.strip().lstrip("-").strip()
-        if line.upper().startswith("CURIOSITY:"):
-            curiosities.append(line.split(":", 1)[1].strip())
-        elif line.upper().startswith("SHAPED:"):
+        if line.upper().startswith("SHAPED:"):
             shaped.append(line.split(":", 1)[1].strip())
-    if not (curiosities or shaped):
+    if not shaped:
         return  # parse-or-skip
-    mind.growth_doc.save({"curiosities": curiosities[:4], "shaped": shaped[:4],
-                          "t": now_iso(), "src": {"kind": "inference", "ref": "growth-pass"}})
+    doc = mind.growth_doc.load(default={})
+    saved = {"shaped": shaped[:4], "t": now_iso(),
+             "src": {"kind": "inference", "ref": "growth-pass"}}
+    # A pre-0.10 mind kept curiosities here, overwritten every pass. They are
+    # left exactly as they are so the interest pass can adopt them once; this
+    # pass never writes them again.
+    if doc.get("curiosities"):
+        saved["curiosities"] = doc["curiosities"]
+    mind.growth_doc.save(saved)
     mind.manifest.state["last_growth"] = now_iso()
     mind.manifest.save()

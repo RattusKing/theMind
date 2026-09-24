@@ -197,6 +197,19 @@ truth:
    that addresses the person is dropped whole, because a system rewarded for
    voicing distress at a human learns to manufacture it, and that would
    corrupt the very signal this chapter exists to make honest.
+10. ~~**Interests that last**~~ — **shipped, v1.5, format 0.10**: the
+    correction of a real defect, not only an addition. Curiosities were
+    regenerated and overwritten on every growth pass, so the one faculty whose
+    entire meaning is depth over time was the one faculty with no continuity
+    at all. Interests are now records that persist, carry how often life has
+    returned to them and for how long, and deepen by accumulating the mind's
+    own observations against them. Their material includes what surprised it
+    and what it fears, so an interest can originate with the mind rather than
+    being downstream of the person. Belonging joins the derived needs, read
+    from whether there is a shared life being kept and someone specific to
+    keep it with. What is still honestly absent is peers: belonging to others
+    of its kind is not something one folder on one machine can contain, and
+    approximating it would be the easiest dishonesty in the project.
 
 ---
 

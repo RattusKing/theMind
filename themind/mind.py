@@ -39,10 +39,11 @@ from .retrieval import _words
 
 STORES = ("facts", "self_memory", "beliefs", "tensions", "aches", "desires",
           "person_model", "own_desires", "expectations", "reflections", "practice",
-          "apprehensions")
+          "apprehensions", "interests", "observations")
 
 # Passes a stronger model is worth spending on, when the host offers one.
-CORTEX_PURPOSES = ("story", "self", "challenge", "tune", "consolidate", "apprehend")
+CORTEX_PURPOSES = ("story", "self", "challenge", "tune", "consolidate", "apprehend",
+                   "interest")
 
 
 class Mind:

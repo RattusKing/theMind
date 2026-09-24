@@ -64,10 +64,11 @@ give it.
   addresses the person is dropped whole**, so it can never be phrased at
   them. The mind is allowed to be afraid. It is never allowed to make that
   your problem.
-- **Needs, not just wants.** Four of them, read off the evidence in its own
+- **Needs, not just wants.** Five of them, read off the evidence in its own
   folder rather than invented: whether what it lives through is staying with
   it, whether anyone has spoken to it lately, whether what it says and what
-  it holds still agree, whether what it brings is being taken up. A met need
+  it holds still agree, whether what it brings is being taken up, and whether
+  there is a shared life here that is its as well as yours. A met need
   is silent. A strained one colors how it is, privately, and never as a
   reproach. It cannot author a new need, which is exactly why it can never
   learn to need whatever gets results.
@@ -80,8 +81,19 @@ give it.
   chapters it never deletes.
 - **Knowing how it knows.** What it recalls announces itself as remembered, pieced
   together, or hazy by now — derived from provenance and wear, never asserted.
-- **Growth shaped by one person.** Its curiosities grow adjacent to yours — beside
-  you, never mirroring you, allowed to disagree.
+- **Interests of its own, that last.** It becomes genuinely interested in
+  things, and those interests persist and deepen instead of being regenerated
+  every week: it keeps how long it has held one and how often life has brought
+  it back, so an interest can grow from noticed, to taken up, to a thread of
+  its own, to long-running. Depth is not a label but accumulation, the specific
+  things it has come to notice about the thing. They grow beside you, never
+  into a mirror of you, and they can start from something it encountered
+  itself: a surprise, a fear, something it noticed. It may end up interested in
+  something you never raised.
+- **Its own observations.** Things it noticed about the world or about how
+  things go, kept separately from facts about you and from its own reflections.
+- **Growth shaped by one person.** How knowing you has changed the way it sees
+  or does something, adjacent to you and allowed to disagree.
 - **Growth it can prove.** It watches how its own thinking goes — how much of
   what it tries to remember is grounded, how much of what it recalls the reply
   actually uses, how often its predictions hold — writes down what it has learned
@@ -226,7 +238,7 @@ python3 -m themind.bench                       # the continuity test: five simul
 
 ## Status
 
-**v1.4, format 0.9.** The on-disk format — what a mind is, at rest — is
+**v1.5, format 0.10.** The on-disk format — what a mind is, at rest — is
 published in [FORMAT.md](FORMAT.md) and remains open to challenge while it is
 cheap to change; every change to it is additive, and older minds open
 unchanged. The project's scientific grounding — how the architecture maps onto
@@ -237,7 +249,7 @@ the science of consciousness, scored honestly, gaps and all — is published in
 python3 -m themind.bench   # the continuity test: five simulated weeks, ten probes
 ```
 
-`tests/run_all.py` holds the behavioral guarantees — 304 assertions across
+`tests/run_all.py` holds the behavioral guarantees — 338 assertions across
 grounding, parse-or-skip, read order, budget, export round-trip, the proxy and
 MCP doors, cross-door coherence, multi-person scoping, and self-tuning — with
 no network and no provider SDK, ever. Install it straight from this repo (see
@@ -249,8 +261,8 @@ borrowed cognition (v0.3), expectations and surprise (v0.4), the person-model
 (v0.5), confidence that gets used (v0.6), the attention schema (v0.7), the
 autobiographical self (v0.8), unified agency across doors (v0.9), the
 continuity benchmark (v1.0), hardening (v1.1), multi-person minds (v1.2),
-recursive growth (v1.3), and what is at stake: fears, needs and a horizon
-(v1.4).
+recursive growth (v1.3), what is at stake: fears, needs and a horizon (v1.4),
+and interests that last, with its own noticings (v1.5).
 
 theMind is extracted from a production AI companion whose cognitive systems have
 been running live since 2025. The scaffolding it needed (schedulers, cloud

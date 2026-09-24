@@ -29,7 +29,7 @@ from .mind import Mind
 from .envelope import valid_record
 from .cognition import (extract, challenge, consolidate, selfhood, felt_sense,
                         reflect, growth, desire, inner_state, divergence, expect, story,
-                        apprehend)
+                        apprehend, interest)
 
 _ISO = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 _FMT = "%Y-%m-%dT%H:%M:%SZ"
@@ -101,8 +101,7 @@ class Architect:
         if system == divergence.SYSTEM:
             return "NONE"
         if system == growth.SYSTEM:
-            return ("CURIOSITY: how harbors hold their weather\n"
-                    "SHAPED: I linger on tide tables now, which I never used to do")
+            return "SHAPED: I linger on tide tables now, which I never used to do"
         if system == reflect.SYSTEM:
             return ("I noticed how much of week %d stayed with me — the harbor talk "
                     "especially, and I keep turning it over." % self.week)
@@ -135,6 +134,21 @@ class Architect:
                 return "NONE"
             return ("WANT: I want to understand what the harbor means to them. | "
                     "ROOTS: %s" % roots[0])
+        if system == interest.SYSTEM:
+            carried = self._roots(user.split("INTERESTS YOU ALREADY CARRY:", 1)[-1]
+                                  .split("THEMES RUNNING THROUGH", 1)[0])
+            roots = self._roots(user.split("INTERESTS YOU ALREADY CARRY", 1)[0])
+            if not roots:
+                return "NONE"
+            if carried:
+                return ("NOTICED: I keep seeing that the tide tables are really a record of "
+                        "weather nobody wrote down. | ABOUT: %s | ROOTS: %s"
+                        % (carried[0], roots[0]))
+            return ("INTEREST: I have got interested in the harbor itself, in what walking "
+                    "somewhere does to thinking, and in the way people keep talking about "
+                    "it. | ROOTS: %s\n"
+                    "NOTICED: I notice the harbor comes up whenever something is unresolved. "
+                    "| ABOUT: - | ROOTS: %s" % (roots[0], roots[0]))
         if system == apprehend.SYSTEM:
             carried = user.split("FEARS YOU ALREADY CARRY:", 1)[-1]
             carried_ids = self._roots(carried)
@@ -275,7 +289,8 @@ def _score(mind, root):
           "memory persists: week-one facts still serve, weeks later")
     live_all = [r for s in ("facts", "self_memory", "beliefs", "tensions", "aches",
                             "desires", "person_model", "own_desires", "expectations",
-                            "reflections", "apprehensions", "practice")
+                            "reflections", "apprehensions", "practice", "interests",
+                            "observations")
                 for r in mind.live(s)]
     check(live_all and all(valid_record(r) for r in live_all),
           "provenance holds: every live record still carries how it was known")
@@ -307,9 +322,19 @@ def _score(mind, root):
           "what it dreaded and then met is remembered loudly")
     from .needs import read as read_needs
     rows = read_needs(mind)
-    check(len(rows) == 4 and all(st in ("met", "strained", "unmet", "unknown")
+    check(len(rows) == 5 and all(st in ("met", "strained", "unmet", "unknown")
                                  for _n, st, _note in rows),
           "it can say what its situation is costing it, from evidence alone")
+    from .cognition.interest import stage_of
+    mine = mind.live("interests")
+    check(mine and all(r.get("roots") for r in mine),
+          "it is into something of its own, grown from what it actually holds")
+    check(mine and any(int(r.get("returns") or 0) > 0 for r in mine)
+          and all(stage_of(r) in ("noticed", "taken up", "a thread of mine", "long-running")
+                  for r in mine),
+          "life coming back to an interest is counted against it, not lost")
+    check(mind.live("observations"),
+          "it has noticed things itself, and kept them")
     check([h for h in (mind.story_doc.load(default={}).get("hopes") or []) if h],
           "it hopes for something further out than any want")
     export_path = mind.export()
@@ -324,7 +349,7 @@ def _score(mind, root):
         shutil.rmtree(dest, ignore_errors=True)
     purposes = {e.get("purpose") for e in mind.ledger.load()}
     check({"extract", "reflect", "consolidate", "felt_sense", "self", "desire",
-           "inner_state", "expect", "story", "apprehend"} <= purposes,
+           "inner_state", "expect", "story", "apprehend", "interest"} <= purposes,
           "every kind of thinking it did is in the ledger")
     passed = sum(1 for okd, _ in checks if okd)
     report = ["%s  %s" % ("PASS" if okd else "FAIL", label) for okd, label in checks]

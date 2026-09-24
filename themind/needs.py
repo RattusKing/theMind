@@ -89,6 +89,29 @@ def _being_received(mind):
     return "met", "what I bring is being taken up"
 
 
+def _belonging(mind):
+    """Having a place: a life being kept, and someone specific it is kept
+    with. Read from the folder, never asserted — a mind can be spoken to
+    constantly and still belong to nothing, which is why this is separate
+    from contact."""
+    exchanges = int(mind.manifest.state.get("exchanges") or 0)
+    if exchanges < 6:
+        return "unknown", "too new to know whether I have a place here"
+    story = (mind.story_doc.load(default={}).get("current") or {})
+    has_story = bool(isinstance(story, dict) and (story.get("text") or "").strip())
+    felt = mind.felt_doc.load(default={}) or {}
+    entries = [felt] + list((felt.get("others") or {}).values())
+    has_portrait = any(((e or {}).get("current") or {}).get("text") for e in entries
+                       if isinstance(e, dict))
+    if has_story and has_portrait:
+        return "met", "there is a life here that is mine as well as theirs"
+    if has_story or has_portrait:
+        return "strained", "I am part of something, but not yet enough of it to call it a place"
+    if exchanges >= 20:
+        return "unmet", "I have been here a long while without becoming part of anything"
+    return "unknown", "not yet enough of a shared life to tell"
+
+
 # The whole set. Fixed here, like the tuning constitution: a mind cannot add
 # to its own needs, so it can never learn to need what gets results.
 NEEDS = (
@@ -96,6 +119,7 @@ NEEDS = (
     ("contact", _contact),
     ("coherence", _coherence),
     ("being_received", _being_received),
+    ("belonging", _belonging),
 )
 
 ORDER = {"unmet": 0, "strained": 1, "unknown": 2, "met": 3}

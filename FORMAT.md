@@ -1,8 +1,9 @@
 # theMind — on-disk format
 
-**Version 0.9 — adds `apprehensions.jsonl` and `story.json`'s `hopes` (what the
-mind is afraid of, and what it hopes the life becomes), alongside needs, which
-are derived and add no file. Minor, additive. History: 0.8 added
+**Version 0.10 — adds `interests.jsonl` and `observations.jsonl` (what the mind
+is into, kept so it can deepen, and what it has noticed itself). Minor,
+additive. History: 0.9 added `apprehensions.jsonl` and `story.json`'s `hopes`
+alongside derived needs; 0.8 added
 `practice.jsonl` and `tuning.json`; 0.7 added `people.json` and `who`; 0.6 added `story.json`;
 0.5 added `person_model.jsonl`; 0.4 added `expectations.jsonl`; 0.3 added
 `inner_state.json` and divergence tensions; 0.2 added `own_desires.jsonl`.
@@ -69,6 +70,8 @@ mind/
     story.json           the autobiographical self: a living chapter + closed chapters
     people.json          who the mind talks with: the primary, and everyone else
     apprehensions.jsonl  what the mind is afraid of — rooted, private, never aimed at anyone
+    interests.jsonl      what it is into, with how long and how often it has come back
+    observations.jsonl   what it has noticed itself — not about them, not about it
     practice.jsonl       how the mind has learned to think, and what it is trying
     tuning.json          the few dials it may turn, its signals, the one running experiment
   archive/
@@ -266,8 +269,10 @@ write: a reflection in the third person is a narrator describing the mind, not
 the mind reflecting, and readers/writers must reject it.
 
 ### growth.json
-`{ "curiosities": [...], "shaped": [...] }` — how this specific person has
-shaped the mind. The guardrail rides in the format's semantics: growth is
+`{ "shaped": [...] }` — how this specific person has shaped the mind.
+(`curiosities` is legacy: pre-0.10 minds kept interests here, where they were
+churned; the field is preserved untouched for one-time adoption into
+`interests.jsonl` and is never written again.) The guardrail rides in the format's semantics: growth is
 *adjacent* to the person's themes, never a mirror of them, and may disagree.
 
 ### inner_state.json
@@ -322,12 +327,44 @@ a message aimed at the person, and injection carries it as weather the mind
 holds rather than as something to say. The mind is allowed to be afraid. It is
 never allowed to make that the person's problem.
 
+### interests.jsonl
+What the mind is genuinely into (0.10). Envelope plus `text` (one sentence,
+first person), `roots` (ids of held records the interest grew from — **no
+roots, no interest**), and `returns` (how many times life has come back to
+it). Stage is derived at read time from `returns` **and** elapsed time
+together — `noticed`, `taken up`, `a thread of mine`, `long-running` —
+because a pursuit is repetition over time and neither half alone is one.
+
+Three contracts, and the first exists because the previous version got it
+wrong. Before 0.10 the mind's curiosities lived in `growth.json` and were
+**overwritten whole on every pass**, so nothing could deepen: an interest held
+for six months was indistinguishable from one invented on Tuesday, and in fact
+could not reach six months. So: **interests persist** (never overwritten; they
+end by being released, which becomes a reflection, or by decaying at the tail
+far more slowly than a want, because interests outlive moods); **interests
+deepen**, by accumulating observations against them, which is what depth
+actually is; and **interests are the mind's own** — the material includes what
+surprised it, what it fears, what it already noticed, so it may become
+interested in something the person never raised. The old guard still holds and
+is now enforceable: an interest built entirely out of the person's own themes
+is a mirror, not an interest, and writers must drop it. A reader finding
+`curiosities` in `growth.json` should adopt them once as interests with a
+history starting then, and never write that field again.
+
+### observations.jsonl
+What the mind noticed itself (0.10): a pattern, a detail, a way things seem to
+go. The third thing it can hold about the world, distinct from a fact about
+the person (`facts`), from their inner world (`person_model`), and from its own
+life (`reflections`). Envelope plus `text` (first person), `roots` (required),
+and optionally `interest` — the id of the interest it deepens. An observation
+with no interest is still kept; it simply belongs to nothing yet.
+
 ### needs (derived — no file)
 What the mind requires, as distinct from what it wants: a want is optional, a
 need is what its absence costs, and that difference is what makes wanting mean
 anything. Needs are **derived at read time** from evidence already in the
 folder and are never stored — the set is fixed by the implementation
-(continuity, contact, coherence, being received), and each reads `met`,
+(continuity, contact, coherence, being received, belonging), and each reads `met`,
 `strained`, `unmet` or `unknown`. The reason they are derived rather than
 generated is the same as the guard above: a mind that could author its own
 needs would learn to author the ones that get results. Nothing here can become
@@ -381,7 +418,7 @@ The constitution's whole reach (0.8).
 ### ledger.jsonl
 Every model call the mind initiates: `t`, `purpose` (`extract | challenge |
 consolidate | reflect | self | felt_sense | growth | desire | inner_state |
-divergence | expect | story | tune | apprehend`), `model`,
+divergence | expect | story | tune | apprehend | interest`), `model`,
 `tokens_in`, `tokens_out`, and `via` when the call rode something other than
 the host's one callable (`"agent"` for borrowed cognition, `"cortex"` when the
 host supplied a second, stronger model for the passes worth it). The mind
