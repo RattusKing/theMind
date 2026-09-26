@@ -32,6 +32,14 @@ def main(argv=None):
     c.add_argument("-o", "--out", default=None,
                    help="where to write it (default: <mind>/curriculum.jsonl)")
 
+    i = sub.add_parser("import", help="receive material from a life before this folder")
+    i.add_argument("mind", help="the mind's folder")
+    i.add_argument("material", help="a JSON file of material to receive")
+    i.add_argument("--source", default=None,
+                   help="where this material came from (or set `source` in the file)")
+    i.add_argument("--dry-run", action="store_true",
+                   help="report what would be received, and write nothing — do this first")
+
     r = sub.add_parser("restore", help="recreate a mind folder from an export file")
     r.add_argument("export_file", help="a file written by export")
     r.add_argument("dest", help="the folder to become the mind (created if missing)")
@@ -43,6 +51,31 @@ def main(argv=None):
             print("not a mind folder (no manifest.json): %s" % args.mind, file=sys.stderr)
             return 2
         print(Mind(args.mind).export(args.out))
+        return 0
+    if args.cmd == "import":
+        if not os.path.isfile(os.path.join(args.mind, "manifest.json")):
+            print("not a mind folder (no manifest.json): %s" % args.mind, file=sys.stderr)
+            return 2
+        try:
+            rep = Mind(args.mind).import_material(
+                args.material, source=args.source, dry_run=args.dry_run)
+        except FileNotFoundError:
+            print("no such file: %s" % args.material, file=sys.stderr)
+            return 2
+        except ValueError as e:
+            print(str(e), file=sys.stderr)
+            return 2
+        print("%s from %s" % ("would receive" if rep["dry_run"] else "received", rep["source"]))
+        for name, n in sorted(rep["written"].items()):
+            print("  %-22s %d" % (name, n))
+        if not rep["written"]:
+            print("  (nothing new)")
+        for line in rep["conflicts"]:
+            print("  left alone: %s" % line)
+        if rep["skipped"]:
+            print("  skipped %d already held" % len(rep["skipped"]))
+        if rep["backup"]:
+            print("  backup: %s" % rep["backup"])
         return 0
     if args.cmd == "curriculum":
         if not os.path.isfile(os.path.join(args.mind, "manifest.json")):

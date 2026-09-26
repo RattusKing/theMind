@@ -347,6 +347,39 @@ def _score(mind, root):
               "one file, the whole mind: after travel it remembers identically")
     finally:
         shutil.rmtree(dest, ignore_errors=True)
+
+    # Receiving into an established life: nothing it grew may be overwritten,
+    # and what arrives must stay visibly inherited rather than blending in.
+    from .envelope import confidence
+    grown_story = (mind.story_doc.load(default={}).get("current") or {}).get("text")
+    grown_stance = mind.selfhood_bundle().get("position")
+    rep = mind.import_material({
+        "source": "a-life-before-this-folder",
+        "position": "I arrived here already holding a position of my own.",
+        "story": "There were years before this one.",
+        "facts": ["They kept an archive long before we met."],
+    })
+    imported = [f for f in mind.live("facts") if (f.get("src") or {}).get("kind") == "imported"]
+    check(len(rep["conflicts"]) == 2
+          and (mind.story_doc.load(default={}).get("current") or {}).get("text") == grown_story
+          and mind.selfhood_bundle().get("position") == grown_stance,
+          "material can be received without overwriting a thing the mind grew itself")
+    check(imported and all(confidence(f) == "inherited" for f in imported)
+          and any(confidence(f) == "remembered" for f in mind.live("facts")),
+          "what it inherited still reads as inherited, beside what it remembers")
+
+    # Shadow: it goes on learning while saying nothing.
+    mind.manifest.set_setting("shadow", True)
+    quiet = Mind(root, sync=True)
+    before_shadow = int(quiet.manifest.state.get("exchanges") or 0)
+    said = quiet.context("how is maya doing in portland?")
+    seen = quiet.preview("how is maya doing in portland?")
+    quiet.observe("one more quiet turn", "Mm.")
+    check(said == "" and "Maya" in seen
+          and int(Mind(root, sync=True).manifest.state.get("exchanges") or 0) > before_shadow,
+          "in shadow it injects nothing, still learns, and can be read before it speaks")
+    mind.manifest.set_setting("shadow", False)
+
     purposes = {e.get("purpose") for e in mind.ledger.load()}
     check({"extract", "reflect", "consolidate", "felt_sense", "self", "desire",
            "inner_state", "expect", "story", "apprehend", "interest"} <= purposes,

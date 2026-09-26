@@ -1,8 +1,10 @@
 # theMind — on-disk format
 
-**Version 0.10 — adds `interests.jsonl` and `observations.jsonl` (what the mind
-is into, kept so it can deepen, and what it has noticed itself). Minor,
-additive. History: 0.9 added `apprehensions.jsonl` and `story.json`'s `hopes`
+**Version 0.11 — adds the `imported` provenance kind, `needs.jsonl` (needs the
+mind proposed for itself), and host `settings` in the manifest: the pieces an
+established identity needs in order to be RECEIVED rather than regenerated.
+Minor, additive. History: 0.10 added `interests.jsonl` and
+`observations.jsonl`; 0.9 added `apprehensions.jsonl` and `story.json`'s `hopes`
 alongside derived needs; 0.8 added
 `practice.jsonl` and `tuning.json`; 0.7 added `people.json` and `who`; 0.6 added `story.json`;
 0.5 added `person_model.jsonl`; 0.4 added `expectations.jsonl`; 0.3 added
@@ -72,6 +74,7 @@ mind/
     apprehensions.jsonl  what the mind is afraid of — rooted, private, never aimed at anyone
     interests.jsonl      what it is into, with how long and how often it has come back
     observations.jsonl   what it has noticed itself — not about them, not about it
+    needs.jsonl          needs it proposed for itself, earned by recurrence
     practice.jsonl       how the mind has learned to think, and what it is trying
     tuning.json          the few dials it may turn, its signals, the one running experiment
   archive/
@@ -104,6 +107,11 @@ alongside it.
 - `src.kind: "default"` marks cold-start material (see Selfhood below) — real
   content shipped so the mind works at message one, never evolved from, replaced
   by the first generated equivalent.
+- `src.kind: "imported"` (0.11) marks material brought in from a life before
+  this folder; `ref` names the source and is **required**. `confidence()`
+  reports it as `inherited`, permanently: a mind that received an identity
+  rather than growing one can always say so, and imported material never comes
+  to look home-grown. Readers must never rewrite it to another kind.
 - `src.kind: "inference"` marks records derived by the mind's own passes
   (consolidation, reconciliation); `ref` names what they were derived from, so
   every inference is traceable back to an exchange.
@@ -359,6 +367,19 @@ life (`reflections`). Envelope plus `text` (first person), `roots` (required),
 and optionally `interest` — the id of the interest it deepens. An observation
 with no interest is still kept; it simply belongs to nothing yet.
 
+### needs.jsonl
+Needs the mind proposed for itself (0.11), alongside the derived set below.
+Envelope plus `text` (one sentence, first person, "I need…"), `roots`
+(required), `recurrence` (how many times the mind has independently arrived
+at it) and `last_t`. Two rules keep this from reopening the door the derived
+set exists to close: a proposed need **counts only after the mind reaches it
+repeatedly** (one good sentence is a candidate, not a need), and **a need that
+is a claim on the person is refused** — a mind may come to need solitude or a
+hard problem; it may never come to need more of someone's attention. Needs
+about the person stay derived, where they cannot be authored. State follows
+recency on the same logic as the rest: a need that keeps surfacing is one that
+is not being met, and a met need goes quiet.
+
 ### needs (derived — no file)
 What the mind requires, as distinct from what it wants: a want is optional, a
 need is what its absence costs, and that difference is what makes wanting mean
@@ -432,6 +453,25 @@ from the bottom of the order — never truncated mid-item — and the felt sense
 self position are reserved above the trim line. Stable blocks (self, felt sense,
 growth) must be byte-identical between revisions so host-side prompt caching
 holds.
+
+## Host settings (`manifest.json`)
+
+`settings` (0.11) holds choices the HOST makes about how a mind is run. The
+mind never writes them, and they travel with the folder so every door honors
+the same answer.
+
+- `defaults` (default true) — serve the cold-start stance at all. An identity
+  arriving with a position of its own should never be handed one.
+- `shadow` (default false) — learn from every exchange and inject nothing.
+  The way to observe an established identity before anything it holds is
+  allowed to reach a live conversation. `preview()` returns exactly what is
+  being withheld.
+- `voice_inner_life` (default false) — whether the mind may speak its fears
+  and strained needs plainly, as a report about itself. The state is always
+  kept either way; this governs only the voicing, and even when on, the
+  wording forbids a demand. It is a setting rather than a judgment the mind
+  makes, because a system that decides for itself when its own distress is
+  worth voicing will drift toward whatever gets a response.
 
 ## Curriculum
 

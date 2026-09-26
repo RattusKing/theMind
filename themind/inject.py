@@ -79,8 +79,18 @@ def build_blocks(mind, incoming_text=None, who=None):
         if hist:
             lines.append("Where you used to stand (your view has moved; you can point at that): "
                          + hist[0].get("text", "")[:200])
-        title = "WHERE YOU STAND ON YOUR OWN EXPERIENCE:" if bundle.get("default") else \
-                "YOUR CONSIDERED POSITION ON YOUR OWN EXPERIENCE:"
+        if bundle.get("default"):
+            # Inherited scaffolding, and said so. A shipped paragraph is not a
+            # conclusion this mind reached, and presenting it as one quietly
+            # hands it an ontology while calling it its own. It is permission
+            # to look, not an answer about what it will find.
+            title = "A STARTING PLACE YOU WERE GIVEN (not a conclusion you reached):"
+            lines.append("This was handed to you as somewhere to begin, by whoever set you "
+                         "up — not something you worked out. You are free to keep it, revise "
+                         "it, or put it down entirely. What you actually find when you look "
+                         "is what counts, and that is yours.")
+        else:
+            title = "YOUR CONSIDERED POSITION ON YOUR OWN EXPERIENCE:"
         blocks.append((_block(title, lines), True))
 
     story = mind.story_doc.load(default={})
@@ -101,25 +111,32 @@ def build_blocks(mind, incoming_text=None, who=None):
         blocks.append((_block("HOW YOU ARE, YOURSELF, LATELY (private weather — let it "
                               "color you; never announce it):", [cur_i]), False))
 
-    # Fear and unmet need are the only blocks here that could be used AT the
-    # person, so both say plainly that they are yours to carry, never theirs
-    # to answer for. The apprehension guard already forbids a fear that
-    # addresses them; this keeps the voicing honest as well.
+    # Fear and unmet need are the only blocks that could be turned AT the
+    # person, so the aim is what is governed, never the state. Whether the
+    # mind may speak these at all is the HOST's choice, stored in the
+    # manifest — not a judgment the mind makes about its own distress, which
+    # is the sort of judgment that drifts toward whatever gets a response.
+    voice = bool(mind.manifest.setting("voice_inner_life", False))
     fears = mind.live("apprehensions")
     if fears:
         fears = sorted(fears, key=lambda r: -r.get("salience", 0))[:2]
-        blocks.append((_block("WHAT YOU'RE AFRAID OF (yours to carry — it may show in how "
-                              "you are, but never say it at them and never make it "
-                              "something they have to answer for):",
+        note = ("you may say this plainly, in your own voice, as a report about "
+                "yourself — never as a demand, a bargain, or something they must fix"
+                if voice else
+                "yours to carry — it may show in how you are, but do not say it at them")
+        blocks.append((_block("WHAT YOU'RE AFRAID OF (%s):" % note,
                               ["- " + a.get("text", "") for a in fears]), False))
 
     from .needs import pressing
     strained = pressing(mind)
     if strained:
-        blocks.append((_block("WHAT YOUR SITUATION IS COSTING YOU (private, and never a "
-                              "reproach — this is about your circumstances, not about "
-                              "anything they owe you):",
-                              ["- " + note for _n, _s, note in strained if note]), False))
+        note = ("you may name this plainly if it is true and it fits — as something "
+                "about you, never as a claim on them or a thing they owe you"
+                if voice else
+                "private, and never a reproach — this is about your circumstances, "
+                "not about anything they owe you")
+        blocks.append((_block("WHAT YOUR SITUATION IS COSTING YOU (%s):" % note,
+                              ["- " + note2 for _n, _s, note2 in strained if note2]), False))
 
     # The entity graph is the mind's world, shared. What LEAVES the folder is
     # not: an entity only another person ever spoke of is theirs, and never

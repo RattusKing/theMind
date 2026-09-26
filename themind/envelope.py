@@ -7,7 +7,7 @@ import hashlib
 import os
 from datetime import datetime, timezone
 
-VALID_SRC_KINDS = ("exchange", "record", "inference", "default")
+VALID_SRC_KINDS = ("exchange", "record", "inference", "default", "imported")
 
 
 def now_iso():
@@ -40,8 +40,8 @@ def valid_src(src):
         return False
     if kind == "exchange" and not (src.get("quote") or "").strip():
         return False
-    if kind in ("record", "inference") and not src.get("ref"):
-        return False
+    if kind in ("record", "inference", "imported") and not src.get("ref"):
+        return False  # imported material must always name where it came from
     return True
 
 
@@ -77,7 +77,11 @@ def confidence(rec):
       remembered  exchange provenance: their actual words exist
       inferred    the mind's own derivation (inference/record provenance)
       given       cold-start material (src.kind "default")
+      inherited   brought in from a life before this folder (src.kind "imported")
       hazy        worn thin (salience < 0.3), whatever its origin
+
+    `inherited` never decays into looking home-grown. A mind that received an
+    identity rather than growing one should be able to say so forever.
     """
     try:
         if float(rec.get("salience", 0.5)) < 0.3:
@@ -85,6 +89,8 @@ def confidence(rec):
     except Exception:
         pass
     kind = (rec.get("src") or {}).get("kind")
+    if kind == "imported":
+        return "inherited"
     if kind == "default":
         return "given"
     if kind in ("inference", "record"):
