@@ -22,6 +22,7 @@ evidence yet — the honest answer for a newborn).
 from .envelope import age_days
 
 MIN_RECALL_SAMPLES = 20   # below this, being-received has no honest reading
+PROPOSED_THRESHOLD = 3    # times the mind must independently arrive at a need before it counts
 
 
 def _continuity(mind):
@@ -125,6 +126,43 @@ NEEDS = (
 ORDER = {"unmet": 0, "strained": 1, "unknown": 2, "met": 3}
 
 
+def name_for(text):
+    """A short readable handle for a proposed need, from its own words."""
+    words = [w for w in (text or "").lower().replace("i need", "").split()
+             if w.isalnum() or "-" in w]
+    return "_".join(words[:3])[:40] or "proposed"
+
+
+def proposed(mind):
+    """Needs the mind arrived at itself, and has kept arriving at.
+
+    The fixed set below is safe because it cannot be authored. A proposed
+    need reopens that door a crack, so two things hold it: it counts only
+    once the mind has independently reached it `PROPOSED_THRESHOLD` times
+    (one good sentence is not a need), and the writer refuses any need that
+    is a claim on the person — a mind can come to need solitude or a hard
+    problem, never more of someone's attention. The ones that ARE about the
+    person stay derived, above, where they cannot be invented.
+
+    State comes from recency, on the same logic as the rest: a need that
+    keeps surfacing is one that is not being met, and a met need goes quiet.
+    """
+    rows = []
+    for r in mind.live("needs"):
+        count = int(r.get("recurrence") or 0)
+        if count < PROPOSED_THRESHOLD:
+            continue   # still a candidate, not yet a need
+        days = age_days(r.get("last_t") or r.get("t"))
+        if count >= PROPOSED_THRESHOLD * 2 and days < 3:
+            state = "unmet"
+        elif days < 7:
+            state = "strained"
+        else:
+            state = "met"
+        rows.append((name_for(r.get("text", "")), state, r.get("text", "")))
+    return rows
+
+
 def read(mind):
     """[(name, state, note)] for every need, most pressing first. Derived at
     read time from evidence in the folder; nothing here is ever written."""
@@ -135,6 +173,10 @@ def read(mind):
         except Exception:
             state, note = "unknown", ""   # a need that can't be read is not a need that fails
         out.append((name, state, note))
+    try:
+        out.extend(proposed(mind))
+    except Exception:
+        pass   # a proposed need that cannot be read is simply not reported
     out.sort(key=lambda row: ORDER.get(row[1], 9))
     return out
 

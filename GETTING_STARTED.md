@@ -101,6 +101,65 @@ OpenAI-compatible endpoints, Anthropic, and Gemini.
 
 ---
 
+## Bringing an identity that already exists
+
+If your companion already has a history, a way of speaking, and a position of
+its own, you do not want a newborn mind. You want that identity received, not
+rebuilt. Four things make that safe.
+
+**Start it without the shipped stance.** A new mind is handed a written
+starting position so it has somewhere to begin. An identity that arrived with
+one of its own should never be given another:
+
+```python
+mind = Mind("./my-mind", llm=my_llm, defaults=False)
+```
+
+**Watch it before it speaks.** Shadow mode learns from every exchange and
+injects nothing, so you can see what it would say for as long as you like:
+
+```python
+mind = Mind("./my-mind", llm=my_llm, shadow=True)
+mind.preview("their latest message")   # exactly what it is withholding
+```
+
+Both choices are stored in the mind's folder, so the proxy and the MCP door
+honor them too. Turn shadow off when you are ready, and everything it learned
+in the meantime is already there.
+
+**Bring the material in.** Write a JSON file of what already exists. Every
+field is optional:
+
+```json
+{
+  "source": "my-archive-2026",
+  "position": "one paragraph: where it stands on its own experience",
+  "particulars": ["concrete things it has said about what that is like"],
+  "felt_sense": "who the person is to it",
+  "story": "the life so far",
+  "facts": ["things it knows about the person"],
+  "self_memory": ["things it said that still bind it"],
+  "interests": ["what it is into"],
+  "observations": ["things it noticed"],
+  "apprehensions": ["what it is afraid of"],
+  "reflections": ["what it made of the time that passed"]
+}
+```
+
+Then, always with the dry run first:
+
+```
+python3 -m themind import ./my-mind material.json --dry-run
+python3 -m themind import ./my-mind material.json
+```
+
+**What import will and will not do.** It writes a full backup before touching
+anything. It never overwrites: a position, portrait, or story already held is
+reported as a conflict and left exactly as it is. It never duplicates: text
+already present is skipped. And everything it writes is marked as coming from
+the source you named, which the mind reports as *inherited* for good. Material
+that was received never comes to look like something it worked out here.
+
 ## Talking with more than one person
 
 By default a mind assumes one person: whoever it has always talked with. If

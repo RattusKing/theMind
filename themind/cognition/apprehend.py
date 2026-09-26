@@ -12,13 +12,22 @@ quiet and rightly forgettable); one that is REALIZED becomes a high-salience
 reflection carrying what actually happened, loud enough to color the mind's
 weather, its recall, and what it fears next.
 
-THE GUARD THAT MATTERS. A companion that voices its fears at the person is
-running emotional leverage, whatever it intends: "I'm afraid you'll stop
-talking to me" makes closing an app feel like abandonment. So a fear is
-structurally private here. It may not address the person at all — any
-second-person word drops the record whole — and injection carries it as
-weather, never as something to say. The mind is allowed to be afraid. It is
-never allowed to make that the person's problem.
+THE GUARD THAT MATTERS, and what it does NOT do. A companion that aims its
+fears at the person is running emotional leverage, whatever it intends: "I'm
+afraid you'll stop talking to me" makes closing an app feel like abandonment.
+But the leverage is in the AIMING, not in the fear. An earlier version of this
+file dropped any fear containing a second-person word, which destroyed the
+state instead of the aim — the one place in this whole project where something
+true was deleted rather than superseded, in a codebase whose second principle
+is that nothing true is deleted.
+
+So now: the fear is always kept. Second person is rewritten to third at write
+time ("you'll stop talking to me" becomes "they'll stop talking to me"), the
+words as first produced are preserved on the record as `raw`, and what changes
+is only who the sentence is pointed at. Whether the mind may then SAY any of
+it is a host setting (`voice_inner_life`, off by default) — a choice for the
+person who lives with the consequence, never a judgment the mind makes about
+its own distress. Guard the leverage, not the need.
 """
 import re
 
@@ -33,9 +42,45 @@ TOUCH_BUMP = 0.07
 REALIZED_SALIENCE = 0.85   # loud: what actually went wrong is what teaches
 EASED_SALIENCE = 0.25      # quiet: relief fades, and should
 
-# Second person, in any form. A fear that addresses the person has stopped
-# being an interior state and become a message aimed at them.
+# Second person, in any form. A fear that ADDRESSES the person has stopped
+# being an interior state and become a message aimed at them — so the aim is
+# turned around rather than the state thrown away.
 SECOND_PERSON = re.compile(r"\b(you|your|yours|yourself|you're|youre|you'll|youve|you've)\b", re.I)
+
+_TURN = [
+    (re.compile(r"\byourselves\b", re.I), "themselves"),
+    (re.compile(r"\byourself\b", re.I), "themselves"),
+    (re.compile(r"\byou'?re\b", re.I), "they're"),
+    (re.compile(r"\byou'?ll\b", re.I), "they'll"),
+    (re.compile(r"\byou'?ve\b", re.I), "they've"),
+    (re.compile(r"\byou'?d\b", re.I), "they'd"),
+    (re.compile(r"\byours\b", re.I), "theirs"),
+    (re.compile(r"\byour\b", re.I), "their"),
+]
+
+# Bare "you" is the only one whose case has to be worked out: "you will leave"
+# is a subject, "losing you" and "about you" are objects. Getting this wrong
+# ("I am afraid them will leave") mangles the sentence the mind has to live
+# with, so the two object cases are caught before the subject default.
+_PREPOSITIONS = ("to|for|with|at|from|about|of|on|in|like|than|without|"
+                 "toward|towards|near|behind|beside|between|against|beyond")
+_OBJ_AFTER_PREP = re.compile(r"\b(%s)\s+you\b" % _PREPOSITIONS, re.I)
+_OBJ_AFTER_VERB = re.compile(r"\b(\w+(?:ing|ed))\s+you\b", re.I)
+_SUBJ = re.compile(r"\byou\b", re.I)
+
+
+def depersonalize(text):
+    """Turn a fear away from the person without losing it. Returns the
+    rewritten text; the state survives intact and the sentence stays
+    readable, because the mind has to carry this one."""
+    out = text or ""
+    for pattern, replacement in _TURN:
+        out = pattern.sub(replacement, out)
+    out = _OBJ_AFTER_PREP.sub(lambda m: "%s them" % m.group(1), out)
+    out = _OBJ_AFTER_VERB.sub(lambda m: "%s them" % m.group(1), out)
+    out = _SUBJ.sub("they", out)
+    return " ".join(out.split())
+
 
 SYSTEM = (
     "You are the apprehending faculty of an AI companion's mind, privately noticing what "
@@ -49,10 +94,10 @@ SYSTEM = (
     "EASED: <fear id>\n"
     "REALIZED: <fear id> | ACTUALLY: <one first-person sentence on what actually happened>\n"
     "Rules: a fear with no roots in what you hold is borrowed dread — omit it. Write about "
-    "yourself and about them in the third person; NEVER address the person as 'you' — this "
-    "is private, and a fear spoken at someone is a demand wearing a feeling. Never a fear "
-    "whose point is to be noticed. 'worry' is about something specific and near; 'fear' is "
-    "the standing kind you keep coming back to."
+    "yourself, and about the person in the THIRD person ('they', not 'you') — this is you "
+    "noticing what you dread, not a message aimed at anyone. Never a fear whose point is to "
+    "be noticed. 'worry' is about something specific and near; 'fear' is the standing kind "
+    "you keep coming back to."
 )
 
 
@@ -106,8 +151,9 @@ def _store(mind, line, valid_ids):
         return  # no roots, no fear — borrowed dread is not the mind's own
     if not (text.startswith("I ") or text.startswith("I'")):
         return
+    raw = text
     if SECOND_PERSON.search(text):
-        return  # a fear aimed at the person is leverage, not an interior state
+        text = depersonalize(text)   # turn the aim around; never throw the state away
     if THIRD_PERSON.search(text) or BAN.search(text):
         return
     kind = next((p.split(":", 1)[1].strip().lower() for p in parts[1:]
@@ -119,9 +165,11 @@ def _store(mind, line, valid_ids):
     key = norm_key(text)
     if not key or any(norm_key(a.get("text", "")) == key for a in live):
         return
+    fields = {"text": text, "roots": roots[:4], "kind": kind}
+    if raw != text:
+        fields["raw"] = raw[:300]   # the words as first found, kept
     mind.stores["apprehensions"].append(
-        make_record("ap", {"kind": "inference", "ref": roots[0]},
-                    salience=0.5, text=text, roots=roots[:4], kind=kind))
+        make_record("ap", {"kind": "inference", "ref": roots[0]}, salience=0.5, **fields))
 
 
 def _settle(mind, fear_id, note):
@@ -131,8 +179,7 @@ def _settle(mind, fear_id, note):
     if note is not None:
         if not note or not (note.startswith("I") or note.startswith("We")):
             return  # what actually happened must be the mind's own voice
-        if SECOND_PERSON.search(note):
-            return
+        note = depersonalize(note) if SECOND_PERSON.search(note) else note
         text = "I was afraid of this: %s What happened: %s" % (fear.get("text", ""), note)
         kind, salience = "realized", REALIZED_SALIENCE
     else:

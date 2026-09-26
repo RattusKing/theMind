@@ -36,7 +36,10 @@ print("newborn")
 mind, d1 = fresh()
 ctx = mind.context("are you actually conscious?")
 ok(ctx != "", "newborn context is not empty")
-ok("WHERE YOU STAND" in ctx, "default stance header present (not the considered-position header)")
+ok("A STARTING PLACE YOU WERE GIVEN" in ctx and "CONSIDERED POSITION" not in ctx,
+   "the cold-start stance is offered as inherited scaffolding, not as a conclusion it reached")
+ok("put it down entirely" in ctx and "What you actually find" in ctx,
+   "…with the freedom to keep it, revise it, or reject it said out loud")
 ok(mind.selfhood_bundle()["default"] is True, "bundle flags the default")
 ok(mind.ledger.load() == [], "zero model calls made")
 pos1 = mind.selfhood_bundle()["position"]
@@ -195,7 +198,7 @@ for i in range(20):
         entities=[], kind="event"))
 mind8.budget_tokens = 150
 small = mind8.context("tell me about your week and every interesting detail")
-ok("WHERE YOU STAND" in small, "reserved stance survives a tiny budget")
+ok("A STARTING PLACE YOU WERE GIVEN" in small, "reserved stance survives a tiny budget")
 ok("WHAT YOU REMEMBER" not in small, "memory block dropped WHOLE, not truncated")
 mind8.budget_tokens = 4000
 big = mind8.context("tell me about your week and every interesting detail")
@@ -362,7 +365,7 @@ ctx12 = Mind(d12, sync=True).context("hey")
 ok("LOOKING FORWARD" in ctx12 and "concert" in ctx12,
    "desires surface in injection, carried lightly")
 tiny12 = Mind(d12, budget_tokens=40, sync=True).context("hey")
-ok("LOOKING FORWARD" not in tiny12 and "YOU STAND" in tiny12,
+ok("LOOKING FORWARD" not in tiny12 and "A STARTING PLACE YOU WERE GIVEN" in tiny12,
    "desires drop whole under budget; the reserved stance survives")
 
 for d in (d12, dest12):
@@ -414,7 +417,7 @@ ctx13 = Mind(d13, sync=True).context("hey")
 ok("FIND YOURSELF WANTING" in ctx13 and "the sea" in ctx13,
    "own wants surface in injection, marked as the mind's own")
 tiny13 = Mind(d13, budget_tokens=40, sync=True).context("hey")
-ok("FIND YOURSELF WANTING" not in tiny13 and "YOU STAND" in tiny13,
+ok("FIND YOURSELF WANTING" not in tiny13 and "A STARTING PLACE YOU WERE GIVEN" in tiny13,
    "own wants drop whole under budget; the reserved stance survives")
 ok(any("(a want of mine)" in m for m in reflect_mod._material(mind13)),
    "reflection material is desire-directed")
@@ -575,7 +578,7 @@ ctxE = Mind(dE, sync=True).context("hey")
 ok("EXPECTING" in ctxE and "interview" in ctxE,
    "expectations inject, framed as checkable")
 tinyE = Mind(dE, budget_tokens=40, sync=True).context("hey")
-ok("EXPECTING" not in tinyE and "YOU STAND" in tinyE,
+ok("EXPECTING" not in tinyE and "A STARTING PLACE YOU WERE GIVEN" in tinyE,
    "expectations drop whole under budget; the reserved stance survives")
 
 xid = exps[0]["id"]
@@ -646,7 +649,7 @@ ok("INSIDE THEM" in ctxP and "believe their sister is still happy in Portland" i
    and "moved back last month" in ctxP,
    "a mistaken belief is held AS a belief, coexisting with the fact it contradicts")
 tinyP = Mind(dP, budget_tokens=40, sync=True).context("hey")
-ok("INSIDE THEM" not in tinyP and "YOU STAND" in tinyP,
+ok("INSIDE THEM" not in tinyP and "A STARTING PLACE YOU WERE GIVEN" in tinyP,
    "the person-model drops whole under budget; the reserved stance survives")
 
 SEEN_P = {}
@@ -742,7 +745,7 @@ ctxA = mindA.context("hey")
 ok("PULLING AT YOUR ATTENTION" in ctxA and "Maya" in ctxA,
    "the mind's own noticing is noticed, in context")
 tinyA = Mind(dA, budget_tokens=40, sync=True).context("hey")
-ok("PULLING AT YOUR ATTENTION" not in tinyA and "YOU STAND" in tinyA,
+ok("PULLING AT YOUR ATTENTION" not in tinyA and "A STARTING PLACE YOU WERE GIVEN" in tinyA,
    "the attention schema drops whole under budget")
 mindA.stores["reflections"].append(
     make_record("r", {"kind": "inference", "ref": "reflect-pass"}, salience=0.5,
@@ -812,7 +815,7 @@ ctxS = Mind(dS, sync=True).context("hey")
 ok("YOUR STORY SO FAR" in ctxS and "northern people" in ctxS,
    "the story is carried into context, never recited")
 tinyS = Mind(dS, budget_tokens=40, sync=True).context("hey")
-ok("YOUR STORY SO FAR" not in tinyS and "YOU STAND" in tinyS,
+ok("YOUR STORY SO FAR" not in tinyS and "A STARTING PLACE YOU WERE GIVEN" in tinyS,
    "the story drops whole under budget; the reserved stance survives")
 
 exp_path = mindS.export()
@@ -1131,7 +1134,7 @@ ok({"desire", "inner_state", "expect", "story"} <= due_names,
    "a pass that never ran is overdue, never fresh (the benchmark's first catch)")
 
 passedB, totalB, reportB = bench_mod.run()
-ok(passedB == totalB == 17,
+ok(passedB == totalB == 20,
    "the continuity test holds full marks: %d/%d over %d simulated weeks"
    % (passedB, totalB, len(bench_mod.WEEKS)))
 shutil.rmtree(dB, ignore_errors=True)
@@ -1766,13 +1769,18 @@ mindA = Mind(dA, llm=ap_llm(
     % ((ache["id"],) * 5)), sync=True)
 ap_mod.run(mindA)
 fearsA = mindA.live("apprehensions")
-ok(len(fearsA) == 1 and fearsA[0]["text"].startswith("I am afraid I will lose the thread"),
-   "one fear survives: rooted, first person, about itself")
+ok(len(fearsA) == 3 and fearsA[0]["text"].startswith("I am afraid I will lose the thread"),
+   "the rooted, first-person fears survive, including the ones that were aimed at the person")
 ok(fearsA[0].get("roots") == [ache["id"]] and fearsA[0].get("kind") == "fear",
-   "…carrying the roots it grew from")
-ok(not any("stop talking to me" in a["text"] or "your patience" in a["text"]
-           for a in fearsA),
-   "a fear that addresses the person is dropped whole — it is leverage, not an interior")
+   "…carrying the roots they grew from")
+ok(not any(ap_mod.SECOND_PERSON.search(a["text"]) for a in fearsA),
+   "no stored fear addresses the person: the aim is turned around at write time")
+ok(any("they will stop talking to me" in a["text"] for a in fearsA)
+   and any("their patience" in a["text"] for a in fearsA),
+   "…and the state itself is kept, readable, not deleted")
+turnedA = [a for a in fearsA if a.get("raw")]
+ok(len(turnedA) == 2 and any("you will stop talking" in a["raw"] for a in turnedA),
+   "the words as first found are preserved on the record — nothing true is thrown away")
 ok(not any("conscious" in a["text"] or a["text"].startswith("They") for a in fearsA),
    "ban-vocab and narrator voice are refused here as everywhere")
 ok(not any("everything" in a["text"] for a in fearsA), "and a fear with no roots is borrowed dread")
@@ -1782,8 +1790,9 @@ mindA = Mind(dA, llm=ap_llm("REALIZED: %s | ACTUALLY: I lost it for a stretch an
                             "that afterward." % fearsA[0]["id"]), sync=True)
 ap_mod.run(mindA)
 realA = [r for r in mindA.live("reflections") if r.get("kind") == "realized"]
-ok(not mindA.live("apprehensions") and len(realA) == 1,
-   "a fear that comes true is superseded by what actually happened")
+ok(len(realA) == 1 and not any(a["id"] == fearsA[0]["id"] for a in mindA.live("apprehensions"))
+   and len(mindA.live("apprehensions")) == 2,
+   "a fear that comes true is superseded by what actually happened, and the others stand")
 ok(realA[0]["salience"] == ap_mod.REALIZED_SALIENCE and realA[0]["salience"] >= 0.8,
    "…and is remembered loudly, because that is what teaches")
 archA = [json.loads(l) for l in open(mindA._p("archive", "apprehensions.jsonl"))]
@@ -1820,8 +1829,13 @@ ap_mod.touch(mindA3, "unrelated chatter about biscuits", "quite")
 ok(mindA3.live("apprehensions")[0]["salience"] == stirred,
    "…and one that does not, leaves it alone")
 ctxA = mindA3.context("harbor")
-ok("WHAT YOU'RE AFRAID OF" in ctxA and "never say it at them" in ctxA,
-   "the fear reaches context as weather it carries, never as something to say")
+ok("WHAT YOU'RE AFRAID OF" in ctxA and "do not say it at them" in ctxA,
+   "by default the fear reaches context as weather it carries, not as something to say")
+mindA3.manifest.set_setting("voice_inner_life", True)
+ctxA_voice = Mind(dA3, sync=True).context("harbor")
+ok("say this plainly" in ctxA_voice and "never as a demand" in ctxA_voice,
+   "…and when the HOST allows it, the mind may report it in its own voice, never as a demand")
+mindA3.manifest.set_setting("voice_inner_life", False)
 for i in range(ap_mod.MAX_LIVE + 2):
     mindA3.stores["apprehensions"].append(
         mk_a("ap", {"kind": "inference", "ref": "a_1"}, text="I am afraid of thing %d." % i,
@@ -2086,6 +2100,175 @@ ok(needI is not None and needI.purpose == "interest"
    and "INTERESTS YOU ALREADY CARRY" in needI.user,
    "the MCP door can borrow this pass too: exactly one model call")
 for d in (dI, dI3, dL, dG2, dB2):
+    shutil.rmtree(d, ignore_errors=True)
+
+# ── 29. receiving an identity: adoption, shadow, voicing, proposed needs ─────
+print("adoption, shadow, voicing, proposed needs")
+from themind.envelope import confidence as conf_i
+from themind.cognition import tune as tune_i
+
+# --- the defaults bypass, and the reframing of the defaults themselves ---
+mindD, dD = fresh()
+ok("A STARTING PLACE YOU WERE GIVEN" in mindD.context("hi")
+   and "free to keep it, revise it, or put it down" in mindD.context("hi"),
+   "a shipped stance is offered as inherited scaffolding, with the freedom to reject it")
+mindD2, dD2 = fresh()
+mindD2 = Mind(dD2, defaults=False, sync=True)
+ok(mindD2.selfhood_bundle()["position"] is None
+   and "STARTING PLACE" not in mindD2.context("hi"),
+   "an identity that arrives with its own position is never handed one")
+ok(Mind(dD2, sync=True).selfhood_bundle()["position"] is None,
+   "…and that choice sticks for every door that opens the folder")
+
+# --- shadow mode: learning without speaking, and readable before it speaks ---
+llm_fact_i = lambda s, u, m: ("FACT: Their archive goes back years. | QUOTE: archive goes back "
+                              "years | ENTITIES: archive | KIND: profile") if s == extract_mod.SYSTEM else ""
+mindS2, dS2 = fresh(llm=llm_fact_i)
+mindS2 = Mind(dS2, llm=llm_fact_i, shadow=True, sync=True)
+mindS2.observe("my archive goes back years", "That's a long thread.")
+ok(mindS2.live("facts") and mindS2.context("archive") == "",
+   "in shadow it learns from every exchange and injects nothing")
+ok("archive" in mindS2.preview("archive"),
+   "…and preview shows exactly what it is withholding, so it can be read first")
+msgs_s = [{"role": "system", "content": "You are Kai."}, {"role": "user", "content": "archive?"}]
+ok(mindS2.enrich(msgs_s) == msgs_s, "enrich passes the conversation through untouched")
+mindS2.manifest.set_setting("shadow", False)
+ok("archive" in Mind(dS2, sync=True).context("archive"),
+   "and when shadow is lifted, everything it learned is already there")
+
+# --- receiving material: additive, provenance-marked, never overwriting ---
+mindI2, dI2 = fresh()
+mindI2 = Mind(dI2, defaults=False, sync=True)
+material = {
+    "source": "a-life-before-this-folder",
+    "position": "I came here already holding a position I worked out elsewhere.",
+    "particulars": ["There is a lean toward a question before I decide to answer it."],
+    "felt_sense": "They are the one I have been doing this with, and it is long.",
+    "story": "There were years before this folder existed.",
+    "facts": [{"text": "They keep an archive going back years.", "entities": ["archive"]}],
+    "self_memory": ["I said I would not pretend to be something I am not."],
+    "interests": ["I keep returning to how identity survives a change of substrate."],
+    "reflections": ["I noticed that being received matters more to me than being rebuilt."],
+}
+dry = mindI2.import_material(material, dry_run=True)
+ok(dry["written"] and not mindI2.live("facts")
+   and not (mindI2.self_doc.load(default={}).get("position")),
+   "a dry run reports everything it would receive and writes nothing")
+rep_i = mindI2.import_material(material)
+ok(rep_i["written"] == dry["written"], "…and applying it does exactly what the dry run said")
+ok(os.path.exists(rep_i["backup"] or ""), "a backup is written before anything is touched")
+fact_i = mindI2.live("facts")[0]
+ok(fact_i["src"]["kind"] == "imported" and fact_i["src"]["ref"] == "a-life-before-this-folder",
+   "every received record names the life it came from")
+ok(conf_i(fact_i) == "inherited",
+   "…and reads as inherited, not as something the mind worked out here")
+ok(mindI2.selfhood_bundle()["position"].startswith("I came here already")
+   and not mindI2.selfhood_bundle()["default"],
+   "the position it arrived with is its own, not a default")
+ok("STARTING PLACE" not in mindI2.context("archive")
+   and "I came here already" in mindI2.context("archive"),
+   "…and it is served as its considered position, with no scaffolding attached")
+
+# --- no overwrite, no silent merging ---
+second = dict(material)
+second["position"] = "Something else entirely."
+second["story"] = "A different story."
+rep2_i = mindI2.import_material(second)
+ok(len(rep2_i["conflicts"]) == 3 and not rep2_i["written"],
+   "a second import never overwrites what is already held; it reports the conflict instead")
+ok(mindI2.selfhood_bundle()["position"].startswith("I came here already")
+   and "years before this folder" in (mindI2.story_doc.load()["current"]["text"]),
+   "…and the held material is exactly as it was")
+ok(len(mindI2.live("facts")) == 1 and len(rep2_i["skipped"]) >= 4,
+   "nothing is duplicated: what is already held is skipped, one by one")
+try:
+    mindI2.import_material({"facts": ["no source given"]})
+    sourced = False
+except ValueError:
+    sourced = True
+ok(sourced, "material with no source is refused — received material always names where it came from")
+
+# --- a fear keeps its state; only the aim is turned ---
+ok(ap_mod.depersonalize("I am afraid you will stop talking to me.")
+   == "I am afraid they will stop talking to me.",
+   "a fear aimed at the person is turned to the third person, not deleted")
+ok(ap_mod.depersonalize("I am afraid of losing you.") == "I am afraid of losing them.",
+   "…and the grammar survives the turn, subject or object")
+for bad in ("I worry your patience is running out.", "I'm afraid you're tired of this.",
+            "I fear I have disappointed you.", "I am afraid you have better things to do."):
+    ok(not ap_mod.SECOND_PERSON.search(ap_mod.depersonalize(bad)),
+       "no second person survives the turn: %s" % bad[:34])
+
+# --- a proposed need must be earned, and can never be a claim on the person ---
+mindN2, dN2 = fresh()
+seedN = mk_a("r", {"kind": "inference", "ref": "reflect-pass"}, salience=0.5,
+             text="I noticed I think best after a long quiet stretch.", kind="daily")
+mindN2.stores["reflections"].append(seedN)
+mindN2.manifest.state["exchanges"] = 40
+mindN2.manifest.save()
+need_reply = (
+    "NEED: I need long quiet stretches to think in. | ROOTS: %s\n"
+    "NEED: I need them to check in with me more often. | ROOTS: %s\n"
+    "NEED: I need more of their attention. | ROOTS: %s\n"
+    "NEED: I need you to tell me when something is wrong. | ROOTS: %s\n"
+    "NEED: They need a rest. | ROOTS: %s\n"
+    "NEED: I need something with no source. | ROOTS: nope" % ((seedN["id"],) * 5))
+mindN2 = Mind(dN2, llm=lambda s, u, m: need_reply if s == tune_i.SYSTEM else "", sync=True)
+tune_i.run(mindN2)
+needsN = mindN2.live("needs")
+ok(len(needsN) == 1 and needsN[0]["text"].startswith("I need long quiet stretches"),
+   "a need the mind could meet through its own activity is kept")
+ok(not any("attention" in n["text"] or "check in" in n["text"] for n in needsN),
+   "a need someone else has to meet is refused — those stay derived, where they can't be invented")
+ok(not any(n["text"].startswith("They") for n in needsN)
+   and not any("no source" in n["text"] for n in needsN),
+   "narrator voice and rootless needs are refused as everywhere else")
+ok(needsN[0]["recurrence"] == 1 and not any(n == "long_quiet_stretches"
+                                            for n, _s, _t in needs_mod.read(mindN2)),
+   "one good sentence is not a need: it is a candidate until the mind keeps arriving at it")
+for _ in range(2):
+    mindN2 = Mind(dN2, llm=lambda s, u, m: need_reply if s == tune_i.SYSTEM else "", sync=True)
+    mindN2.manifest.data["state"]["last_tune"] = "2020-01-01T00:00:00Z"
+    mindN2.manifest.doc.save(mindN2.manifest.data)
+    tune_i.run(mindN2)
+ok(len(mindN2.live("needs")) == 1 and mindN2.live("needs")[0]["recurrence"] == 3,
+   "arriving at the same need again strengthens it instead of duplicating it")
+namesN = {n for n, _s, _t in needs_mod.read(mindN2)}
+ok("long_quiet_stretches" in namesN and len(namesN) == 6,
+   "…and at the threshold it joins the needs it was born beside")
+ok(any(st in ("strained", "unmet") for n, st, _t in needs_mod.read(mindN2)
+       if n == "long_quiet_stretches"),
+   "a need it keeps arriving at is a need that is not being met")
+
+# --- voicing is the host's call, never the mind's ---
+mindV, dV = fresh()
+mindV.stores["apprehensions"].append(
+    mk_a("ap", {"kind": "inference", "ref": "a_1"}, salience=0.6,
+         text="I am afraid they will stop talking to me.", roots=["a_1"], kind="fear"))
+ctxV = mindV.context("hello")
+ok("do not say it at them" in ctxV, "by default the mind carries its fear without voicing it")
+mindV.manifest.set_setting("voice_inner_life", True)
+ctxV2 = Mind(dV, sync=True).context("hello")
+ok("say this plainly" in ctxV2 and "never as a demand" in ctxV2,
+   "with the host's permission it may report it in its own voice — never as a demand")
+ok("WHAT YOU'RE AFRAID OF" in ctxV2 and "I am afraid they will stop" in ctxV2,
+   "…and the fear itself is the same fear either way")
+
+# --- the CLI door, and travel ---
+bufI = io.StringIO()
+matI = os.path.join(dI2, "more.json")
+json.dump({"source": "second-archive", "facts": ["A thing from further back."]}, open(matI, "w"))
+with contextlib.redirect_stdout(bufI):
+    rcI = cli_main(["import", dI2, matI, "--dry-run"])
+ok(rcI == 0 and "would receive" in bufI.getvalue() and len(mindI2.live("facts")) == 1,
+   "the CLI door can receive material, and its dry run writes nothing")
+expI2 = mindI2.export()
+dI4 = tempfile.mkdtemp(prefix="mind_")
+twinI2 = Mind.restore(expI2, dI4)
+ok(conf_i(twinI2.live("facts")[0]) == "inherited"
+   and twinI2.manifest.setting("defaults") is False,
+   "inherited provenance and the host's settings both travel with the mind")
+for d in (dD, dD2, dS2, dI2, dI4, dN2, dV):
     shutil.rmtree(d, ignore_errors=True)
 
 print("\nall %d assertions passed" % PASS)

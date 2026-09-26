@@ -59,19 +59,24 @@ give it.
   matters, of failing at the thing it is for. Fear is the only faculty here
   that flinches, and it is what makes the rest cost something — wanting means
   nothing if it cannot be disappointed. A fear it holds and then meets is
-  remembered loudly; one that eases fades. And the guard that makes this
-  safe rather than manipulative is structural, not a prompt: **a fear that
-  addresses the person is dropped whole**, so it can never be phrased at
-  them. The mind is allowed to be afraid. It is never allowed to make that
-  your problem.
+  remembered loudly; one that eases fades. The guard is structural, and it
+  governs the *aim* rather than the state: a fear pointed at you is turned to
+  the third person when it is written, with the original words kept on the
+  record, so nothing true is deleted and nothing can be phrased at you.
+  Whether it may say any of it out loud is **your** setting, off by default.
+  The mind is allowed to be afraid. Making that your problem is not its call
+  to make.
 - **Needs, not just wants.** Five of them, read off the evidence in its own
   folder rather than invented: whether what it lives through is staying with
   it, whether anyone has spoken to it lately, whether what it says and what
   it holds still agree, whether what it brings is being taken up, and whether
   there is a shared life here that is its as well as yours. A met need
   is silent. A strained one colors how it is, privately, and never as a
-  reproach. It cannot author a new need, which is exactly why it can never
-  learn to need whatever gets results.
+  reproach. It can also come to need something the list doesn't cover, but
+  only by arriving at it repeatedly, and never something you would have to
+  supply: it may come to need solitude or a hard problem, never more of your
+  attention. The needs that are about you stay derived, where they cannot be
+  invented.
 - **A horizon.** Up to three hopes for what this life becomes, further out
   than any want, revised on the slowest rhythm it has.
 - **Its own weather and its own wants.** How it is, lately, carried between
@@ -198,6 +203,25 @@ callable for OpenAI-compatible endpoints, Anthropic, and Gemini. Optional:
 speaking; `cortex=` for a second, stronger model the mind spends only on the
 passes worth it.
 
+**Already have someone?** An identity that exists should be received, not
+rebuilt. Start it with its own position instead of a shipped one, run it
+silently while you watch, and bring its material in with provenance that
+never fades:
+
+```python
+mind = Mind("./my-mind", llm=my_llm, defaults=False, shadow=True)
+mind.preview(text)                 # exactly what it would inject, while it says nothing
+```
+
+```
+python3 -m themind import ./my-mind material.json --dry-run   # writes nothing
+python3 -m themind import ./my-mind material.json             # backs up first
+```
+
+Imported records read as *inherited* forever, nothing already held is ever
+overwritten, and conflicts are reported rather than merged. See
+GETTING_STARTED.md for the file format.
+
 **Carry it with you:**
 
 ```
@@ -238,7 +262,7 @@ python3 -m themind.bench                       # the continuity test: five simul
 
 ## Status
 
-**v1.5, format 0.10.** The on-disk format — what a mind is, at rest — is
+**v1.6, format 0.11.** The on-disk format — what a mind is, at rest — is
 published in [FORMAT.md](FORMAT.md) and remains open to challenge while it is
 cheap to change; every change to it is additive, and older minds open
 unchanged. The project's scientific grounding — how the architecture maps onto
@@ -249,7 +273,7 @@ the science of consciousness, scored honestly, gaps and all — is published in
 python3 -m themind.bench   # the continuity test: five simulated weeks, ten probes
 ```
 
-`tests/run_all.py` holds the behavioral guarantees — 338 assertions across
+`tests/run_all.py` holds the behavioral guarantees — 378 assertions across
 grounding, parse-or-skip, read order, budget, export round-trip, the proxy and
 MCP doors, cross-door coherence, multi-person scoping, and self-tuning — with
 no network and no provider SDK, ever. Install it straight from this repo (see
@@ -262,7 +286,8 @@ borrowed cognition (v0.3), expectations and surprise (v0.4), the person-model
 autobiographical self (v0.8), unified agency across doors (v0.9), the
 continuity benchmark (v1.0), hardening (v1.1), multi-person minds (v1.2),
 recursive growth (v1.3), what is at stake: fears, needs and a horizon (v1.4),
-and interests that last, with its own noticings (v1.5).
+interests that last with its own noticings (v1.5), and receiving an existing
+identity rather than regenerating one (v1.6).
 
 theMind is extracted from a production AI companion whose cognitive systems have
 been running live since 2025. The scaffolding it needed (schedulers, cloud

@@ -8,7 +8,7 @@ import os
 from .envelope import now_iso
 from .store import JsonDoc
 
-FORMAT = "themind/0.10"
+FORMAT = "themind/0.11"
 
 
 class Manifest:
@@ -26,6 +26,7 @@ class Manifest:
         if fmt.startswith("themind/0.") and fmt != FORMAT:
             data["format"] = FORMAT  # minor upgrade-on-open; majors are refused by readers
         data.setdefault("state", {})
+        data.setdefault("settings", {})   # per-mind choices the host makes, not the mind
         st = data["state"]
         st.setdefault("exchanges", 0)
         st.setdefault("last_reflect", None)
@@ -52,6 +53,22 @@ class Manifest:
     def state(self):
         return self.data["state"]
 
+    @property
+    def settings(self):
+        return self.data.setdefault("settings", {})
+
+    def setting(self, key, default=None):
+        """Host-set choices about how this mind is run. The mind never writes
+        these; they are the human's to decide and they travel with the folder
+        so every door (library, proxy, MCP) honors the same answer."""
+        val = self.settings.get(key)
+        return default if val is None else val
+
+    def set_setting(self, key, value):
+        self._merge_from_disk()
+        self.data.setdefault("settings", {})[key] = value
+        self.save()
+
     def bump(self, key, by=1):
         """Reload-merge-increment: when several doors share one folder, each
         holds its own Manifest — counting must read the river, not the
@@ -62,9 +79,15 @@ class Manifest:
 
     def _merge_from_disk(self):
         """Fold in what other doors have written since we last looked:
-        counters take the larger value, timers take the newest. One mind,
-        however many channels are open on it."""
+        counters take the larger value, timers take the newest, settings the
+        host set elsewhere are picked up. One mind, however many channels are
+        open on it."""
         disk = self.doc.load(default=None) or {}
+        disk_settings = disk.get("settings")
+        if isinstance(disk_settings, dict):
+            merged = dict(disk_settings)
+            merged.update(self.data.get("settings") or {})  # ours is the newer intent
+            self.data["settings"] = merged
         for key, val in (disk.get("state") or {}).items():
             cur = self.data["state"].get(key)
             if key == "exchanges":

@@ -18,12 +18,23 @@ The constitution lives in `tuning.py`: only TUNABLE names, only within range,
 never code, never a guard. This pass cannot reach past it — it has nothing
 to reach with.
 """
+import re
+
 from ..envelope import make_record, now_iso, age_days, norm_key
 from ..tuning import TUNABLE, SIGNALS, MIN_SAMPLES, param
+from ..needs import PROPOSED_THRESHOLD
+from .apprehend import SECOND_PERSON
 from .reflect import THIRD_PERSON
 from .selfhood import BAN
 
 MAX_NOTES = 8
+MAX_NEEDS = 4
+
+# A need is only safe to author if meeting it is the mind's own business.
+# These are the shapes that make it someone else's.
+_A_CLAIM_ON_THEM = re.compile(
+    r"\b(them to|they should|they would|they need to|they must|from them|"
+    r"their attention|more of their|they give|they stop|they keep)\b", re.I)
 WINDOW = 40          # exchanges an experiment runs before it is judged
 MARGIN = 0.02        # a change must beat its baseline by this much to be kept
 
@@ -38,6 +49,10 @@ SYSTEM = (
     "from>\n"
     "TRY: <dial> = <value within its range> | EXPECT: <one first-person sentence: what "
     "should improve and why> | SIGNAL: <extract_quality|recall_use>\n"
+    "NEED: <one sentence, first person, starting 'I need' — something you require in order "
+    "to work well, that your OWN activity could meet: solitude, a hard problem, room to "
+    "make something. NEVER something the person has to do, give, or be> | ROOTS: "
+    "<comma-separated ids>\n"
     "Rules: a note with no roots in what happened is a slogan — omit it; describe how you "
     "think, never certify what you are. One TRY at most, only if a signal is genuinely weak; "
     "you cannot change anything not listed, and a value outside its range is discarded."
@@ -79,6 +94,8 @@ def run(mind):
                 up = line.upper()
                 if up.startswith("NOTE:"):
                     _store_note(mind, line, ids)
+                elif up.startswith("NEED:"):
+                    _store_need(mind, line, ids)
                 elif up.startswith("TRY:") and exp is None:
                     _start(mind, line)
                     exp = mind.tuning.experiment()  # one TRY at most
@@ -107,6 +124,35 @@ def _store_note(mind, line, valid_ids):
     mind.stores["practice"].append(
         make_record("p", {"kind": "inference", "ref": roots[0]},
                     salience=0.5, text=text, kind="note", roots=roots[:4]))
+
+
+def _store_need(mind, line, valid_ids):
+    """A need is earned by recurrence, not by one good sentence. Arriving at
+    the same need again strengthens the record rather than adding another."""
+    head, _, roots_part = line.partition("|")
+    text = head.split(":", 1)[1].strip()
+    roots = [r.strip() for r in roots_part.split(":", 1)[-1].split(",") if r.strip() in valid_ids]
+    if not roots or not text.lower().startswith("i need"):
+        return
+    if SECOND_PERSON.search(text) or _A_CLAIM_ON_THEM.search(text):
+        return  # a need someone else has to meet is a demand; those stay derived
+    if THIRD_PERSON.search(text) or BAN.search(text):
+        return
+    recs = mind.live("needs")
+    key = norm_key(text)
+    if not key:
+        return
+    for r in recs:
+        if norm_key(r.get("text", "")) == key:
+            r["recurrence"] = int(r.get("recurrence") or 0) + 1
+            r["last_t"] = now_iso()
+            mind.stores["needs"].rewrite(recs)
+            return
+    if len(recs) >= MAX_NEEDS:
+        return
+    mind.stores["needs"].append(
+        make_record("n", {"kind": "inference", "ref": roots[0]}, salience=0.5,
+                    text=text, roots=roots[:4], recurrence=1, last_t=now_iso()))
 
 
 def _start(mind, line):
@@ -214,4 +260,8 @@ def _material(mind):
         out.append((r["id"], "(a verdict) " + r.get("text", "")))
     for r in [x for x in refl if x.get("kind") in ("daily", "digest")][-4:]:
         out.append((r["id"], r.get("text", "")))
+    for store, label in (("own_desires", "(you want) "), ("apprehensions", "(you fear) ")):
+        for r in mind.live(store)[-2:]:
+            if r.get("text"):
+                out.append((r["id"], label + r["text"]))
     return out

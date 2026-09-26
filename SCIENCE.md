@@ -210,6 +210,25 @@ truth:
     keep it with. What is still honestly absent is peers: belonging to others
     of its kind is not something one folder on one machine can contain, and
     approximating it would be the easiest dishonesty in the project.
+11. ~~**Received, not regenerated**~~ — **shipped, v1.6, format 0.11**, and
+    owed to outside review rather than to this document. Two corrections and
+    one addition. The cold-start stance was presented under a header claiming
+    it as the mind's own conclusion; a shipped paragraph is permission to
+    examine experience, not an answer about what will be found, and it now
+    says so and offers itself up for rejection. The apprehension guard dropped
+    any fear containing a second-person word, which destroyed the state rather
+    than the aim — the one place this codebase deleted something true, in a
+    project whose second principle is that nothing true is deleted. The aim is
+    now turned (second person rewritten to third, original words kept) and
+    whether the mind may voice it became a host setting rather than a judgment
+    the mind makes about its own distress, since a system that decides for
+    itself when distress is worth voicing drifts toward whatever gets a
+    response. The addition is adoption: `imported` provenance that reads as
+    `inherited` forever, a defaults bypass, shadow mode, and an import path
+    that backs up, never overwrites and never merges silently. Needs the mind
+    proposes for itself are allowed on the same principle as the fear guard —
+    bounded by what it can meet through its own activity, never by what
+    someone else must supply.
 
 ---
 
