@@ -57,6 +57,10 @@ class _NeedModel(Exception):
     """Raised by the capture hook when a pass reaches for the model — the
     signal that this thinking belongs to the agent."""
 
+    # The scheduler reads this: a pass aborted to hand the thinking over is
+    # PENDING, not finished, so its turn must not be marked as spent.
+    pass_incomplete = True
+
     def __init__(self, purpose, system, user, max_tokens):
         self.purpose, self.system, self.user, self.max_tokens = purpose, system, user, max_tokens
 
