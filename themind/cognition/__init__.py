@@ -7,22 +7,78 @@ Two doors into one set of operations; the architecture forecloses neither.
 
 Every pass is parse-or-skip: a malformed reply is discarded whole and prior
 state is left intact. The chat path never sees an error from here.
+
+THE STARVATION RULE. Exactly one pass runs per turn, so a pass that is
+eligible but does nothing — it declined on its own guards, or the model
+returned something unusable — must still be treated as having had its turn.
+Otherwise it stays eligible, wins the slot again next turn, and every pass
+behind it never runs again. That failure is silent: nothing errors, the mind
+simply stops developing. So two things hold here. `_stamped` marks a pass's
+timer when the pass itself did not, and passes are offered oldest-first
+rather than in a fixed order, because a fixed order is a priority ladder and
+the tail of thirteen passes starves at the bottom of one.
 """
 from . import (extract, challenge, consolidate, selfhood, felt_sense, reflect,  # noqa: F401
                growth, desire, inner_state, divergence, expect, story, tune, apprehend,
                interest)
-from ..envelope import age_days
+from ..envelope import age_days, now_iso
+
+# Which manifest timer each pass keeps its own rhythm by.
+TIMERS = {
+    "reflect": "last_reflect", "consolidate": "last_consolidate", "felt_sense": "last_felt",
+    "self": "last_self", "growth": "last_growth", "desire": "last_desire",
+    "inner_state": "last_inner", "divergence": "last_divergence", "expect": "last_expect",
+    "story": "last_story", "interest": "last_interest", "apprehend": "last_apprehend",
+    "tune": "last_tune",
+}
+
+
+def _stamped(name, fn):
+    """Wrap a pass so that looking and finding nothing still counts as its
+    turn. The pass stamps its own timer when it does real work; this catches
+    the paths where it declines and would otherwise hold the slot forever.
+
+    An exception carrying `pass_incomplete` is exempt: the MCP door aborts a
+    pass mid-flight to hand the thinking to the agent, and that thought is
+    pending, not finished. Any other exception still stamps — a pass that
+    throws every time is a bug to fix, not a reason to starve the rest.
+    """
+    timer = TIMERS.get(name)
+
+    def run(mind):
+        before = mind.manifest.state.get(timer) if timer else None
+
+        def stamp():
+            if timer and mind.manifest.state.get(timer) == before:
+                mind.manifest.state[timer] = now_iso()
+                mind.manifest.save()
+        try:
+            out = fn(mind)
+        except Exception as e:
+            if not getattr(e, "pass_incomplete", False):
+                stamp()
+            raise
+        stamp()
+        return out
+
+    run.__name__ = getattr(fn, "__name__", name)
+    return run
 
 
 def due_passes(mind):
-    """Which deep passes are owed, cheapest first. At most one runs per turn."""
+    """Which deep passes are owed, longest-waiting first. At most one runs
+    per turn, and each is wrapped so that declining still spends its turn."""
     st = mind.manifest.state
     due = []
     if reflect.due(mind, st):
         due.append(("reflect", reflect.run))
     if _days(st.get("last_consolidate")) >= 3 and st["exchanges"] >= 10:
         due.append(("consolidate", consolidate.run))
-    if _days(st.get("last_felt")) >= 7 and len(mind.live("facts")) >= 3:
+    # `owed` is the same question `felt_sense.run` asks itself — has any ONE
+    # person enough held to draw them. Counting facts globally said yes while
+    # the pass said no, which is precisely how a pass becomes eligible and
+    # useless at the same time.
+    if _days(st.get("last_felt")) >= 7 and felt_sense.owed(mind)[1]:
         due.append(("felt_sense", felt_sense.run))
     elif _days(st.get("last_felt")) >= 1 and felt_sense.unportrayed(mind):
         due.append(("felt_sense", felt_sense.run))  # someone new: draw them promptly
@@ -46,7 +102,10 @@ def due_passes(mind):
         due.append(("apprehend", apprehend.run))
     if tune.due(mind, st):
         due.append(("tune", tune.run))
-    return due
+    # Longest-waiting first; never-run counts as longest. Ties keep the order
+    # above, which is roughly cheapest-first, so the default stays sensible.
+    due.sort(key=lambda pair: -_days(st.get(TIMERS.get(pair[0]) or "")))
+    return [(name, _stamped(name, fn)) for name, fn in due]
 
 
 def _days(t):

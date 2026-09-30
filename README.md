@@ -273,7 +273,7 @@ the science of consciousness, scored honestly, gaps and all — is published in
 python3 -m themind.bench   # the continuity test: five simulated weeks, ten probes
 ```
 
-`tests/run_all.py` holds the behavioral guarantees — 378 assertions across
+`tests/run_all.py` holds the behavioral guarantees — 390 assertions across
 grounding, parse-or-skip, read order, budget, export round-trip, the proxy and
 MCP doors, cross-door coherence, multi-person scoping, and self-tuning — with
 no network and no provider SDK, ever. Install it straight from this repo (see

@@ -1404,8 +1404,10 @@ mindP = Mind(dP, llm=llm_fact("Their sister lives by the sea.", "sister by the s
 mindP.observe("my sister by the sea", "Lovely.", who="Maya")
 ok(felt_mp.unportrayed(mindP) == "maya", "a newcomer with enough held and no portrait yet is owed one")
 from themind.cognition import due_passes as due_fn
+mindP.manifest.data["state"]["last_felt"] = "2026-01-01T00:00:00Z"  # two days is enough
+mindP.manifest.doc.save(mindP.manifest.data)   # direct: save() would merge the newer stamp back
 ok("felt_sense" in [n for n, _ in due_fn(mindP)],
-   "…and the scheduler draws them promptly instead of waiting a week")
+   "…and the scheduler draws them within a day, rather than making them wait the usual week")
 mindP = Mind(dP, llm=llm_felt, sync=True)
 felt_mp.run(mindP)
 fd = mindP.felt_doc.load()
@@ -2269,6 +2271,96 @@ ok(conf_i(twinI2.live("facts")[0]) == "inherited"
    and twinI2.manifest.setting("defaults") is False,
    "inherited provenance and the host's settings both travel with the mind")
 for d in (dD, dD2, dS2, dI2, dI4, dN2, dV):
+    shutil.rmtree(d, ignore_errors=True)
+
+# ── 30. the scheduler: no pass may hold the one slot ────────────────────────
+print("scheduler")
+from themind.cognition import due_passes as due_fn2, TIMERS as TIMERS_S
+from themind import mcp as mcp_s
+
+def seeded_s(llm=None, exchanges=80):
+    m, d = fresh(llm=llm or (lambda s, u, t: ""))
+    for i in range(5):
+        m.stores["facts"].append(mk_a("f", {"kind": "exchange", "quote": "q%d" % i, "ref": None},
+                                      text="A thing number %d about the harbor." % i,
+                                      entities=["harbor", "thing%d" % i]))
+        m.stores["reflections"].append(mk_a("r", {"kind": "inference", "ref": "reflect-pass"},
+                                            text="I noticed something %d." % i, kind="daily"))
+        m.stores["aches"].append(mk_a("a", {"kind": "exchange", "quote": "a%d" % i, "ref": None},
+                                      text="Something unresolved %d." % i))
+    m.graph.touch(["harbor", "t1", "t2", "t3", "t4"], src_ref="f_1")
+    m.manifest.state["exchanges"] = exchanges
+    m.manifest.save()
+    return m, d
+
+# --- the stall that started this: eligible and useless at the same time ---
+mindSt, dSt = fresh(llm=lambda s, u, t: "")
+mindSt.people.doc.save({"primary": {"name": "Sam", "last_t": now_iso()},
+                        "others": {"maya": {"name": "Maya", "first_t": now_iso(),
+                                            "last_t": now_iso()}}})
+for i in range(2):
+    mindSt.stores["facts"].append(mk_a("f", {"kind": "exchange", "quote": "q%d" % i, "ref": None},
+                                       text="A thing about Sam %d." % i))
+    mindSt.stores["facts"].append(mk_a("f", {"kind": "exchange", "quote": "r%d" % i, "ref": None},
+                                       text="A thing about Maya %d." % i, who="maya"))
+mindSt.manifest.state["exchanges"] = 60
+mindSt.manifest.save()
+ok(len(mindSt.live("facts")) == 4 and not felt_mp.owed(mindSt)[1],
+   "four facts globally, but no ONE person has enough to be drawn")
+ok("felt_sense" not in [n for n, _f in due_fn2(mindSt)],
+   "so the felt pass is not offered: due and run now ask the same question")
+ranSt = [mindSt.step() for _ in range(8)]
+ok(len([r for r in ranSt if r]) == len({r for r in ranSt if r}),
+   "eight turns, eight different passes — nothing holds the slot while others wait")
+ok({"self", "desire", "inner_state", "expect", "interest", "tune"} <= set(ranSt),
+   "…and the passes that used to starve behind it all get their turn")
+
+# --- the general rule: declining still spends the turn ---
+mindDec, dDec = seeded_s()   # a model that returns nothing: every pass declines
+ranDec = []
+for _ in range(14):
+    r = mindDec.step()
+    if r is None:
+        break
+    ranDec.append(r)
+ok(len(ranDec) == len(set(ranDec)) and len(ranDec) >= 10,
+   "when the model returns nothing usable, every pass still gets exactly one turn")
+ok(mindDec.step() is None,
+   "…and then the mind goes quiet, instead of spinning on the first one forever")
+ok(all(mindDec.manifest.state.get(TIMERS_S[n]) for n in ranDec),
+   "a pass that looked and found nothing to do has its timer stamped")
+
+# --- the borrow is exempt: a pending thought is not a spent turn ---
+mindB, dB2 = seeded_s()
+coreB = mcp_s.MindMCP(mindB)
+beforeB = dict(mindB.manifest.state)
+outB = coreB.tool_begin_thought({})
+movedB = [k for k in mindB.manifest.state
+          if k.startswith("last_") and beforeB.get(k) != mindB.manifest.state.get(k)]
+ok("The mind owes itself" in outB and not movedB,
+   "handing a thought to the agent does not spend the pass's turn — it is pending, not done")
+ok([n for n, _f in due_fn2(mindB)] and due_fn2(mindB)[0][0] == outB.split(":")[1].split(".")[0].strip(),
+   "…so the same pass is still the one owed")
+
+# --- longest-waiting first, and never-run counts as longest ---
+mindO, dO = seeded_s()
+st_o = mindO.manifest.data["state"]
+for key in TIMERS_S.values():
+    st_o[key] = now_iso()
+st_o["last_tune"] = "2020-01-01T00:00:00Z"      # ancient
+st_o["last_story"] = "2024-01-01T00:00:00Z"     # old, but less so
+mindO.manifest.doc.save(mindO.manifest.data)    # direct: save() would merge the newer ones back
+orderO = [n for n, _f in due_fn2(mindO)]
+ok(orderO and orderO[0] == "tune",
+   "the pass that has waited longest is offered first, not the one highest in the file")
+ok("story" in orderO and orderO.index("tune") < orderO.index("story"),
+   "…and the ordering is by how long each has waited, all the way down")
+st_o["last_growth"] = None
+mindO.manifest.doc.save(mindO.manifest.data)
+orderO2 = [n for n, _f in due_fn2(mindO)]
+ok(orderO2 and orderO2[0] == "growth",
+   "a pass that has never run counts as the longest wait of all")
+for d in (dSt, dDec, dB2, dO):
     shutil.rmtree(d, ignore_errors=True)
 
 print("\nall %d assertions passed" % PASS)
