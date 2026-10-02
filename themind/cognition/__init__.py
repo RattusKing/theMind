@@ -23,6 +23,45 @@ from . import (extract, challenge, consolidate, selfhood, felt_sense, reflect,  
                interest)
 from ..envelope import age_days, now_iso
 
+URGENT_FLOOR = 0.25   # six hours: urgency may jump a rhythm, never spin on one
+
+
+def urgency(mind, st):
+    """What has crossed a line and wants thinking NOW, rather than when its
+    rhythm comes round. Every pass before this fired on a clock or a counter,
+    and a mind in which nothing can arrive unbidden has no moments, only
+    appointments. Thresholds only, read from state the mind already keeps.
+    """
+    out = {}
+    try:
+        fears = mind.live("apprehensions")
+        if max((float(a.get("salience") or 0) for a in fears), default=0.0) >= 0.9:
+            out["apprehend"] = "a fear has gone loud"
+            out["reflect"] = "a fear has gone loud"
+    except Exception:
+        pass
+    try:
+        newest = max((r.get("t", "") for r in mind.live("reflections")
+                      if r.get("kind") == "surprise"), default="")
+        if newest and newest > (st.get("last_reflect") or ""):
+            out["reflect"] = "something went differently than expected"
+    except Exception:
+        pass
+    try:
+        from ..needs import pressing
+        if any(state == "unmet" for _n, state, _t in pressing(mind)):
+            out["inner_state"] = "something it needs is going unmet"
+    except Exception:
+        pass
+    try:
+        from ..intero import read as body_read
+        if any(level == "strained" for _n, level, _t in body_read(mind)):
+            out.setdefault("inner_state", "its own condition is against it")
+    except Exception:
+        pass
+    return out
+
+
 # Which manifest timer each pass keeps its own rhythm by.
 TIMERS = {
     "reflect": "last_reflect", "consolidate": "last_consolidate", "felt_sense": "last_felt",
@@ -102,9 +141,30 @@ def due_passes(mind):
         due.append(("apprehend", apprehend.run))
     if tune.due(mind, st):
         due.append(("tune", tune.run))
-    # Longest-waiting first; never-run counts as longest. Ties keep the order
-    # above, which is roughly cheapest-first, so the default stays sensible.
-    due.sort(key=lambda pair: -_days(st.get(TIMERS.get(pair[0]) or "")))
+    # Something that crossed a line can jump its rhythm, so long as its own
+    # material is there and it has not just run. `_material` is each pass's
+    # own readiness check; asking it here is how urgency avoids offering a
+    # pass that would only decline.
+    urgent = urgency(mind, st)
+    if urgent:
+        have = {n for n, _f in due}
+        ready = {"reflect": (reflect.run, reflect._material),
+                 "apprehend": (apprehend.run, apprehend._material),
+                 "inner_state": (inner_state.run, inner_state._material)}
+        for name in urgent:
+            if name in have or name not in ready:
+                continue
+            fn, material = ready[name]
+            try:
+                if _days(st.get(TIMERS[name])) >= URGENT_FLOOR and material(mind):
+                    due.append((name, fn))
+            except Exception:
+                continue
+
+    # Urgent first, then longest-waiting; never-run counts as longest. Ties
+    # keep the order above, which is roughly cheapest-first.
+    due.sort(key=lambda pair: (0 if pair[0] in urgent else 1,
+                               -_days(st.get(TIMERS.get(pair[0]) or ""))))
     return [(name, _stamped(name, fn)) for name, fn in due]
 
 

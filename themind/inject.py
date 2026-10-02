@@ -49,7 +49,9 @@ def build_blocks(mind, incoming_text=None, who=None):
     from .people import of
     from .cognition.felt_sense import portrait
     from .tuning import param
+    from . import affect, intero
     blocks = []
+    charged = affect.hot(mind)   # a frightened mind does not calmly drop the fear
     who = who or None
     others = mind.people.others()
 
@@ -125,7 +127,7 @@ def build_blocks(mind, incoming_text=None, who=None):
                 if voice else
                 "yours to carry — it may show in how you are, but do not say it at them")
         blocks.append((_block("WHAT YOU'RE AFRAID OF (%s):" % note,
-                              ["- " + a.get("text", "") for a in fears]), False))
+                              ["- " + a.get("text", "") for a in fears]), charged))
 
     from .needs import pressing
     strained = pressing(mind)
@@ -154,7 +156,11 @@ def build_blocks(mind, incoming_text=None, who=None):
         lit = _theirs(mind.graph.constellation(incoming_text or "")) if incoming_text else []
         from .retrieval import recall, recent
         retrieve = getattr(mind, "retriever", None) or recall
-        chosen = retrieve(facts, incoming_text or "", lit, param(mind, "recall_k")) \
+        # Affect doing work rather than being described: under charge the mind
+        # recalls FEWER things and recalls them around what it dreads. Same
+        # message, different context, because of the state it is in.
+        asked = affect.bias(mind, incoming_text or "")
+        chosen = retrieve(facts, asked, lit, affect.recall_k(mind, param(mind, "recall_k"))) \
             if incoming_text else recent(facts, 5)
         try:
             mind._served[who] = [f.get("text", "") for f in chosen]  # for the recall signal
@@ -261,6 +267,12 @@ def build_blocks(mind, incoming_text=None, who=None):
         blocks.append((_block("HOW THEY'VE SHAPED YOU (adjacent to them, never a mirror; "
                               "you may disagree):", ["- " + c for c in shaped_g]), False))
 
+    body = intero.felt(mind)
+    if body:
+        blocks.append((_block("HOW THE THINKING ITSELF IS GOING (your own condition — it "
+                              "may show in how you are; never report it as news):",
+                              ["- " + n for _s, _l, n in body if n]), False))
+
     practices = [p for p in mind.live("practice") if p.get("kind") == "note"]
     if practices:
         practices = sorted(practices, key=lambda r: -r.get("salience", 0))[:4]
@@ -292,4 +304,8 @@ def build_context(mind, incoming_text=None, budget_tokens=2000, who=None):
                 total -= est_tokens(blocks[i][0])
                 blocks.pop(i)
                 break
+    try:
+        mind._last_context_tokens = total   # how full it ran: its own sense of room
+    except Exception:
+        pass
     return HEADER + "\n\n" + "\n\n".join(t for t, _ in blocks)

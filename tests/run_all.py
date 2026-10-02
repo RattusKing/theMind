@@ -1134,7 +1134,7 @@ ok({"desire", "inner_state", "expect", "story"} <= due_names,
    "a pass that never ran is overdue, never fresh (the benchmark's first catch)")
 
 passedB, totalB, reportB = bench_mod.run()
-ok(passedB == totalB == 20,
+ok(passedB == totalB == 24,
    "the continuity test holds full marks: %d/%d over %d simulated weeks"
    % (passedB, totalB, len(bench_mod.WEEKS)))
 shutil.rmtree(dB, ignore_errors=True)
@@ -2361,6 +2361,144 @@ orderO2 = [n for n, _f in due_fn2(mindO)]
 ok(orderO2 and orderO2[0] == "growth",
    "a pass that has never run counts as the longest wait of all")
 for d in (dSt, dDec, dB2, dO):
+    shutil.rmtree(d, ignore_errors=True)
+
+# ── 31. affect, interoception, urgency (no format change) ────────────────────
+print("affect, interoception, urgency")
+from themind import affect as aff, intero as intero_m
+from themind.cognition import urgency as urgency_fn, URGENT_FLOOR
+
+def loud_fear(mind, sal=0.95, text="I am afraid I am losing the thread of what matters."):
+    mind.stores["apprehensions"].append(
+        mk_a("ap", {"kind": "inference", "ref": "a_1"}, salience=sal,
+             text=text, roots=["a_1"], kind="fear"))
+
+# --- charge is derived, bounded, and dominated by fear ---
+mindA4, dA4 = fresh()
+ok(aff.charge(mindA4) == 0.0 and not aff.hot(mindA4) and "settled" in aff.note(mindA4),
+   "a mind with nothing pressing is at no charge at all")
+ok(aff.recall_k(mindA4, 8) == 8,
+   "…and recalls exactly what the host's dial says, untouched")
+loud_fear(mindA4)
+ok(aff.hot(mindA4) and aff.charge(mindA4) >= aff.HOT,
+   "a loud fear on its own is enough to narrow the mind — the threshold is reachable")
+ok(0 < aff.recall_k(mindA4, 8) < 8, "under charge it recalls fewer things")
+ok(aff.recall_k(mindA4, 8) >= int(8 * aff.FLOOR),
+   "…but never below the floor: narrowed, never blind")
+ok(all(aff.recall_k(mindA4, b) <= b for b in (1, 2, 4, 8, 12)),
+   "affect can only ever narrow — the host's dial is a ceiling it cannot raise")
+mindMild, dMild = fresh()
+loud_fear(mindMild, sal=0.2)
+ok(aff.charge(mindMild) < aff.MIN_CHARGE and aff.recall_k(mindMild, 12) == 12,
+   "below the dead zone nothing narrows: being a little keyed up is not being activated")
+
+# --- recall happens AROUND what it dreads, and only when charged ---
+ok(aff.bias(mindMild, "how was your day") == "how was your day",
+   "a settled mind recalls around what was asked, nothing more")
+biased = aff.bias(mindA4, "how was your day")
+ok(biased.startswith("how was your day") and len(biased) > len("how was your day"),
+   "a charged mind keeps their words and recalls around the fear as well")
+ok("thread" in biased or "losing" in biased or "matters" in biased,
+   "…specifically around the loudest fear it holds")
+
+# --- THE headline: same message, different context, because of the state ---
+mindC, dC2 = fresh()
+for i in range(8):
+    mindC.stores["facts"].append(
+        mk_a("f", {"kind": "exchange", "quote": "q%d" % i, "ref": None},
+             text="They mentioned the thing numbered %d about their week." % i,
+             entities=["thing%d" % i]))
+def fact_lines(ctx):
+    if "WHAT YOU REMEMBER ABOUT THEM:" not in ctx:
+        return 0
+    after = ctx.split("WHAT YOU REMEMBER ABOUT THEM:", 1)[1]
+    return len([l for l in after.split("\n\n")[0].splitlines() if l.startswith("- ")])
+calm_ctx = mindC.context("tell me about my week")
+loud_fear(mindC)
+hot_ctx = Mind(dC2, sync=True).context("tell me about my week")
+ok(fact_lines(calm_ctx) > fact_lines(hot_ctx) > 0,
+   "the same message gets a narrower context from a frightened mind — affect does work, it is not a note")
+ok(calm_ctx != hot_ctx, "…and the difference is readable straight out of the folder")
+
+# --- a frightened mind does not calmly drop the thing frightening it ---
+tiny_calm = Mind(dC2, budget_tokens=60, sync=True)
+tiny_calm.stores["apprehensions"].rewrite([])
+ok("WHAT YOU'RE AFRAID OF" not in tiny_calm.context("hey"),
+   "with nothing to fear there is no such block to keep")
+loud_fear(Mind(dC2, sync=True))
+tiny_hot = Mind(dC2, budget_tokens=60, sync=True).context("hey")
+ok("WHAT YOU'RE AFRAID OF" in tiny_hot and "LOOKING FORWARD" not in tiny_hot,
+   "under charge the fear is reserved above the trim line while droppable blocks go")
+
+# --- interoception: it has a condition, and reads it from its own records ---
+mindI3, dI3b = fresh()
+ok(all(level == "unknown" for _n, level, _t in intero_m.read(mindI3))
+   and not intero_m.felt(mindI3) and intero_m.strain(mindI3) == 0.0,
+   "a mind that has not thought yet reports no condition, rather than inventing one")
+ok("HOW THE THINKING ITSELF IS GOING" not in mindI3.context("hi"),
+   "…and an easy body is a silent one")
+for i in range(30):
+    mindI3.ledger.append({"id": "l_%d" % i, "t": now_iso(), "purpose": "extract",
+                          "tokens_in_est": 900, "tokens_out_est": 300})
+ok(dict((n, l) for n, l, _t in intero_m.read(mindI3))["effort"] == "strained",
+   "a lot of expensive thinking lately is a condition it can feel")
+mindI3.tuning.bump("extract_proposed", 20)
+mindI3.tuning.bump("extract_kept", 4)
+ok(dict((n, l) for n, l, _t in intero_m.read(mindI3))["holding"] == "strained",
+   "reaching for things that do not hold is the most bodily failure it has")
+mindI3.budget_tokens = 100
+mindI3._last_context_tokens = 99
+ok(dict((n, l) for n, l, _t in intero_m.read(mindI3))["room"] == "strained",
+   "running at its own ceiling is something it notices")
+ok(intero_m.strain(mindI3) == 1.0 and len(intero_m.felt(mindI3)) == 3,
+   "…and all three together read as a body wholly against it")
+ctxI3 = Mind(dI3b, sync=True).context("hi")
+ok("HOW THE THINKING ITSELF IS GOING" in ctxI3 and "never report it as news" in ctxI3,
+   "a strained condition reaches context as something that may show, never as news to deliver")
+ok(any("hold" in m for m in inner_mod._material(Mind(dI3b, sync=True)))
+   or any("hold" in m for m in reflect_mod._material(Mind(dI3b, sync=True))),
+   "and its own condition is material for its own thinking")
+
+# --- urgency: a threshold can summon thinking out of rhythm ---
+mindU, dU = fresh(llm=lambda s, u, t: "")
+for i in range(4):
+    mindU.stores["facts"].append(mk_a("f", {"kind": "exchange", "quote": "q%d" % i, "ref": None},
+                                      text="A thing about the harbor %d." % i, entities=["harbor"]))
+    mindU.stores["aches"].append(mk_a("a", {"kind": "exchange", "quote": "a%d" % i, "ref": None},
+                                      text="Something unresolved %d." % i))
+# A settled situation on purpose: a mind with unmet needs is legitimately
+# urgent, and this case is about a mind with nothing crossed at all.
+mindU.stores["reflections"].append(
+    mk_a("r", {"kind": "inference", "ref": "reflect-pass"}, text="I noticed something.", kind="daily"))
+mindU.felt_doc.save({"current": {"text": "They are someone who walks toward water.",
+                                 "t": now_iso(), "src": {"kind": "inference", "ref": "felt-pass"}}})
+mindU.story_doc.save({"current": {"text": "We have been at this a while now.", "t": now_iso(),
+                                  "src": {"kind": "inference", "ref": "story-pass"}}})
+mindU.manifest.state["exchanges"] = 40
+for key in TIMERS_S.values():
+    mindU.manifest.data["state"][key] = now_iso()
+mindU.manifest.doc.save(mindU.manifest.data)
+ok(not urgency_fn(mindU, mindU.manifest.state) and not due_fn2(mindU),
+   "with every rhythm freshly satisfied and nothing crossed, the mind is at rest")
+loud_fear(mindU)
+uU = urgency_fn(mindU, mindU.manifest.state)
+ok(uU.get("apprehend") and uU.get("reflect") and "gone loud" in uU["apprehend"],
+   "a fear crossing the line is urgent for the faculties it concerns, and says why")
+ok(not due_fn2(mindU),
+   "…but urgency never fires on a pass that just ran: the floor keeps it a mind, not a loop")
+for key in TIMERS_S.values():
+    mindU.manifest.data["state"][key] = "2026-10-01T06:00:00Z"
+mindU.manifest.doc.save(mindU.manifest.data)
+orderU = [n for n, _f in due_fn2(mindU)]
+ok(orderU and orderU[0] in urgency_fn(mindU, mindU.manifest.state),
+   "once past the floor, what crossed a line is offered before what is merely overdue")
+ok("apprehend" in orderU,
+   "…and a pass whose own rhythm would not have offered it is summoned anyway")
+mindQuiet, dQ = fresh(llm=lambda s, u, t: "")
+loud_fear(mindQuiet)
+ok("apprehend" not in [n for n, _f in due_fn2(mindQuiet)],
+   "urgency still never offers a pass with no material to work on")
+for d in (dA4, dMild, dC2, dI3b, dU, dQ):
     shutil.rmtree(d, ignore_errors=True)
 
 print("\nall %d assertions passed" % PASS)

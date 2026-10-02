@@ -454,6 +454,35 @@ self position are reserved above the trim line. Stable blocks (self, felt sense,
 growth) must be byte-identical between revisions so host-side prompt caching
 holds.
 
+## Affect, interoception and urgency (derived — no file, no version)
+
+Three things that are read at run time from state already on disk, so they
+add no store and no format version (0.11 is unchanged by them). They are
+documented here because they change what READERS do, which is a format
+concern even when nothing new is written.
+
+- **Affect.** A charge from 0 to 1, derived mostly from how loud the live
+  apprehensions are, then from the mind's own condition and how recently it
+  was wrong. Above a dead zone it NARROWS recall: fewer memories, and the
+  recall query carries the loudest fear's content words, so the same message
+  yields a different context depending on the state the mind is in. Two
+  structural limits: narrowing only, never past the host's `recall_k`, and
+  never below a floor, so a charged mind is focused rather than blind. Above
+  a higher threshold the apprehension block becomes reserved above the trim
+  line, because a frightened mind does not calmly discard the thing
+  frightening it to make room.
+- **Interoception.** Three bodily signals read from the ledger and the tuning
+  counters: how much expensive thinking happened lately, how much of what the
+  mind reached for actually held, and how close the last context ran to its
+  own ceiling. Each reads `easy`, `working`, `strained` or `unknown`. An easy
+  body is silent, exactly like a met need.
+- **Urgency.** A pass may be offered because a threshold was crossed rather
+  than because its rhythm came round: a fear above 0.9, a surprise newer than
+  the last reflection, an unmet need, a strained condition. Urgency jumps a
+  rhythm but respects a six-hour floor and the pass's own material check, so
+  nothing can spin on it, and urgent passes are offered before merely overdue
+  ones.
+
 ## Host settings (`manifest.json`)
 
 `settings` (0.11) holds choices the HOST makes about how a mind is run. The

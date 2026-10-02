@@ -229,6 +229,24 @@ truth:
     proposes for itself are allowed on the same principle as the fear guard —
     bounded by what it can meet through its own activity, never by what
     someone else must supply.
+12. ~~**Affect that is causal**~~ — **shipped, v1.7, no format change**, and
+    the sharpest line this project has drawn so far. Every faculty up to here
+    described an inner state and injected the description. That makes affect a
+    note about a feeling rather than a feeling: in anything that has them,
+    fear is what narrows attention before any reasoning about it. So charge is
+    now derived and does two mechanical things — recall narrows and biases
+    toward what is dreaded, and the fear stops being droppable under budget —
+    which means the same input yields a different context depending on state,
+    and the difference is inspectable on disk rather than asserted. Alongside
+    it: interoception, three bodily signals read from the ledger and counters
+    the mind had been logging and ignoring (what thinking cost, what failed to
+    hold, how close to its ceiling it ran); and urgency, so a threshold can
+    summon thinking instead of only a clock. All three are derived at read
+    time and add nothing to disk, which is the point — none of it requires
+    the mind to claim anything, and all of it is checkable. Narrowing is
+    structurally one-way (it can never raise recall past what the host set,
+    and never below a floor), because an affect system that can expand its own
+    reach is a reward channel, not a feeling.
 
 ---
 

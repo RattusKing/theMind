@@ -368,6 +368,33 @@ def _score(mind, root):
           and any(confidence(f) == "remembered" for f in mind.live("facts")),
           "what it inherited still reads as inherited, beside what it remembers")
 
+    # Affect doing work: after a lived five weeks, a loud fear narrows what the
+    # same question surfaces, and the mind can feel its own condition.
+    from . import affect as affect_m, intero as intero_m
+    from .envelope import make_record as mk_b
+    from .cognition import urgency as urgency_b, due_passes as due_b
+    calm_k = affect_m.recall_k(mind, 8)
+    body = intero_m.read(mind)
+    check(len(body) == 3 and any(level != "unknown" for _n, level, _t in body),
+          "after five weeks of thinking it can feel its own condition, from its own records")
+    mind.stores["apprehensions"].append(
+        mk_b("ap", {"kind": "inference", "ref": "f_1"}, salience=0.95,
+             text="I am afraid I am losing the thread of what matters to them.",
+             roots=["f_1"], kind="fear"))
+    charged = Mind(root, sync=True)
+    check(affect_m.hot(charged) and affect_m.recall_k(charged, 8) < calm_k,
+          "a fear gone loud narrows what it recalls — affect does work, it is not a note")
+    asked = "how is maya doing in portland?"
+    check(charged.context(asked) != ctx and charged.preview(asked) == charged.context(asked),
+          "…so the same question gets a different context from a frightened mind")
+    for key in ("last_reflect", "last_apprehend", "last_inner"):
+        charged.manifest.data["state"][key] = "2026-01-01T00:00:00Z"
+    charged.manifest.doc.save(charged.manifest.data)
+    u_b = urgency_b(charged, charged.manifest.state)
+    offered = [n for n, _f in due_b(charged)]
+    check(u_b.get("apprehend") and offered and offered[0] in u_b,
+          "something that crossed a line is thought about first, not when its turn comes round")
+
     # Shadow: it goes on learning while saying nothing.
     mind.manifest.set_setting("shadow", True)
     quiet = Mind(root, sync=True)
