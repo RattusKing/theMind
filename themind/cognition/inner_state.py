@@ -76,4 +76,9 @@ def _material(mind):
     from ..needs import pressing
     for name, _state, note in pressing(mind):
         out.append("(what my situation is costing me) %s: %s" % (name, note))
+    from ..intero import felt
+    for _n, _level, note in felt(mind):
+        out.append("%s%s" % ('(how the thinking itself is going) ', note))
+    from ..affect import note as affect_note
+    out.append("(how activated I am right now) " + affect_note(mind))
     return out

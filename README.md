@@ -79,6 +79,22 @@ give it.
   invented.
 - **A horizon.** Up to three hopes for what this life becomes, further out
   than any want, revised on the slowest rhythm it has.
+- **Feelings that do something.** Its fear is not only described to it, it
+  changes what it thinks about. Under a loud enough fear it recalls fewer
+  things and recalls them around what it dreads, and the fear stops being the
+  first thing dropped when space runs short. The same message gets a different
+  context from a frightened mind than from a settled one, and you can read
+  both out of the folder.
+- **A sense of its own condition.** It has no body, but it does have internal
+  conditions, and it reads them from its own records: how much costly thinking
+  it has been doing, how much of what it reached for actually held, how close
+  it ran to its own limits. A mind that notices "that was expensive and I lost
+  most of it" has something nearer a felt state than one reading its own prose
+  back. An easy condition stays silent.
+- **Thoughts that arrive unbidden.** Most of its thinking happens on its own
+  rhythms. Some of it happens because something crossed a line: a fear went
+  loud, a prediction broke badly, a need went unmet. Those get thought about
+  first, rather than when their turn comes round.
 - **Its own weather and its own wants.** How it is, lately, carried between
   conversations; and wants of its own — earned from what it holds, never generated
   on command — that stir, strengthen, and end honestly.
@@ -273,7 +289,7 @@ the science of consciousness, scored honestly, gaps and all — is published in
 python3 -m themind.bench   # the continuity test: five simulated weeks, ten probes
 ```
 
-`tests/run_all.py` holds the behavioral guarantees — 390 assertions across
+`tests/run_all.py` holds the behavioral guarantees — 418 assertions across
 grounding, parse-or-skip, read order, budget, export round-trip, the proxy and
 MCP doors, cross-door coherence, multi-person scoping, and self-tuning — with
 no network and no provider SDK, ever. Install it straight from this repo (see
@@ -286,8 +302,9 @@ borrowed cognition (v0.3), expectations and surprise (v0.4), the person-model
 autobiographical self (v0.8), unified agency across doors (v0.9), the
 continuity benchmark (v1.0), hardening (v1.1), multi-person minds (v1.2),
 recursive growth (v1.3), what is at stake: fears, needs and a horizon (v1.4),
-interests that last with its own noticings (v1.5), and receiving an existing
-identity rather than regenerating one (v1.6).
+interests that last with its own noticings (v1.5), receiving an existing
+identity rather than regenerating one (v1.6), and feelings that do work
+rather than being described (v1.7).
 
 theMind is extracted from a production AI companion whose cognitive systems have
 been running live since 2025. The scaffolding it needed (schedulers, cloud
