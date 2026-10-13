@@ -121,11 +121,15 @@ What *can* be measured is persistence. This project's contribution is the
 **continuity test** (`python3 -m themind.bench`, **implemented in v1.0**): a
 repeatable, deterministic benchmark that runs a mind through five simulated
 weeks of one shared life — aging the folder between visits so every cognition
-rhythm actually fires — then scores ten probes: memory that persists and stays
-grounded; a stance that moved and can point at where it used to stand; wants
-of its own, rooted in the life actually lived; surprise persisting louder than
-confirmation; weather that continued; a story being written; an attention
-schema; identical memory after export and restore; and a complete ledger.
+rhythm actually fires — then scores its probes. Ten at v1.0: memory that
+persists and stays grounded; a stance that moved and can point at where it
+used to stand; wants of its own, rooted in the life actually lived; surprise
+persisting louder than confirmation; weather that continued; a story being
+written; an attention schema; identical memory after export and restore; and
+a complete ledger. Twenty-four by v1.7, as each chapter added the probe that
+would catch it failing: fears and hopes, interests and its own noticings,
+received identity that stays marked as inherited, a felt condition, affect
+that changes what is recalled, urgency, and shadow mode.
 Identity as a measurement over time rather than an impression over minutes.
 The benchmark justified itself on its first run: it caught a scheduler defect
 that had silently kept five cognition passes from ever firing on their own —
