@@ -1,0 +1,45 @@
+# Runs on every push to main and every pull request. Not for contributors:
+# for the build's own integrity, so a slip is caught the day it happens.
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  suite:
+    name: suite (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+      - name: test suite
+        run: python tests/run_all.py
+      - name: continuity benchmark
+        run: python -m themind.bench
+
+  guards:
+    name: guards
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0   # every commit message, not just the last
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: retired name, pure stdlib, zero dependencies
+        env:
+          THEMIND_GUARD_TEXT: ${{ github.event.pull_request.title }} ${{ github.event.pull_request.body }}
+        run: python tests/guards.py

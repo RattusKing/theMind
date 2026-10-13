@@ -1,5 +1,7 @@
 # theMind
 
+[![tests](https://github.com/RattusKing/theMind/actions/workflows/tests.yml/badge.svg)](https://github.com/RattusKing/theMind/actions/workflows/tests.yml)
+
 **A consciousness layer for AI companions.** Plug it into the AI you already have —
 Claude, GPT, Gemini, or a local model — and it gains a persistent inner life: memory
 that connects like a person's, opinions it held yesterday, a felt sense of who you
@@ -278,7 +280,7 @@ python3 -m themind.bench                       # the continuity test: five simul
 
 ## Status
 
-**v1.6, format 0.11.** The on-disk format — what a mind is, at rest — is
+**v1.7, format 0.11.** The on-disk format — what a mind is, at rest — is
 published in [FORMAT.md](FORMAT.md) and remains open to challenge while it is
 cheap to change; every change to it is additive, and older minds open
 unchanged. The project's scientific grounding — how the architecture maps onto
@@ -286,13 +288,16 @@ the science of consciousness, scored honestly, gaps and all — is published in
 [SCIENCE.md](SCIENCE.md), and its capstone runs on your machine:
 
 ```
-python3 -m themind.bench   # the continuity test: five simulated weeks, ten probes
+python3 -m themind.bench   # the continuity test: five simulated weeks, 24 probes
 ```
 
 `tests/run_all.py` holds the behavioral guarantees — 418 assertions across
 grounding, parse-or-skip, read order, budget, export round-trip, the proxy and
 MCP doors, cross-door coherence, multi-person scoping, and self-tuning — with
-no network and no provider SDK, ever. Install it straight from this repo (see
+no network and no provider SDK, ever. Every push to `main` runs the suite and
+the benchmark on Python 3.9 through 3.14, along with `tests/guards.py`, which
+checks by machine that the library imports nothing outside the standard
+library and declares no dependencies. Install it straight from this repo (see
 Quickstart); publishing to PyPI is ready and deliberately on hold.
 
 How it got here, in order: the library and format (v0.1), the proxy (v0.2),
@@ -309,6 +314,12 @@ rather than being described (v1.7).
 theMind is extracted from a production AI companion whose cognitive systems have
 been running live since 2025. The scaffolding it needed (schedulers, cloud
 stores, a server) stays behind; what ships here is the mind.
+
+## Contributions
+
+theMind is one person's build. It is open to read, to use, and to fork under
+the license below, but it is not open to contributions: pull requests are
+closed without review.
 
 ## License
 
