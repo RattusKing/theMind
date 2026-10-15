@@ -52,7 +52,11 @@ SYSTEM = (
     "talk extracts nothing; quotes must be copied exactly; a THEY line is theirs, not the "
     "truth — never convert a belief into a fact or a fact into a belief; name people and "
     "things as the person named them here, and never add a relationship, role or detail "
-    "this message does not state ('sam got the keys' is about Sam, not 'a friend')."
+    "this message does not state ('sam got the keys' is about Sam, not 'a friend'); keep "
+    "what lasts (who someone is to them, what they do, where they live) in its own FACT, "
+    "apart from plans and events that will pass, both citing the same quote ('my brother "
+    "sam starts at the bakery monday' is two facts: they have a brother named Sam; Sam "
+    "starts at the bakery on Monday)."
 )
 
 
