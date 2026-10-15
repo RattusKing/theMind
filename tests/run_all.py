@@ -2704,6 +2704,32 @@ consol_L.run(mindK2)
 ok(not any("younger" in f["text"] for f in mindK2.live("facts"))
    and sisK2["id"] not in {f["id"] for f in mindK2.live("facts")},
    "consolidation may keep what was said, never add to it — the replacement still stands")
+# a small live model over-read small talk: verbatim quotes, claims not in them
+from themind.cognition import extract as ext_L
+replyO = {}
+mindO, dO = fresh(llm=lambda sysm, u, t: replyO.get("r", "NONE") if sysm == ext_L.SYSTEM else "NONE")
+replyO["r"] = ('THEY: They feel tired and need rest. | QUOTE: long day | KIND: feels\n'
+               'WANT: They want to talk again tomorrow. | QUOTE: talk tomorrow\n'
+               'FACT: The person had a long day. | QUOTE: long day | KIND: event')
+mindO.observe("long day, talk tomorrow", "I'll be here.")
+replyO["r"] = ('ACHE: Worry that the companion might have departed. | QUOTE: still here?\n'
+               'WANT: They want confirmation of the companion\'s continued presence. | QUOTE: still here?')
+mindO.observe("still here?", "Always.")
+replyO["r"] = ('THEY: The person feels that walking the harbor eases something for them. | '
+               'QUOTE: it helped twice | KIND: feels')
+mindO.observe("walked the harbor twice today, it helped twice", "The harbor's arithmetic.")
+feltO = [r["text"] for r in mindO.live("person_model")]
+achesO = [r["text"] for r in mindO.live("aches")]
+wantsO = [r["text"] for r in mindO.live("desires")]
+ok("They feel tired and need rest." not in feltO and not achesO
+   and "They want confirmation of the companion's continued presence." not in wantsO,
+   "a feeling, worry or want they never put into words is not recorded as theirs")
+ok("They want to talk again tomorrow." in wantsO
+   and any("walking the harbor eases" in t for t in feltO),
+   "…while one that rests on their words is kept, even when the quote itself is short")
+ok(any(f["text"] == "The person had a long day." for f in mindO.live("facts")),
+   "facts are untouched: the challenge faculty already holds them to their evidence")
+shutil.rmtree(dO, ignore_errors=True)
 seenL["reply"] = "NONE"
 for d in (dF2, dR, dK, dK2):
     shutil.rmtree(d, ignore_errors=True)

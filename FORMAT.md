@@ -136,7 +136,10 @@ in separate stores, and readers must never collapse one into the other —
 representing someone's mistaken belief *as mistaken* is the milestone this
 store exists for. Write-time grounding applies exactly as for facts: the
 provenance quote must be verbatim from the PERSON's side, and a mental state
-is never extracted from the assistant's words. Mental states decay faster
+is never extracted from the assistant's words. The claim must also rest on
+what they said, sharing at least a word with their message: a feeling they
+never put into words is the mind's reading of them, which belongs in
+`felt_sense.json`, not here. The same holds for aches and their wants. Mental states decay faster
 than facts — feelings pass; the store is a weather report on them, not a
 ledger of them. A feeling tied to a moment that has since passed ("nervous
 about the upcoming interview", once the interview has happened) is closed the
