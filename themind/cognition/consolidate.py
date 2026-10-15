@@ -5,6 +5,7 @@ forcing resolution flattens people into portraits of someone who doesn't
 exist. The tail decays and is distilled before it drops, never just dropped.
 """
 from ..envelope import make_record, now_iso, norm_key
+from ..retrieval import _words
 from ..people import owner
 from ..tuning import param
 
@@ -15,6 +16,9 @@ SYSTEM = (
     "feelings of theirs tied to a moment. Output one line per finding, or NONE.\n"
     "SUPERSEDE: <old_id> BY: <new_id>   (the newer record replaces the older: it corrects it, "
     "or life has moved on from it)\n"
+    "SUPERSEDE: <old_id> BY: <new_id> | STILL TRUE: <the lasting part of the older record that "
+    "the newer one leaves out, as one sentence about them>   (when only part of it has passed: "
+    "who someone is to them outlives the plan they were part of)\n"
     "SETTLED: <open id> BY: <id of the later record that answers it, or shows the moment a "
     "feeling belonged to has passed>\n"
     "TENSION: <id1> + <id2> | <one sentence stating the contradiction as a fact about them>\n"
@@ -104,9 +108,12 @@ def _apply(mind, line, valid_ids, open_ids=None):
     try:
         up = line.upper()
         if up.startswith("SUPERSEDE:") and " BY:" in up:
-            old = line.split(":", 1)[1].split("BY:")[0].strip().rstrip(",")
-            new = line[up.index(" BY:") + 4:].strip()
+            body, _, rest = line.partition("|")
+            old = body.split(":", 1)[1].split("BY:")[0].strip().rstrip(",")
+            new = body[body.upper().index(" BY:") + 4:].strip()
             if old in valid_ids and new in valid_ids and old != new:
+                if rest.strip().upper().startswith("STILL TRUE:"):
+                    _keep_lasting(mind, old, rest.split(":", 1)[1].strip())
                 mind.stores["facts"].supersede(old, new)
         elif up.startswith("SETTLED:") and " BY:" in up:
             thread = line.split(":", 1)[1].split("BY:")[0].strip().rstrip(",")
@@ -146,6 +153,33 @@ def _apply(mind, line, valid_ids, open_ids=None):
                             salience=0.5, text=text, weight=weight, stage="forming"))
     except Exception:
         pass  # one bad line never damages stored state
+
+
+# Words a restatement may use that its source need not contain: they carry
+# grammar, not information. Everything else must already be in the record.
+_GLUE = {"person", "persons", "has", "had", "named", "called", "someone", "who", "is", "are"}
+
+
+def _keep_lasting(mind, old_id, text):
+    """Keep what outlives a superseded record: "their sister Maya is moving
+    next month" is replaced by "Maya is settled", but she is still their
+    sister. The lasting part becomes its own fact on the ORIGINAL quote, and
+    only if every word of it was already in that record: consolidation may
+    keep what was said, never add to it."""
+    old = next((f for f in mind.live("facts") if f.get("id") == old_id), None)
+    quote = ((old or {}).get("src") or {}).get("quote")
+    if not old or not quote or not text:
+        return
+    need = _words(text) - _GLUE
+    if not need or not need <= (_words(old.get("text", "")) | _words(quote)):
+        return
+    if any(norm_key(f.get("text", "")) == norm_key(text) for f in mind.live("facts")):
+        return
+    rec = make_record("f", {"kind": "exchange", "quote": quote, "ref": old_id},
+                      salience=old.get("salience", 0.6), text=text,
+                      entities=list(old.get("entities") or []), kind=old.get("kind", "profile"),
+                      **({"who": owner(old)} if owner(old) else {}))
+    mind.stores["facts"].append(rec)
 
 
 def _decay(mind):

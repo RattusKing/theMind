@@ -11,7 +11,7 @@ future recall. Prediction error is what deserves thought.
 The provenance rule holds here as everywhere: no roots among held records,
 no prediction — an expectation with no basis is a guess wearing a costume.
 """
-from ..envelope import make_record, now_iso, age_days, norm_key
+from ..envelope import make_record, now_iso, age_days, norm_key, first_person
 from ..retrieval import _words
 from ..people import owner, of, tag
 from ..tuning import param
@@ -108,7 +108,7 @@ def _settle(mind, exp_id, note):
     if exp is None:
         return
     if note is not None:
-        if not note or not (note.startswith("I") or note.startswith("We")):
+        if not first_person(note):
             return  # what-actually-happened must be the mind's own voice
         text = "I expected: %s Instead: %s" % (exp.get("text", ""), note)
         kind, salience = "surprise", SURPRISE_SALIENCE

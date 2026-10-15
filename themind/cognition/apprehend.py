@@ -31,7 +31,7 @@ its own distress. Guard the leverage, not the need.
 """
 import re
 
-from ..envelope import make_record, now_iso, age_days, norm_key
+from ..envelope import make_record, now_iso, age_days, norm_key, first_person
 from ..retrieval import _words
 from .reflect import THIRD_PERSON
 from .selfhood import BAN
@@ -177,7 +177,7 @@ def _settle(mind, fear_id, note):
     if fear is None:
         return
     if note is not None:
-        if not note or not (note.startswith("I") or note.startswith("We")):
+        if not first_person(note):
             return  # what actually happened must be the mind's own voice
         note = depersonalize(note) if SECOND_PERSON.search(note) else note
         text = "I was afraid of this: %s What happened: %s" % (fear.get("text", ""), note)

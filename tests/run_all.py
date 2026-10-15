@@ -2617,6 +2617,96 @@ ok(clip_L(longL, 120).endswith("something real happens.")
    and clip_L("one two three four five six seven eight", 20) == "one two three four…"
    and clip_L("short", 200) == "short",
    "a shortened memory ends at a sentence or a word, never mid-word")
+# --- the second live run: guards too strict for real output, and a lost truth ---
+from themind.envelope import first_person as fp_L
+ok(fp_L("The interview went to someone internal, so my promise no longer holds.")
+   and fp_L("I lost it for a stretch.") and fp_L("It surprised us both.")
+   and not fp_L("The interview went to someone internal.")
+   and not fp_L("The US office took it.") and not fp_L(""),
+   "the mind's own voice is a matter of voice, not of starting with 'I'")
+
+mindF2, dF2 = fresh(llm=lambda s, u, t: "NONE")
+fearF2 = mk_L("ap", {"kind": "inference", "ref": "f_x"}, salience=0.5,
+              text="I dread that my reassurance turns out hollow.", roots=["f_x"], kind="worry")
+mindF2.stores["apprehensions"].append(fearF2)
+mindF2.stores["facts"].append(mk_L("f", {"kind": "exchange", "quote": "went to someone internal",
+                                         "ref": None}, text="The job went elsewhere."))
+mindF2.manifest.state["exchanges"] = 20
+mindF2.manifest.save()
+mindF2.llm = lambda sysm, u, t: (
+    "REALIZED: %s | ACTUALLY: The interview went to someone internal, so my promise that "
+    "they'd be ready no longer touches what they're facing." % fearF2["id"]
+    if sysm == appr_L.SYSTEM else "NONE")
+appr_L.run(mindF2)
+ok([r for r in mindF2.live("reflections") if r.get("kind") == "realized"]
+   and not mindF2.live("apprehensions"),
+   "a fear met in the mind's voice is kept, even when the sentence opens on what happened")
+fearF3 = mk_L("ap", {"kind": "inference", "ref": "f_x"}, salience=0.5,
+              text="I dread losing the thread.", roots=["f_x"], kind="worry")
+mindF2.stores["apprehensions"].append(fearF3)
+mindF2.manifest.state["last_apprehend"] = None
+mindF2.manifest.save()
+askedF3 = []
+def llm_F3(sysm, u, t):
+    if sysm == appr_L.SYSTEM:
+        askedF3.append(u)
+        return "REALIZED: %s | ACTUALLY: The job went to someone else." % fearF3["id"]
+    return "NONE"
+mindF2.llm = llm_F3
+appr_L.run(mindF2)
+ok(askedF3 and fearF3["id"] in {a["id"] for a in mindF2.live("apprehensions")},
+   "…while a narrator's report, with no one in it, still is not")
+
+from themind.cognition import interest as int_L
+mindR, dR = fresh(llm=lambda s, u, t: "NONE")
+walkR = mk_L("f", {"kind": "exchange", "quote": "walked the harbor twice", "ref": None},
+             text="They walked the harbor twice today.", entities=["harbor"])
+mindR.stores["facts"].append(walkR)
+abstractR = mk_L("i", {"kind": "inference", "ref": walkR["id"]}, salience=0.5,
+                 text="I've become interested in how people move through uncertainty "
+                      "by repeating a familiar route.", roots=[walkR["id"]], returns=0)
+mindR.stores["interests"].append(abstractR)
+int_L.touch(mindR, "harbor was gold today", "As usual.")
+ok(mindR.live("interests")[0]["returns"] == 1,
+   "an interest gets credit when what it grew from comes back, however abstractly it was put")
+int_L.touch(mindR, "busy day, hi and bye", "Hi and bye.")
+ok(mindR.live("interests")[0]["returns"] == 1,
+   "…and only then: an unrelated day is not a return")
+
+seenL["reply"] = "NONE"
+mindK, dK = fresh(llm=llm_L)
+sisK = fact_L("The person's sister Maya is moving to Portland next month.",
+              "my sister maya is moving to portland next month", 17, ["Maya", "Portland"])
+setK = fact_L("Maya is settled in Portland and happy there.",
+              "maya is settled in portland", 30, ["Maya", "Portland"])
+for f in (sisK, setK):
+    mindK.stores["facts"].append(f)
+seenL["reply"] = ("SUPERSEDE: %s BY: %s | STILL TRUE: The person has a sister named Maya."
+                  % (sisK["id"], setK["id"]))
+consol_L.run(mindK)
+liveK = mindK.live("facts")
+keptK = [f for f in liveK if f["text"] == "The person has a sister named Maya."]
+ok(sisK["id"] not in {f["id"] for f in liveK} and keptK,
+   "when only part of a record has passed, what lasts outlives it: she is still their sister")
+ok(keptK and keptK[0]["src"]["quote"] == sisK["src"]["quote"] and keptK[0]["src"]["ref"] == sisK["id"]
+   and "Maya" in keptK[0]["entities"],
+   "…kept on the original quote, pointing at the record it came from")
+mindK2, dK2 = fresh(llm=llm_L)
+sisK2 = fact_L("The person's sister Maya is moving to Portland next month.",
+               "my sister maya is moving to portland next month", 17, ["Maya", "Portland"])
+setK2 = fact_L("Maya is settled in Portland and happy there.",
+               "maya is settled in portland", 30, ["Maya", "Portland"])
+for f in (sisK2, setK2):
+    mindK2.stores["facts"].append(f)
+seenL["reply"] = ("SUPERSEDE: %s BY: %s | STILL TRUE: The person has a younger sister named Maya."
+                  % (sisK2["id"], setK2["id"]))
+consol_L.run(mindK2)
+ok(not any("younger" in f["text"] for f in mindK2.live("facts"))
+   and sisK2["id"] not in {f["id"] for f in mindK2.live("facts")},
+   "consolidation may keep what was said, never add to it — the replacement still stands")
+seenL["reply"] = "NONE"
+for d in (dF2, dR, dK, dK2):
+    shutil.rmtree(d, ignore_errors=True)
 for d in (dL, dF):
     shutil.rmtree(d, ignore_errors=True)
 
