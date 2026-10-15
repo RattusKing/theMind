@@ -16,6 +16,18 @@ EPISTEMIC_NOTES = {
 }
 
 
+def _clip(text, n):
+    """Shorten to at most n characters at a sentence end, or else a word
+    boundary — never mid-word. A model reads 'Certain facts kee' as damage."""
+    text = (text or "").strip()
+    if len(text) <= n:
+        return text
+    cut = text[:n]
+    end = max(cut.rfind(". "), cut.rfind("! "), cut.rfind("? "))
+    if end >= n // 2:
+        return cut[:end + 1]
+    return cut.rsplit(" ", 1)[0].rstrip(",;:—-") + "…"
+
 def epistemic_note(rec):
     from .envelope import confidence
     return EPISTEMIC_NOTES.get(confidence(rec), "")
@@ -80,7 +92,7 @@ def build_blocks(mind, incoming_text=None, who=None):
         hist = bundle.get("history") or []
         if hist:
             lines.append("Where you used to stand (your view has moved; you can point at that): "
-                         + hist[0].get("text", "")[:200])
+                         + _clip(hist[0].get("text", ""), 200))
         if bundle.get("default"):
             # Inherited scaffolding, and said so. A shipped paragraph is not a
             # conclusion this mind reached, and presenting it as one quietly
@@ -230,7 +242,7 @@ def build_blocks(mind, incoming_text=None, who=None):
         surprises = [r for r in mind.live("reflections") if r.get("kind") == "surprise"]
         if surprises:
             lines.append("(recently wrong, worth remembering: "
-                         + surprises[-1].get("text", "")[:200] + ")")
+                         + _clip(surprises[-1].get("text", ""), 200) + ")")
         blocks.append((_block("WHAT YOU FIND YOURSELF EXPECTING (check it gently against "
                               "what actually happens — being wrong is worth noticing):",
                               lines), False))

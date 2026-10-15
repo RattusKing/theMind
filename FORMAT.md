@@ -138,7 +138,10 @@ store exists for. Write-time grounding applies exactly as for facts: the
 provenance quote must be verbatim from the PERSON's side, and a mental state
 is never extracted from the assistant's words. Mental states decay faster
 than facts — feelings pass; the store is a weather report on them, not a
-ledger of them.
+ledger of them. A feeling tied to a moment that has since passed ("nervous
+about the upcoming interview", once the interview has happened) is closed the
+same way an answered ache is: archived with `superseded_by` naming the later
+record. Beliefs are never closed this way; a belief is not a moment.
 
 ### facts.jsonl
 What the mind knows about the person. Envelope plus `text` (one canonical
@@ -241,7 +244,11 @@ At most a couple live at once.
 ### aches.jsonl / desires.jsonl
 Held threads and anticipations. Both decay (`salience` decreases on cognition
 passes without reinforcement); a decayed record is distilled into a reflection
-before it archives — the tail is gardened, not dropped.
+before it archives — the tail is gardened, not dropped. An ache that life has
+since answered is closed rather than left to fade: it archives with
+`superseded_by` naming the later record that answered it, which may live in
+another store ("still no word on the interview" is closed by the fact that
+the role went to someone else).
 
 ### own_desires.jsonl
 What the mind itself wants — not the person's wants (those are `desires.jsonl`).

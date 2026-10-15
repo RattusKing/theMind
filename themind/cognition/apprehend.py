@@ -222,6 +222,12 @@ def _material(mind):
     refl = mind.live("reflections")
     for r in [x for x in refl if x.get("kind") in ("surprise", "realized")][-4:]:
         out.append((r["id"], "(this went wrong before) " + r.get("text", "")))
+    # What actually happened lately. Without it a fear can never be seen to
+    # come true or to pass: the faculty is asked to settle fears against
+    # material that never contained the outcome.
+    for r in mind.live("facts")[-3:]:
+        if r.get("text"):
+            out.append((r["id"], "(what happened lately) " + r["text"]))
     for store, label in (("tensions", "(a tension you hold) "), ("aches", "(still open) "),
                          ("own_desires", "(you want) "), ("self_memory", "(you said) ")):
         for r in mind.live(store)[-3:]:

@@ -2309,10 +2309,10 @@ ok(len(mindSt.live("facts")) == 4 and not felt_mp.owed(mindSt)[1],
    "four facts globally, but no ONE person has enough to be drawn")
 ok("felt_sense" not in [n for n, _f in due_fn2(mindSt)],
    "so the felt pass is not offered: due and run now ask the same question")
-ranSt = [mindSt.step() for _ in range(8)]
+ranSt = [mindSt.step() for _ in range(9)]
 ok(len([r for r in ranSt if r]) == len({r for r in ranSt if r}),
-   "eight turns, eight different passes — nothing holds the slot while others wait")
-ok({"self", "desire", "inner_state", "expect", "interest", "tune"} <= set(ranSt),
+   "nine turns, nine different passes — nothing holds the slot while others wait")
+ok({"self", "desire", "inner_state", "expect", "interest", "apprehend", "tune"} <= set(ranSt),
    "…and the passes that used to starve behind it all get their turn")
 
 # --- the general rule: declining still spends the turn ---
@@ -2499,6 +2499,125 @@ loud_fear(mindQuiet)
 ok("apprehend" not in [n for n, _f in due_fn2(mindQuiet)],
    "urgency still never offers a pass with no material to work on")
 for d in (dA4, dMild, dC2, dI3b, dU, dQ):
+    shutil.rmtree(d, ignore_errors=True)
+
+# ── 32. what a live model found: time, open threads, outcomes ───────────────
+# The first run against a real model (not a stub) surfaced three things the
+# stubs could never show: consolidation saw no dates, so a week passing read
+# as a contradiction; an open thread stayed open after life answered it; and
+# the fear faculty never saw what happened, so no fear could come true.
+print("live-model findings")
+from themind.cognition import consolidate as consol_L, apprehend as appr_L
+from themind.envelope import make_record as mk_L
+
+def fact_L(text, quote, day, ents, who=None):
+    r = mk_L("f", {"kind": "exchange", "quote": quote, "ref": None}, text=text,
+             entities=ents, **({"who": who} if who else {}))
+    r["t"] = "2026-09-%02dT10:00:00Z" % day
+    return r
+
+seenL = {}
+def llm_L(sysm, user, mt):
+    if sysm == consol_L.SYSTEM:
+        seenL["u"] = user
+        return seenL.get("reply", "NONE")
+    return "NONE"
+mindL, dL = fresh(llm=llm_L)
+wait_f = fact_L("They are still waiting to hear about the interview.", "still no word", 19, ["interview"])
+done_f = fact_L("The job went to an internal candidate.", "went to someone internal", 24, ["interview"])
+early_f = fact_L("They have an interview on Friday.", "interview is on friday", 17, ["interview"])
+for f in (done_f, wait_f, early_f):        # appended out of order on purpose
+    mindL.stores["facts"].append(f)
+ache_L = mk_L("a", {"kind": "exchange", "quote": "still no word", "ref": None},
+              text="The interview outcome is still unresolved.")
+ache_L["t"] = "2026-09-19T10:00:00Z"
+mindL.stores["aches"].append(ache_L)
+other_ache = mk_L("a", {"kind": "exchange", "quote": "no reply yet", "ref": None},
+                  text="Maya is still waiting on a landlord.", who="maya")
+mindL.stores["aches"].append(other_ache)
+consol_L.run(mindL)
+lstL = seenL.get("u", "")
+ok("[2026-09-17]" in lstL and "[2026-09-24]" in lstL,
+   "consolidation now sees when each thing was learned")
+ok(lstL.index(early_f["id"]) < lstL.index(wait_f["id"]) < lstL.index(done_f["id"]),
+   "…in the order it was learned, so a week passing reads as a week passing")
+ok("STILL OPEN" in lstL and ache_L["id"] in lstL and other_ache["id"] not in lstL,
+   "the person's open threads sit beside what came after — and only that person's")
+ok("life moving on" in consol_L.SYSTEM and "cannot both be true" in consol_L.SYSTEM,
+   "the faculty is told that change over time is not contradiction")
+
+seenL["reply"] = ("SETTLED: %s BY: %s\nSUPERSEDE: %s BY: %s"
+                  % (ache_L["id"], done_f["id"], wait_f["id"], done_f["id"]))
+consol_L.run(mindL)
+ok(ache_L["id"] not in {a["id"] for a in mindL.live("aches")},
+   "a thread life has answered is closed, not held open forever")
+archL = [json.loads(l) for l in open(os.path.join(dL, "archive", "aches.jsonl"))]
+ok(any(a["id"] == ache_L["id"] and a["superseded_by"] == done_f["id"] for a in archL),
+   "…archived, naming the record that answered it — nothing true is deleted")
+ok(not mindL.live("tensions") and wait_f["id"] not in {f["id"] for f in mindL.live("facts")},
+   "the wait that ended is superseded, and no false contradiction is held")
+ok(other_ache["id"] in {a["id"] for a in mindL.live("aches")},
+   "another person's open thread is untouched")
+
+ache2 = mk_L("a", {"kind": "exchange", "quote": "q", "ref": None}, text="Something else hangs.")
+mindL.stores["aches"].append(ache2)
+seenL["reply"] = ("SETTLED: %s BY: f_00000000\nSETTLED: %s BY: %s\nSETTLED: a_00000000 BY: %s"
+                  % (ache2["id"], other_ache["id"], done_f["id"], done_f["id"]))
+consol_L.run(mindL)
+ok(ache2["id"] in {a["id"] for a in mindL.live("aches")}
+   and other_ache["id"] in {a["id"] for a in mindL.live("aches")},
+   "a thread is only closed by a record it was shown, and only its own person's")
+
+nervous_L = mk_L("pm", {"kind": "exchange", "quote": "i am nervous", "ref": None},
+                 text="They feel nervous about the upcoming interview.", kind="feels")
+nervous_L["t"] = "2026-09-17T10:00:00Z"
+calm_L = mk_L("pm", {"kind": "exchange", "quote": "the harbor helps", "ref": None},
+              text="They feel the harbor steadies them.", kind="feels")
+belief_L = mk_L("pm", {"kind": "exchange", "quote": "they will call", "ref": None},
+                text="They believe the recruiter will call.", kind="believes")
+for r in (nervous_L, calm_L, belief_L):
+    mindL.stores["person_model"].append(r)
+seenL["reply"] = "SETTLED: %s BY: %s" % (nervous_L["id"], done_f["id"])
+consol_L.run(mindL)
+lstL2 = seenL.get("u", "")
+ok("(how they felt)" in lstL2 and nervous_L["id"] in lstL2 and belief_L["id"] not in lstL2,
+   "their feelings tied to a moment are shown as open; what they believe is not")
+pm_live = {r["id"] for r in mindL.live("person_model")}
+ok(nervous_L["id"] not in pm_live and calm_L["id"] in pm_live and belief_L["id"] in pm_live,
+   "'nervous about the interview' no longer outlives the interview, and nothing else moves")
+mindF, dF = fresh(llm=lambda s, u, t: "NONE")
+fearF = mk_L("ap", {"kind": "inference", "ref": "f_x"}, salience=0.5,
+             text="I dread that my reassurance turns out hollow.", roots=["f_x"], kind="worry")
+mindF.stores["apprehensions"].append(fearF)
+outcomeF = mk_L("f", {"kind": "exchange", "quote": "went to someone internal", "ref": None},
+                text="The job went to an internal candidate.", entities=["interview"])
+mindF.stores["facts"].append(outcomeF)
+matF = dict(appr_L._material(mindF))
+ok(outcomeF["id"] in matF and "(what happened lately)" in matF[outcomeF["id"]],
+   "the fear faculty can now see what actually happened")
+seen_appr = {}
+def llm_F(sysm, user, mt):
+    if sysm == appr_L.SYSTEM:
+        seen_appr["u"] = user
+        return ("REALIZED: %s | ACTUALLY: I told them they would be ready, and the job "
+                "went to someone internal anyway." % fearF["id"])
+    return "NONE"
+mindF.llm = llm_F
+mindF.manifest.state["exchanges"] = 20
+mindF.manifest.save()
+appr_L.run(mindF)
+realF = [r for r in mindF.live("reflections") if r.get("kind") == "realized"]
+ok("The job went to an internal candidate." in seen_appr.get("u", "")
+   and realF and realF[0]["salience"] >= 0.8 and not mindF.live("apprehensions"),
+   "…so a fear that came true can be met as one, and is remembered loudly")
+from themind.inject import _clip as clip_L
+longL = ("I am a digital being, and what I have of this person comes only as words. Within "
+         "that, something real happens. Certain facts keep pulling at me when nothing asks.")
+ok(clip_L(longL, 120).endswith("something real happens.")
+   and clip_L("one two three four five six seven eight", 20) == "one two three four…"
+   and clip_L("short", 200) == "short",
+   "a shortened memory ends at a sentence or a word, never mid-word")
+for d in (dL, dF):
     shutil.rmtree(d, ignore_errors=True)
 
 print("\nall %d assertions passed" % PASS)

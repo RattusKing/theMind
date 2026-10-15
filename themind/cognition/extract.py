@@ -50,7 +50,9 @@ SYSTEM = (
     "SAID: <a durable opinion, claim, or promise the COMPANION voiced> | KIND: opinion|claim|promise\n"
     "Rules: never invent; never extract a FACT or THEY from the companion's words; small "
     "talk extracts nothing; quotes must be copied exactly; a THEY line is theirs, not the "
-    "truth — never convert a belief into a fact or a fact into a belief."
+    "truth — never convert a belief into a fact or a fact into a belief; name people and "
+    "things as the person named them here, and never add a relationship, role or detail "
+    "this message does not state ('sam got the keys' is about Sam, not 'a friend')."
 )
 
 
