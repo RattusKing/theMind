@@ -223,9 +223,21 @@ def touch(mind, user_text, assistant_text):
     if not words:
         return
     recs = mind.live("interests")
+    if not recs:
+        return
+    # What each interest grew from, by name. An interest is often phrased more
+    # abstractly than its source ("repeating a familiar route" grew from the
+    # harbor walks), and the harbor coming back is the interest coming back,
+    # whatever words the noticing happened to choose.
+    named = {}
+    for store in ("facts", "person_model"):
+        for rec in mind.live(store):
+            if rec.get("entities"):
+                named[rec["id"]] = _words(" ".join(rec["entities"]))
     changed = False
     for r in recs:
-        if len(words & _words(r.get("text", ""))) >= TOUCH_OVERLAP:
+        roots = set().union(*(named.get(x, set()) for x in (r.get("roots") or [])))
+        if len(words & _words(r.get("text", ""))) >= TOUCH_OVERLAP or (words & roots):
             r["returns"] = int(r.get("returns") or 0) + 1
             r["salience"] = min(1.0, round(r.get("salience", 0.5) + TOUCH_BUMP, 4))
             changed = True

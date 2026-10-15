@@ -187,9 +187,7 @@ WEEKS = [
         ("my sister maya is moving to portland next month",
          "That's big news — how are you feeling about it?",
          "FACT: They have a sister named Maya who is moving to Portland. | "
-         "QUOTE: my sister maya is moving to portland | ENTITIES: Maya, Portland | KIND: relationship\n"
-         "THEY: They feel unsettled about the distance. | "
-         "QUOTE: my sister maya is moving to portland | ENTITIES: Maya | KIND: feels"),
+         "QUOTE: my sister maya is moving to portland | ENTITIES: Maya, Portland | KIND: relationship"),
         ("i always walk the harbor when i need to think",
          "The harbor sounds like it does real work for you.",
          "FACT: They walk the harbor when they need to think. | "
@@ -221,9 +219,7 @@ WEEKS = [
         ("so the interview went to someone internal after all",
          "I'm sorry — that's a hard way for it to land.",
          "FACT: The job went to an internal candidate. | "
-         "QUOTE: the interview went to someone internal | ENTITIES: interview | KIND: event\n"
-         "THEY: They feel deflated about how the job landed. | "
-         "QUOTE: the interview went to someone internal | ENTITIES: interview | KIND: feels"),
+         "QUOTE: the interview went to someone internal | ENTITIES: interview | KIND: event"),
         ("walked the harbor twice today, it helped twice",
          "Twice-walked, twice-helped — the harbor's arithmetic.",
          "SAID: Twice-walked, twice-helped — the harbor's arithmetic. | KIND: opinion"),

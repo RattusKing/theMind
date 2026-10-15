@@ -37,6 +37,18 @@ def _grounded(quote, user_text):
     q = _norm_quote(quote)
     return bool(q) and q in _norm_quote(user_text)
 
+
+def _carried(text, user_text):
+    """Does a claim about their inner world rest on something they said? A
+    verbatim quote is not enough on its own: "still here?" is a real quote,
+    and "worry that the companion might have departed" is not in it. The
+    claim must share a word (or its stem) with their message. A feeling they
+    never put into words is the mind's reading of them, and that belongs in
+    the felt sense, not in what they feel."""
+    said = _words(user_text)
+    return any(a == b or (len(a) >= 4 and len(b) >= 4 and a[:4] == b[:4])
+               for a in _words(text) for b in said)
+
 SYSTEM = (
     "You are the memory-extraction faculty of an AI companion's mind. From this exchange, "
     "extract only what is really there. Output one item per line, or the single word NONE.\n"
@@ -50,7 +62,13 @@ SYSTEM = (
     "SAID: <a durable opinion, claim, or promise the COMPANION voiced> | KIND: opinion|claim|promise\n"
     "Rules: never invent; never extract a FACT or THEY from the companion's words; small "
     "talk extracts nothing; quotes must be copied exactly; a THEY line is theirs, not the "
-    "truth — never convert a belief into a fact or a fact into a belief."
+    "truth — never convert a belief into a fact or a fact into a belief; name people and "
+    "things as the person named them here, and never add a relationship, role or detail "
+    "this message does not state ('sam got the keys' is about Sam, not 'a friend'); keep "
+    "what lasts (who someone is to them, what they do, where they live) in its own FACT, "
+    "apart from plans and events that will pass, both citing the same quote ('my brother "
+    "sam starts at the bakery monday' is two facts: they have a brother named Sam; Sam "
+    "starts at the bakery on Monday)."
 )
 
 
@@ -105,6 +123,8 @@ def run(mind, user_text, assistant_text, who=None):
                 quote = next((_field(p, "QUOTE:") for p in parts if _field(p, "QUOTE:")), None)
                 if not quote or not _grounded(quote, user_text):
                     continue  # their inner world still needs their actual words
+                if not _carried(_field(head, "THEY:") or "", user_text):
+                    continue  # ...and the claim must rest on them, not read into them
                 ents = next((_field(p, "ENTITIES:") for p in parts if _field(p, "ENTITIES:")), "") or ""
                 kind = (next((_field(p, "KIND:") for p in parts if _field(p, "KIND:")), "") or "").strip().lower()
                 kind = ("believes" if kind.startswith("belie")
@@ -127,6 +147,8 @@ def run(mind, user_text, assistant_text, who=None):
                 quote = next((_field(p, "QUOTE:") for p in parts if _field(p, "QUOTE:")), None)
                 if not quote or not _grounded(quote, user_text):
                     continue
+                if not _carried(_field(head, name) or "", user_text):
+                    continue  # "still here?" is not a worry that the companion left
                 store = "aches" if name == "ACHE:" else "desires"
                 rec = make_record(store[0], {"kind": "exchange", "quote": quote[:200], "ref": None},
                                   salience=0.6, text=_field(head, name), **stamp)

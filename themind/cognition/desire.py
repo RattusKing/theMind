@@ -9,7 +9,7 @@ they end honestly — judged met and superseded by a reflection that records the
 getting of it, released and superseded by a letting-go, or decayed at the tail
 like any held thread. A mind with forty wants has none: the live set is capped.
 """
-from ..envelope import make_record, now_iso, age_days, norm_key
+from ..envelope import make_record, now_iso, age_days, norm_key, first_person
 from ..retrieval import _words
 from ..people import tag
 from ..tuning import param
@@ -104,7 +104,7 @@ def _close_want(mind, want_id, note, kind):
     if want is None:
         return
     if kind == "fulfilled":
-        if not note or not note.startswith("I") and not note.startswith("We"):
+        if not first_person(note):
             return  # the memory of getting it must be the mind's own voice
         text = "I wanted this: %s %s" % (want.get("text", ""), note)
     else:

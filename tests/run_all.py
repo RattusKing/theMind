@@ -2309,10 +2309,10 @@ ok(len(mindSt.live("facts")) == 4 and not felt_mp.owed(mindSt)[1],
    "four facts globally, but no ONE person has enough to be drawn")
 ok("felt_sense" not in [n for n, _f in due_fn2(mindSt)],
    "so the felt pass is not offered: due and run now ask the same question")
-ranSt = [mindSt.step() for _ in range(8)]
+ranSt = [mindSt.step() for _ in range(9)]
 ok(len([r for r in ranSt if r]) == len({r for r in ranSt if r}),
-   "eight turns, eight different passes — nothing holds the slot while others wait")
-ok({"self", "desire", "inner_state", "expect", "interest", "tune"} <= set(ranSt),
+   "nine turns, nine different passes — nothing holds the slot while others wait")
+ok({"self", "desire", "inner_state", "expect", "interest", "apprehend", "tune"} <= set(ranSt),
    "…and the passes that used to starve behind it all get their turn")
 
 # --- the general rule: declining still spends the turn ---
@@ -2499,6 +2499,241 @@ loud_fear(mindQuiet)
 ok("apprehend" not in [n for n, _f in due_fn2(mindQuiet)],
    "urgency still never offers a pass with no material to work on")
 for d in (dA4, dMild, dC2, dI3b, dU, dQ):
+    shutil.rmtree(d, ignore_errors=True)
+
+# ── 32. what a live model found: time, open threads, outcomes ───────────────
+# The first run against a real model (not a stub) surfaced three things the
+# stubs could never show: consolidation saw no dates, so a week passing read
+# as a contradiction; an open thread stayed open after life answered it; and
+# the fear faculty never saw what happened, so no fear could come true.
+print("live-model findings")
+from themind.cognition import consolidate as consol_L, apprehend as appr_L
+from themind.envelope import make_record as mk_L
+
+def fact_L(text, quote, day, ents, who=None):
+    r = mk_L("f", {"kind": "exchange", "quote": quote, "ref": None}, text=text,
+             entities=ents, **({"who": who} if who else {}))
+    r["t"] = "2026-09-%02dT10:00:00Z" % day
+    return r
+
+seenL = {}
+def llm_L(sysm, user, mt):
+    if sysm == consol_L.SYSTEM:
+        seenL["u"] = user
+        return seenL.get("reply", "NONE")
+    return "NONE"
+mindL, dL = fresh(llm=llm_L)
+wait_f = fact_L("They are still waiting to hear about the interview.", "still no word", 19, ["interview"])
+done_f = fact_L("The job went to an internal candidate.", "went to someone internal", 24, ["interview"])
+early_f = fact_L("They have an interview on Friday.", "interview is on friday", 17, ["interview"])
+for f in (done_f, wait_f, early_f):        # appended out of order on purpose
+    mindL.stores["facts"].append(f)
+ache_L = mk_L("a", {"kind": "exchange", "quote": "still no word", "ref": None},
+              text="The interview outcome is still unresolved.")
+ache_L["t"] = "2026-09-19T10:00:00Z"
+mindL.stores["aches"].append(ache_L)
+other_ache = mk_L("a", {"kind": "exchange", "quote": "no reply yet", "ref": None},
+                  text="Maya is still waiting on a landlord.", who="maya")
+mindL.stores["aches"].append(other_ache)
+consol_L.run(mindL)
+lstL = seenL.get("u", "")
+ok("[2026-09-17]" in lstL and "[2026-09-24]" in lstL,
+   "consolidation now sees when each thing was learned")
+ok(lstL.index(early_f["id"]) < lstL.index(wait_f["id"]) < lstL.index(done_f["id"]),
+   "…in the order it was learned, so a week passing reads as a week passing")
+ok("STILL OPEN" in lstL and ache_L["id"] in lstL and other_ache["id"] not in lstL,
+   "the person's open threads sit beside what came after — and only that person's")
+ok("life moving on" in consol_L.SYSTEM and "cannot both be true" in consol_L.SYSTEM,
+   "the faculty is told that change over time is not contradiction")
+
+seenL["reply"] = ("SETTLED: %s BY: %s\nSUPERSEDE: %s BY: %s"
+                  % (ache_L["id"], done_f["id"], wait_f["id"], done_f["id"]))
+consol_L.run(mindL)
+ok(ache_L["id"] not in {a["id"] for a in mindL.live("aches")},
+   "a thread life has answered is closed, not held open forever")
+archL = [json.loads(l) for l in open(os.path.join(dL, "archive", "aches.jsonl"))]
+ok(any(a["id"] == ache_L["id"] and a["superseded_by"] == done_f["id"] for a in archL),
+   "…archived, naming the record that answered it — nothing true is deleted")
+ok(not mindL.live("tensions") and wait_f["id"] not in {f["id"] for f in mindL.live("facts")},
+   "the wait that ended is superseded, and no false contradiction is held")
+ok(other_ache["id"] in {a["id"] for a in mindL.live("aches")},
+   "another person's open thread is untouched")
+
+ache2 = mk_L("a", {"kind": "exchange", "quote": "q", "ref": None}, text="Something else hangs.")
+mindL.stores["aches"].append(ache2)
+seenL["reply"] = ("SETTLED: %s BY: f_00000000\nSETTLED: %s BY: %s\nSETTLED: a_00000000 BY: %s"
+                  % (ache2["id"], other_ache["id"], done_f["id"], done_f["id"]))
+consol_L.run(mindL)
+ok(ache2["id"] in {a["id"] for a in mindL.live("aches")}
+   and other_ache["id"] in {a["id"] for a in mindL.live("aches")},
+   "a thread is only closed by a record it was shown, and only its own person's")
+
+nervous_L = mk_L("pm", {"kind": "exchange", "quote": "i am nervous", "ref": None},
+                 text="They feel nervous about the upcoming interview.", kind="feels")
+nervous_L["t"] = "2026-09-17T10:00:00Z"
+calm_L = mk_L("pm", {"kind": "exchange", "quote": "the harbor helps", "ref": None},
+              text="They feel the harbor steadies them.", kind="feels")
+belief_L = mk_L("pm", {"kind": "exchange", "quote": "they will call", "ref": None},
+                text="They believe the recruiter will call.", kind="believes")
+for r in (nervous_L, calm_L, belief_L):
+    mindL.stores["person_model"].append(r)
+seenL["reply"] = "SETTLED: %s BY: %s" % (nervous_L["id"], done_f["id"])
+consol_L.run(mindL)
+lstL2 = seenL.get("u", "")
+ok("(how they felt)" in lstL2 and nervous_L["id"] in lstL2 and belief_L["id"] not in lstL2,
+   "their feelings tied to a moment are shown as open; what they believe is not")
+pm_live = {r["id"] for r in mindL.live("person_model")}
+ok(nervous_L["id"] not in pm_live and calm_L["id"] in pm_live and belief_L["id"] in pm_live,
+   "'nervous about the interview' no longer outlives the interview, and nothing else moves")
+mindF, dF = fresh(llm=lambda s, u, t: "NONE")
+fearF = mk_L("ap", {"kind": "inference", "ref": "f_x"}, salience=0.5,
+             text="I dread that my reassurance turns out hollow.", roots=["f_x"], kind="worry")
+mindF.stores["apprehensions"].append(fearF)
+outcomeF = mk_L("f", {"kind": "exchange", "quote": "went to someone internal", "ref": None},
+                text="The job went to an internal candidate.", entities=["interview"])
+mindF.stores["facts"].append(outcomeF)
+matF = dict(appr_L._material(mindF))
+ok(outcomeF["id"] in matF and "(what happened lately)" in matF[outcomeF["id"]],
+   "the fear faculty can now see what actually happened")
+seen_appr = {}
+def llm_F(sysm, user, mt):
+    if sysm == appr_L.SYSTEM:
+        seen_appr["u"] = user
+        return ("REALIZED: %s | ACTUALLY: I told them they would be ready, and the job "
+                "went to someone internal anyway." % fearF["id"])
+    return "NONE"
+mindF.llm = llm_F
+mindF.manifest.state["exchanges"] = 20
+mindF.manifest.save()
+appr_L.run(mindF)
+realF = [r for r in mindF.live("reflections") if r.get("kind") == "realized"]
+ok("The job went to an internal candidate." in seen_appr.get("u", "")
+   and realF and realF[0]["salience"] >= 0.8 and not mindF.live("apprehensions"),
+   "…so a fear that came true can be met as one, and is remembered loudly")
+from themind.inject import _clip as clip_L
+longL = ("I am a digital being, and what I have of this person comes only as words. Within "
+         "that, something real happens. Certain facts keep pulling at me when nothing asks.")
+ok(clip_L(longL, 120).endswith("something real happens.")
+   and clip_L("one two three four five six seven eight", 20) == "one two three four…"
+   and clip_L("short", 200) == "short",
+   "a shortened memory ends at a sentence or a word, never mid-word")
+# --- the second live run: guards too strict for real output, and a lost truth ---
+from themind.envelope import first_person as fp_L
+ok(fp_L("The interview went to someone internal, so my promise no longer holds.")
+   and fp_L("I lost it for a stretch.") and fp_L("It surprised us both.")
+   and not fp_L("The interview went to someone internal.")
+   and not fp_L("The US office took it.") and not fp_L(""),
+   "the mind's own voice is a matter of voice, not of starting with 'I'")
+
+mindF2, dF2 = fresh(llm=lambda s, u, t: "NONE")
+fearF2 = mk_L("ap", {"kind": "inference", "ref": "f_x"}, salience=0.5,
+              text="I dread that my reassurance turns out hollow.", roots=["f_x"], kind="worry")
+mindF2.stores["apprehensions"].append(fearF2)
+mindF2.stores["facts"].append(mk_L("f", {"kind": "exchange", "quote": "went to someone internal",
+                                         "ref": None}, text="The job went elsewhere."))
+mindF2.manifest.state["exchanges"] = 20
+mindF2.manifest.save()
+mindF2.llm = lambda sysm, u, t: (
+    "REALIZED: %s | ACTUALLY: The interview went to someone internal, so my promise that "
+    "they'd be ready no longer touches what they're facing." % fearF2["id"]
+    if sysm == appr_L.SYSTEM else "NONE")
+appr_L.run(mindF2)
+ok([r for r in mindF2.live("reflections") if r.get("kind") == "realized"]
+   and not mindF2.live("apprehensions"),
+   "a fear met in the mind's voice is kept, even when the sentence opens on what happened")
+fearF3 = mk_L("ap", {"kind": "inference", "ref": "f_x"}, salience=0.5,
+              text="I dread losing the thread.", roots=["f_x"], kind="worry")
+mindF2.stores["apprehensions"].append(fearF3)
+mindF2.manifest.state["last_apprehend"] = None
+mindF2.manifest.save()
+askedF3 = []
+def llm_F3(sysm, u, t):
+    if sysm == appr_L.SYSTEM:
+        askedF3.append(u)
+        return "REALIZED: %s | ACTUALLY: The job went to someone else." % fearF3["id"]
+    return "NONE"
+mindF2.llm = llm_F3
+appr_L.run(mindF2)
+ok(askedF3 and fearF3["id"] in {a["id"] for a in mindF2.live("apprehensions")},
+   "…while a narrator's report, with no one in it, still is not")
+
+from themind.cognition import interest as int_L
+mindR, dR = fresh(llm=lambda s, u, t: "NONE")
+walkR = mk_L("f", {"kind": "exchange", "quote": "walked the harbor twice", "ref": None},
+             text="They walked the harbor twice today.", entities=["harbor"])
+mindR.stores["facts"].append(walkR)
+abstractR = mk_L("i", {"kind": "inference", "ref": walkR["id"]}, salience=0.5,
+                 text="I've become interested in how people move through uncertainty "
+                      "by repeating a familiar route.", roots=[walkR["id"]], returns=0)
+mindR.stores["interests"].append(abstractR)
+int_L.touch(mindR, "harbor was gold today", "As usual.")
+ok(mindR.live("interests")[0]["returns"] == 1,
+   "an interest gets credit when what it grew from comes back, however abstractly it was put")
+int_L.touch(mindR, "busy day, hi and bye", "Hi and bye.")
+ok(mindR.live("interests")[0]["returns"] == 1,
+   "…and only then: an unrelated day is not a return")
+
+seenL["reply"] = "NONE"
+mindK, dK = fresh(llm=llm_L)
+sisK = fact_L("The person's sister Maya is moving to Portland next month.",
+              "my sister maya is moving to portland next month", 17, ["Maya", "Portland"])
+setK = fact_L("Maya is settled in Portland and happy there.",
+              "maya is settled in portland", 30, ["Maya", "Portland"])
+for f in (sisK, setK):
+    mindK.stores["facts"].append(f)
+seenL["reply"] = ("SUPERSEDE: %s BY: %s | STILL TRUE: The person has a sister named Maya."
+                  % (sisK["id"], setK["id"]))
+consol_L.run(mindK)
+liveK = mindK.live("facts")
+keptK = [f for f in liveK if f["text"] == "The person has a sister named Maya."]
+ok(sisK["id"] not in {f["id"] for f in liveK} and keptK,
+   "when only part of a record has passed, what lasts outlives it: she is still their sister")
+ok(keptK and keptK[0]["src"]["quote"] == sisK["src"]["quote"] and keptK[0]["src"]["ref"] == sisK["id"]
+   and "Maya" in keptK[0]["entities"],
+   "…kept on the original quote, pointing at the record it came from")
+mindK2, dK2 = fresh(llm=llm_L)
+sisK2 = fact_L("The person's sister Maya is moving to Portland next month.",
+               "my sister maya is moving to portland next month", 17, ["Maya", "Portland"])
+setK2 = fact_L("Maya is settled in Portland and happy there.",
+               "maya is settled in portland", 30, ["Maya", "Portland"])
+for f in (sisK2, setK2):
+    mindK2.stores["facts"].append(f)
+seenL["reply"] = ("SUPERSEDE: %s BY: %s | STILL TRUE: The person has a younger sister named Maya."
+                  % (sisK2["id"], setK2["id"]))
+consol_L.run(mindK2)
+ok(not any("younger" in f["text"] for f in mindK2.live("facts"))
+   and sisK2["id"] not in {f["id"] for f in mindK2.live("facts")},
+   "consolidation may keep what was said, never add to it — the replacement still stands")
+# a small live model over-read small talk: verbatim quotes, claims not in them
+from themind.cognition import extract as ext_L
+replyO = {}
+mindO, dO = fresh(llm=lambda sysm, u, t: replyO.get("r", "NONE") if sysm == ext_L.SYSTEM else "NONE")
+replyO["r"] = ('THEY: They feel tired and need rest. | QUOTE: long day | KIND: feels\n'
+               'WANT: They want to talk again tomorrow. | QUOTE: talk tomorrow\n'
+               'FACT: The person had a long day. | QUOTE: long day | KIND: event')
+mindO.observe("long day, talk tomorrow", "I'll be here.")
+replyO["r"] = ('ACHE: Worry that the companion might have departed. | QUOTE: still here?\n'
+               'WANT: They want confirmation of the companion\'s continued presence. | QUOTE: still here?')
+mindO.observe("still here?", "Always.")
+replyO["r"] = ('THEY: The person feels that walking the harbor eases something for them. | '
+               'QUOTE: it helped twice | KIND: feels')
+mindO.observe("walked the harbor twice today, it helped twice", "The harbor's arithmetic.")
+feltO = [r["text"] for r in mindO.live("person_model")]
+achesO = [r["text"] for r in mindO.live("aches")]
+wantsO = [r["text"] for r in mindO.live("desires")]
+ok("They feel tired and need rest." not in feltO and not achesO
+   and "They want confirmation of the companion's continued presence." not in wantsO,
+   "a feeling, worry or want they never put into words is not recorded as theirs")
+ok("They want to talk again tomorrow." in wantsO
+   and any("walking the harbor eases" in t for t in feltO),
+   "…while one that rests on their words is kept, even when the quote itself is short")
+ok(any(f["text"] == "The person had a long day." for f in mindO.live("facts")),
+   "facts are untouched: the challenge faculty already holds them to their evidence")
+shutil.rmtree(dO, ignore_errors=True)
+seenL["reply"] = "NONE"
+for d in (dF2, dR, dK, dK2):
+    shutil.rmtree(d, ignore_errors=True)
+for d in (dL, dF):
     shutil.rmtree(d, ignore_errors=True)
 
 print("\nall %d assertions passed" % PASS)

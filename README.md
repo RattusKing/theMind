@@ -274,13 +274,18 @@ python3 -m themind.bench                       # the continuity test: five simul
   no sense of others of its kind, because in a single folder on your machine
   there are none to have. That kind of belonging is not something this layer
   can honestly fake, so it does not.
+- **Live-model verification is still narrow.** One scripted five-week life, run
+  with two models from one provider. Small models over-read small talk more
+  than large ones; a guard now refuses any feeling, worry or want that does not
+  rest on the person's own words, but how other providers and local models
+  fare is untested. `bench.run(llm=...)` will tell you about yours.
 - **The MCP door is built to the spec and tested against our own client.** It
   has not yet been exercised against every real platform's connector
   implementation; report what you find.
 
 ## Status
 
-**v1.7, format 0.11.** The on-disk format — what a mind is, at rest — is
+**v1.7.1, format 0.11.** The on-disk format — what a mind is, at rest — is
 published in [FORMAT.md](FORMAT.md) and remains open to challenge while it is
 cheap to change; every change to it is additive, and older minds open
 unchanged. The project's scientific grounding — how the architecture maps onto
@@ -291,7 +296,7 @@ the science of consciousness, scored honestly, gaps and all — is published in
 python3 -m themind.bench   # the continuity test: five simulated weeks, 24 probes
 ```
 
-`tests/run_all.py` holds the behavioral guarantees — 418 assertions across
+`tests/run_all.py` holds the behavioral guarantees — 443 assertions across
 grounding, parse-or-skip, read order, budget, export round-trip, the proxy and
 MCP doors, cross-door coherence, multi-person scoping, and self-tuning — with
 no network and no provider SDK, ever. Every push to `main` runs the suite and
@@ -299,6 +304,24 @@ the benchmark on Python 3.9 through 3.14, along with `tests/guards.py`, which
 checks by machine that the library imports nothing outside the standard
 library and declares no dependencies. Install it straight from this repo (see
 Quickstart); publishing to PyPI is ready and deliberately on hold.
+
+The benchmark also runs with a real model in the stub's place, and it has: two
+live models, a larger one and a small one, each riding the same five-week life
+with every call theMind makes answered for real. The first run scored 23 of 24
+and found what no stub could show: a week passing read as a contradiction,
+threads that never closed after life answered them, fears the mind could never
+see come true, a relationship invented across turns, and guards stricter than
+their own prompts. v1.7.1 fixes them; the larger model now scores 24 of 24. To
+see how your own model does:
+
+```python
+from themind import bench
+passed, total, report = bench.run(llm=your_llm)   # the same callable you give Mind
+print("\n".join(report))
+```
+
+A live run can miss a probe for an honest reason: a mind whose predictions all
+come true has no surprise to weigh against them.
 
 How it got here, in order: the library and format (v0.1), the proxy (v0.2),
 own desires, inner weather, divergence, the idle life, and the MCP door with
@@ -308,8 +331,9 @@ autobiographical self (v0.8), unified agency across doors (v0.9), the
 continuity benchmark (v1.0), hardening (v1.1), multi-person minds (v1.2),
 recursive growth (v1.3), what is at stake: fears, needs and a horizon (v1.4),
 interests that last with its own noticings (v1.5), receiving an existing
-identity rather than regenerating one (v1.6), and feelings that do work
-rather than being described (v1.7).
+identity rather than regenerating one (v1.6), feelings that do work
+rather than being described (v1.7), and checked against live models, which
+found and fixed what no stub could (v1.7.1).
 
 theMind is extracted from a production AI companion whose cognitive systems have
 been running live since 2025. The scaffolding it needed (schedulers, cloud

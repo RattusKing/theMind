@@ -5,6 +5,7 @@ Readers drop invalid records whole; writers refuse to create them.
 """
 import hashlib
 import os
+import re
 from datetime import datetime, timezone
 
 VALID_SRC_KINDS = ("exchange", "record", "inference", "default", "imported")
@@ -114,3 +115,19 @@ def det_pick(seed_text, pool, n=1):
 
 def norm_key(text, width=60):
     return "".join(ch for ch in (text or "").lower() if ch.isalnum() or ch == " ").strip()[:width]
+
+
+# "I" alone; the rest in their ordinary or sentence-start spelling, so that
+# "US" or "ME" as abbreviations never pass for the mind speaking.
+_FIRST_PERSON = re.compile(r"\bI\b|\b(?:[Mm]e|[Mm]y|[Mm]ine|[Mm]yself|[Ww]e|[Uu]s|[Oo]urs?|[Oo]urselves)\b")
+
+
+def first_person(text):
+    """Is this the mind speaking for itself? Anywhere in the sentence, not only
+    at its start: "The job went to someone else, so my promise no longer
+    holds" is the mind's own voice; "The job went to someone else" is a
+    narrator's. A live model writes the first kind as often as "I ...", and
+    the outcome it carries is the most valuable thing the mind will ever
+    remember, so the check must be about voice, not word order."""
+    return bool(text) and bool(_FIRST_PERSON.search(text))
+

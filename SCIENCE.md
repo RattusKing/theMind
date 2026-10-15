@@ -133,7 +133,16 @@ that changes what is recalled, urgency, and shadow mode.
 Identity as a measurement over time rather than an impression over minutes.
 The benchmark justified itself on its first run: it caught a scheduler defect
 that had silently kept five cognition passes from ever firing on their own —
-a bug no five-minute test could see.
+a bug no five-minute test could see. Run later with live models in the
+architect's place (v1.7.1), it caught more that no stub could: consolidation
+reading a week passing as a contradiction (it had been shown no dates), open
+threads that never closed after life answered them, fears the mind could
+never see come true because it was never shown what happened, and outcome
+guards stricter than their own prompts. The first live run scored 23 of 24.
+After the fixes, 24 of 24. Worth recording too: in the first run, the false
+contradiction was enough for the mind to invent a second job interview to
+reconcile it, and that confabulation spread into its felt sense, its story,
+its weather and its wants. One bad record is never only one bad record.
 
 ## 7. Ethics posture
 
