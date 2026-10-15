@@ -79,8 +79,10 @@ def run(mind):
         out = mind._call("consolidate", SYSTEM, listing, max_tokens=400)
         ids = set(f["id"] for f in records)
         open_ids = {rec["id"]: store for store, rec, _l in threads}
+        when = {r["id"]: r.get("t", "") for r in records}
+        when.update({rec["id"]: rec.get("t", "") for _s, rec, _l in threads})
         for line in (out or "").splitlines():
-            _apply(mind, line.strip(), ids, open_ids)
+            _apply(mind, line.strip(), ids, open_ids, when)
 
     _decay(mind)
     mind.graph.decay()
@@ -110,7 +112,7 @@ def _entity_groups(facts):
     return per_person[who][0]
 
 
-def _apply(mind, line, valid_ids, open_ids=None):
+def _apply(mind, line, valid_ids, open_ids=None, when=None):
     try:
         up = line.upper()
         if up.startswith("SUPERSEDE:") and " BY:" in up:
@@ -124,7 +126,11 @@ def _apply(mind, line, valid_ids, open_ids=None):
         elif up.startswith("SETTLED:") and " BY:" in up:
             thread = line.split(":", 1)[1].split("BY:")[0].strip().rstrip(",")
             by = line[up.index(" BY:") + 4:].strip()
-            if thread in (open_ids or {}) and by in valid_ids:
+            when = when or {}
+            # Only what was learned after a thread can answer it: a fact from
+            # the same message is the same moment, not its passing.
+            if thread in (open_ids or {}) and by in valid_ids \
+                    and when.get(by, "") > when.get(thread, ""):
                 # archived, naming what answered it: nothing true is deleted
                 mind.stores[open_ids[thread]].supersede(thread, by)
         elif up.startswith("TENSION:") and "|" in line:

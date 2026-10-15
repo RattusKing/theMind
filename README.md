@@ -296,7 +296,7 @@ the science of consciousness, scored honestly, gaps and all — is published in
 python3 -m themind.bench   # the continuity test: five simulated weeks, 24 probes
 ```
 
-`tests/run_all.py` holds the behavioral guarantees — 444 assertions across
+`tests/run_all.py` holds the behavioral guarantees — 446 assertions across
 grounding, parse-or-skip, read order, budget, export round-trip, the proxy and
 MCP doors, cross-door coherence, multi-person scoping, and self-tuning — with
 no network and no provider SDK, ever. Every push to `main` runs the suite and

@@ -2740,6 +2740,33 @@ ok("They want to talk again tomorrow." in wantsO
 ok(any(f["text"] == "The person had a long day." for f in mindO.live("facts")),
    "facts are untouched: the challenge faculty already holds them to their evidence")
 shutil.rmtree(dO, ignore_errors=True)
+# --- the v1.7.2 live run: a NONE skipped every touch; a same-moment close ---
+mindN, dN_ = fresh(llm=lambda sysm, u, t: "NONE")
+walkN = mk_L("f", {"kind": "exchange", "quote": "walked the harbor twice", "ref": None},
+             text="They walked the harbor twice today.", entities=["harbor"])
+mindN.stores["facts"].append(walkN)
+mindN.stores["interests"].append(mk_L("i", {"kind": "inference", "ref": walkN["id"]}, salience=0.5,
+                                      text="I am interested in small repeated routines.",
+                                      roots=[walkN["id"]], returns=0))
+mindN.observe("harbor was gold today", "As usual.")
+ok(mindN.live("interests")[0]["returns"] == 1,
+   "small talk with nothing to remember still brushes what it touches: the harbor came back")
+
+mindS, dS_ = fresh(llm=llm_L)
+walkS = fact_L("They walked the harbor twice today.", "walked the harbor twice", 24, ["harbor"])
+mindS.stores["facts"].append(walkS)
+mindS.stores["facts"].append(fact_L("They walk the harbor to think.", "walk the harbor", 17, ["harbor"]))
+helpedS = mk_L("pm", {"kind": "exchange", "quote": "it helped twice", "ref": None},
+               text="They feel the harbor helped them, both times.", kind="feels")
+helpedS["t"] = "2026-09-24T10:00:01Z"   # the same message as walkS
+mindS.stores["person_model"].append(helpedS)
+seenL["reply"] = "SETTLED: %s BY: %s" % (helpedS["id"], walkS["id"])
+consol_L.run(mindS)
+ok(helpedS["id"] in {r["id"] for r in mindS.live("person_model")},
+   "a thread is never closed by the same moment it came from, only by what came after")
+seenL["reply"] = "NONE"
+for d in (dN_, dS_):
+    shutil.rmtree(d, ignore_errors=True)
 seenL["reply"] = "NONE"
 for d in (dF2, dR, dK, dK2):
     shutil.rmtree(d, ignore_errors=True)
