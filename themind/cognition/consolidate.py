@@ -12,15 +12,16 @@ from ..tuning import param
 SYSTEM = (
     "You are the consolidation faculty of an AI companion's mind, reconciling what it holds "
     "about one person. You are given stored records in the order they were learned, each with "
-    "an id and the date it was learned, and what is still open: things left hanging, and "
-    "feelings of theirs tied to a moment. Output one line per finding, or NONE.\n"
+    "an id and the date it was learned, and what is still open: things left hanging, "
+    "feelings of theirs tied to a moment, and things they did not yet know. Output one line "
+    "per finding, or NONE.\n"
     "SUPERSEDE: <old_id> BY: <new_id>   (the newer record replaces the older: it corrects it, "
     "or life has moved on from it)\n"
     "SUPERSEDE: <old_id> BY: <new_id> | STILL TRUE: <the lasting part of the older record that "
     "the newer one leaves out, as one sentence about them>   (when only part of it has passed: "
     "who someone is to them outlives the plan they were part of)\n"
-    "SETTLED: <open id> BY: <id of the later record that answers it, or shows the moment a "
-    "feeling belonged to has passed>\n"
+    "SETTLED: <open id> BY: <id of the later record that answers it, shows the moment a "
+    "feeling belonged to has passed, or shows they now know>\n"
     "TENSION: <id1> + <id2> | <one sentence stating the contradiction as a fact about them>\n"
     "BELIEF: <a general belief the mind could reasonably form from these> | WEIGHT: <0.1-0.6>\n"
     "Rules: time passes between records. A plan that then happened, a wait that then ended, "
@@ -54,12 +55,14 @@ def run(mind):
     # week passing, and a live model, quite reasonably, said so.
     who = owner(grouped[0]) if grouped else None
     records = list(grouped[:30])
-    # What was left hanging, and their feelings tied to a moment, beside
-    # whatever came after: a thread life has since answered can be closed,
-    # instead of 'nervous about the interview' outliving the interview.
+    # What was left hanging, their feelings tied to a moment, and what they
+    # did not yet know, beside whatever came after: a thread life has since
+    # answered can be closed, instead of 'nervous about the interview' or
+    # 'they don't know how it went' outliving the interview.
     threads = ([("aches", a, "left open") for a in mind.live("aches") if owner(a) == who][-5:]
-               + [("person_model", f, "how they felt") for f in mind.live("person_model")
-                  if owner(f) == who and f.get("kind") == "feels"][-5:])
+               + [("person_model", f, "how they felt" if f.get("kind") == "feels"
+                   else "what they did not know yet") for f in mind.live("person_model")
+                  if owner(f) == who and f.get("kind") in ("feels", "unaware")][-5:])
     if threads:
         since = min(rec.get("t", "") for _s, rec, _l in threads)
         have = {f["id"] for f in records}
@@ -76,8 +79,10 @@ def run(mind):
         out = mind._call("consolidate", SYSTEM, listing, max_tokens=400)
         ids = set(f["id"] for f in records)
         open_ids = {rec["id"]: store for store, rec, _l in threads}
+        when = {r["id"]: r.get("t", "") for r in records}
+        when.update({rec["id"]: rec.get("t", "") for _s, rec, _l in threads})
         for line in (out or "").splitlines():
-            _apply(mind, line.strip(), ids, open_ids)
+            _apply(mind, line.strip(), ids, open_ids, when)
 
     _decay(mind)
     mind.graph.decay()
@@ -107,7 +112,7 @@ def _entity_groups(facts):
     return per_person[who][0]
 
 
-def _apply(mind, line, valid_ids, open_ids=None):
+def _apply(mind, line, valid_ids, open_ids=None, when=None):
     try:
         up = line.upper()
         if up.startswith("SUPERSEDE:") and " BY:" in up:
@@ -121,7 +126,11 @@ def _apply(mind, line, valid_ids, open_ids=None):
         elif up.startswith("SETTLED:") and " BY:" in up:
             thread = line.split(":", 1)[1].split("BY:")[0].strip().rstrip(",")
             by = line[up.index(" BY:") + 4:].strip()
-            if thread in (open_ids or {}) and by in valid_ids:
+            when = when or {}
+            # Only what was learned after a thread can answer it: a fact from
+            # the same message is the same moment, not its passing.
+            if thread in (open_ids or {}) and by in valid_ids \
+                    and when.get(by, "") > when.get(thread, ""):
                 # archived, naming what answered it: nothing true is deleted
                 mind.stores[open_ids[thread]].supersede(thread, by)
         elif up.startswith("TENSION:") and "|" in line:

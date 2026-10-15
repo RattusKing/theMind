@@ -90,6 +90,9 @@ def run(mind, user_text, assistant_text, who=None):
         max_tokens=500,
     )
     if not out or out.strip().upper() == "NONE":
+        # Nothing to remember is not nothing to feel: "harbor was gold today"
+        # holds no new fact, and it is still the harbor coming back.
+        _touch(mind, user_text, assistant_text, who)
         return 0
     stored = 0
     proposed = 0  # lines the model offered as memory; kept/proposed is the extract_quality signal
@@ -178,14 +181,20 @@ def run(mind, user_text, assistant_text, who=None):
             challenge.check(mind, new_facts)
         except Exception:
             pass  # the guard protects the store; it never breaks the turn
+    _touch(mind, user_text, assistant_text, who)
+    return stored
+
+
+def _touch(mind, user_text, assistant_text, who):
+    """What an exchange brushes, whether or not it held anything to remember.
+    Mechanical; no model call."""
     try:
-        desire.touch(mind, user_text, assistant_text)   # mechanical; no model call
+        desire.touch(mind, user_text, assistant_text)
         expect.touch(mind, user_text, assistant_text, who=who)   # attention follows predictions
         apprehend.touch(mind, user_text, assistant_text)   # dread grows by being brushed
         interest.touch(mind, user_text, assistant_text)    # and life returning to a thing counts
     except Exception:
         pass
-    return stored
 
 
 def _is_new(mind, store, rec):
