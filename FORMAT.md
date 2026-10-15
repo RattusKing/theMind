@@ -144,7 +144,9 @@ than facts — feelings pass; the store is a weather report on them, not a
 ledger of them. A feeling tied to a moment that has since passed ("nervous
 about the upcoming interview", once the interview has happened) is closed the
 same way an answered ache is: archived with `superseded_by` naming the later
-record. Beliefs are never closed this way; a belief is not a moment.
+record. So is something they did not yet know ("they don't know how the
+interview went"), once a later record shows they do. Beliefs are never
+closed this way; a belief is not a moment.
 
 ### facts.jsonl
 What the mind knows about the person. Envelope plus `text` (one canonical

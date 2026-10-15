@@ -2585,6 +2585,16 @@ ok("(how they felt)" in lstL2 and nervous_L["id"] in lstL2 and belief_L["id"] no
 pm_live = {r["id"] for r in mindL.live("person_model")}
 ok(nervous_L["id"] not in pm_live and calm_L["id"] in pm_live and belief_L["id"] in pm_live,
    "'nervous about the interview' no longer outlives the interview, and nothing else moves")
+unaware_L = mk_L("pm", {"kind": "exchange", "quote": "still no word", "ref": None},
+                 text="They don't know the interview's outcome.", kind="unaware")
+unaware_L["t"] = "2026-09-19T10:00:00Z"
+mindL.stores["person_model"].append(unaware_L)
+seenL["reply"] = "SETTLED: %s BY: %s" % (unaware_L["id"], done_f["id"])
+consol_L.run(mindL)
+lstL3 = seenL.get("u", "")
+ok("(what they did not know yet)" in lstL3 and belief_L["id"] not in lstL3
+   and unaware_L["id"] not in {r["id"] for r in mindL.live("person_model")},
+   "something they did not know yet is closed once they know — a belief still never is")
 mindF, dF = fresh(llm=lambda s, u, t: "NONE")
 fearF = mk_L("ap", {"kind": "inference", "ref": "f_x"}, salience=0.5,
              text="I dread that my reassurance turns out hollow.", roots=["f_x"], kind="worry")
