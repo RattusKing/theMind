@@ -352,7 +352,10 @@ and found what no stub could show: a week passing read as a contradiction,
 threads that never closed after life answered them, fears the mind could never
 see come true, a relationship invented across turns, and guards stricter than
 their own prompts. v1.7.1 fixes them, and on that code both models score
-24 of 24. To see how your own model does:
+24 of 24. On v1.8, in its one live run so far, the larger model scored 26 of 27:
+it grew through two stages and wrote a rooted reach-out that every guard let
+through, and the miss was a fear it chose not to mark as met. To see how your
+own model does:
 
 ```python
 from themind import bench
