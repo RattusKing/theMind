@@ -126,6 +126,21 @@ class People:
         entry["last_t"] = now_iso()
         self.doc.save(data)
 
+    def entry(self, key):
+        """A copy of one person's entry (None = the primary). Read-only."""
+        data = self.load()
+        return dict(data["primary"] if key is None else (data["others"].get(key) or {}))
+
+    def note_reached(self, key):
+        """The mind spoke first to this person: until they write back, it
+        waits (`reached_t` newer than `last_t` means unanswered)."""
+        data = self.load()
+        entry = data["primary"] if key is None else data["others"].get(key)
+        if entry is None:
+            return
+        entry["reached_t"] = now_iso()
+        self.doc.save(data)
+
     def since_felt(self, key):
         data = self.load()
         entry = data["primary"] if key is None else (data["others"].get(key) or {})

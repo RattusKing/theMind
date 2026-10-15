@@ -20,7 +20,7 @@ the tail of thirteen passes starves at the bottom of one.
 """
 from . import (extract, challenge, consolidate, selfhood, felt_sense, reflect,  # noqa: F401
                growth, desire, inner_state, divergence, expect, story, tune, apprehend,
-               interest)
+               interest, reach)
 from ..envelope import age_days, now_iso
 
 URGENT_FLOOR = 0.25   # six hours: urgency may jump a rhythm, never spin on one
@@ -68,7 +68,7 @@ TIMERS = {
     "self": "last_self", "growth": "last_growth", "desire": "last_desire",
     "inner_state": "last_inner", "divergence": "last_divergence", "expect": "last_expect",
     "story": "last_story", "interest": "last_interest", "apprehend": "last_apprehend",
-    "tune": "last_tune",
+    "tune": "last_tune", "reach": "last_reach",
 }
 
 
@@ -141,6 +141,8 @@ def due_passes(mind):
         due.append(("apprehend", apprehend.run))
     if tune.due(mind, st):
         due.append(("tune", tune.run))
+    if reach.due(mind, st):
+        due.append(("reach", reach.run))
     # Something that crossed a line can jump its rhythm, so long as its own
     # material is there and it has not just run. `_material` is each pass's
     # own readiness check; asking it here is how urgency avoids offering a

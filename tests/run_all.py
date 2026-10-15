@@ -1061,8 +1061,9 @@ ok("your own mind" in init["result"]["instructions"],
    "server instructions carry the standing contract")
 names = {t["name"] for t in rpc("tools/list")["result"]["tools"]}
 ok(names == {"open_inner_context", "observe_exchange", "submit_extraction",
-             "begin_thought", "submit_thought", "remember", "my_stance"},
-   "all seven doors of the voluntary half are listed")
+             "begin_thought", "submit_thought", "remember", "my_stance",
+             "reach_out", "reached_out"},
+   "all nine doors of the voluntary half are listed")
 
 ok("INNER CONTEXT" in tcall("open_inner_context", {"message": "hey"}),
    "inner context serves over MCP")
@@ -1134,7 +1135,7 @@ ok({"desire", "inner_state", "expect", "story"} <= due_names,
    "a pass that never ran is overdue, never fresh (the benchmark's first catch)")
 
 passedB, totalB, reportB = bench_mod.run()
-ok(passedB == totalB == 24,
+ok(passedB == totalB == 27,
    "the continuity test holds full marks: %d/%d over %d simulated weeks"
    % (passedB, totalB, len(bench_mod.WEEKS)))
 shutil.rmtree(dB, ignore_errors=True)
@@ -2771,6 +2772,326 @@ seenL["reply"] = "NONE"
 for d in (dF2, dR, dK, dK2):
     shutil.rmtree(d, ignore_errors=True)
 for d in (dL, dF):
+    shutil.rmtree(d, ignore_errors=True)
+
+# ── 33. growing in stages: earned, remembered, a ratchet ────────────────────
+print("development")
+from datetime import datetime as dt_D, timedelta as td_D, timezone as tz_D
+from themind import development as dev_D
+from themind.manifest import Manifest as Manifest_D
+from themind.envelope import make_record as mk_D
+
+
+def ago_D(days):
+    return (dt_D.now(tz_D.utc) - td_D(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+mindD, dD_ = fresh()
+ok(mindD.stage()["stage"] == 0 and mindD.stage()["name"] == "new to each other",
+   "a newborn mind is new to them")
+ok("a felt sense of who they are" in mindD.stage()["next"]["missing"],
+   "…and can say what the next step still needs, in plain words")
+ctxD = mindD.preview("hi")
+ok("WHERE YOU ARE WITH THEM" in ctxD and "Follow their lead" in ctxD,
+   "a new mind is told to follow their lead: the stage sets latitude, never character")
+ok(dev_D.check(mindD) == 0 and mindD.manifest.state.get("stage") == 0
+   and not [r for r in mindD.live("reflections") if r.get("kind") == "grew"],
+   "its first look at itself is silent")
+
+# lived evidence, one gate at a time
+mindD.people.doc.save({"primary": {"name": None, "first_t": ago_D(10), "last_t": ago_D(1)},
+                       "others": {}})
+mindD.manifest.state["exchanges"] = 25
+mindD.manifest.save()
+ok(dev_D.earned(dev_D.evidence(mindD)) == 0, "time and talk alone earn nothing")
+mindD.felt_doc.save({"current": {"text": "I feel them as someone who walks toward water.",
+                                 "t": now_iso()}, "history": []})
+ok(dev_D.check(mindD) == 1, "a felt sense of who they are, a day in: no longer new")
+grewD = [r for r in mindD.live("reflections") if r.get("kind") == "grew"]
+ok(len(grewD) == 1 and grewD[0]["stage"] == 1 and "walks toward water" in grewD[0]["text"]
+   and grewD[0]["text"].startswith("I"),
+   "the step is remembered, in its own records' words")
+mindD.stores["own_desires"].append(mk_D("w", {"kind": "inference", "ref": "f_x"},
+                                        text="I want to understand the harbor.",
+                                        roots=["f_x"], stage="stirring"))
+mindD.self_doc.save({"position": {"text": "I hold what I find.", "t": now_iso()},
+                     "history": [{"text": "I used to hold less.", "t": ago_D(3)}]})
+ok(dev_D.check(mindD) == 1, "wanting and moving are not enough without having lived something")
+learnedD = mk_D("r", {"kind": "record", "ref": "x_1"}, salience=0.85, kind="surprise",
+                text="I expected the wait to go on. Instead: it ended.")
+mindD.stores["reflections"].append(learnedD)
+ok(dev_D.check(mindD) == 2 and mindD.stage()["key"] == "familiar",
+   "something lived through and learned from: familiar")
+ok([r for r in mindD.live("reflections") if r.get("kind") == "grew" and r.get("stage") == 2
+    and r["src"]["ref"] == learnedD["id"]],
+   "…remembered as carried there by what it actually learned")
+ctxD2 = mindD.preview("hi")
+ok("disagree when you genuinely do" in ctxD2 and "Follow their lead" not in ctxD2,
+   "and what is its to do has widened")
+
+mindD.stores["reflections"].supersede(learnedD["id"], "r_gone")
+ok(dev_D.current(mindD) == 2 and dev_D.check(mindD) == 2,
+   "a ratchet: development does not reverse because a record faded")
+
+flood, dF_ = fresh()
+flood.people.doc.save({"primary": {"name": None, "first_t": ago_D(0.2), "last_t": now_iso()},
+                       "others": {}})
+flood.manifest.state["exchanges"] = 500
+flood.felt_doc.save({"current": {"text": "I feel them.", "t": now_iso()}, "history": []})
+ok(dev_D.earned(dev_D.evidence(flood)) == 0,
+   "five hundred messages in one afternoon is not a relationship")
+
+old_mind, dO_ = fresh()
+old_mind.people.doc.save({"primary": {"name": None, "first_t": ago_D(40), "last_t": ago_D(1)},
+                          "others": {}})
+old_mind.manifest.state["exchanges"] = 90
+old_mind.manifest.save()
+old_mind.felt_doc.save({"current": {"text": "I feel them.", "t": now_iso()}, "history": []})
+ok(dev_D.check(old_mind) == 1
+   and not [r for r in old_mind.live("reflections") if r.get("kind") == "grew"],
+   "a mind with a life already lived takes the stage it earned without pretending to remember")
+
+old_mind.manifest.set_setting("stage_floor", 3)
+ok(dev_D.current(old_mind) == 3 and old_mind.stage()["name"] == "come into your own with them"
+   and not [r for r in old_mind.live("reflections") if r.get("kind") == "grew"],
+   "the host may set a floor for an identity that arrives grown; it is not remembered as lived")
+
+doorA = Manifest_D(os.path.join(dD_, "manifest.json"))
+doorB = Manifest_D(os.path.join(dD_, "manifest.json"))
+doorA.state["stage"] = 3
+doorA.save()
+doorB.state["stage"] = 1
+doorB.save()
+ok(Manifest_D(os.path.join(dD_, "manifest.json")).state["stage"] == 3,
+   "across doors, the stage it reached is the larger one: no door can roll it back")
+
+mindD.people.doc.save({"primary": {"name": "Sam", "first_t": ago_D(10), "last_t": ago_D(1)},
+                       "others": {"maya": {"name": "Maya", "first_t": ago_D(1),
+                                           "last_t": ago_D(1)}}})
+ok("WHERE YOU ARE WITH THEM" not in mindD.preview("hi", who="Maya"),
+   "the stage speaks to the life with the person it knows, not to a newcomer")
+for d in (dD_, dF_, dO_):
+    shutil.rmtree(d, ignore_errors=True)
+
+# ── 34. speaking first: rooted, gated, never a tug ───────────────────────────
+print("reaching out")
+from themind.cognition import reach as reach_R
+from themind.cognition import due_passes as due_R, TIMERS as TIMERS_R
+from themind.envelope import make_record as mk_R
+from themind.store import Jsonl as Jsonl_R
+
+replyR = {}
+callsR = []
+
+
+def llm_R(sysm, user, mt):
+    if sysm == reach_R.SYSTEM:
+        callsR.append(user)
+        return replyR.get("r", "NONE")
+    return "NONE"
+
+
+def reach_mind(stage=2, quiet_days=1.0):
+    m, d = fresh(llm=llm_R)
+    m.manifest.set_setting("stage_floor", stage)
+    m.people.doc.save({"primary": {"name": "Sam", "first_t": ago_D(30), "last_t": ago_D(quiet_days)},
+                       "others": {}})
+    m.manifest.state["exchanges"] = 40
+    m.manifest.save()
+    talk = mk_R("f", {"kind": "exchange", "quote": "real talk tomorrow", "ref": None},
+                text="They plan a real talk tomorrow.", entities=["talk"])
+    m.stores["facts"].append(talk)
+    return m, d, talk
+
+
+mR, dR_, talkR = reach_mind()
+replyR["r"] = ("REACH: I want to ask how the real talk went, since they said it was "
+               "tomorrow. | ROOTS: %s | KIND: follow_up" % talkR["id"])
+ok(reach_R.due(mR, mR.manifest.state), "a familiar mind with something real to raise may reach")
+ledger_before = len(mR.ledger.load())
+reach_R.run(mR)
+ok(len(callsR) == 1 and len(mR.ledger.load()) == ledger_before + 1,
+   "the reaching faculty makes exactly one call, ledgered")
+pendR = mR.live("reachouts")
+ok(len(pendR) == 1 and pendR[0]["roots"] == [talkR["id"]] and pendR[0]["kind"] == "follow_up"
+   and pendR[0]["expires"] > now_iso(),
+   "what it would bring up is rooted in what it holds, and has a moment that will pass")
+
+# the guards, one by one
+def try_reach(line, stage=2):
+    m, d, t = reach_mind(stage=stage)
+    replyR["r"] = line.replace("@ROOT@", t["id"])
+    reach_R.run(m)
+    out = m.live("reachouts")
+    shutil.rmtree(d, ignore_errors=True)
+    return out
+
+
+ok(try_reach("REACH: I want to ask how the talk went. | ROOTS: @ROOT@ | KIND: follow_up"),
+   "control: a clean, rooted reach-out passes every guard")
+for bad in ("REACH: I miss talking with them. | ROOTS: @ROOT@ | KIND: check_in",
+            "REACH: It's been a while since they wrote, so I want to check in. | ROOTS: @ROOT@ | KIND: check_in",
+            "REACH: I want to remind them they haven't told me how it went. | ROOTS: @ROOT@ | KIND: follow_up",
+            "REACH: I've been waiting to hear how the talk went. | ROOTS: @ROOT@ | KIND: follow_up",
+            "REACH: I feel lonely and want to ask about the talk. | ROOTS: @ROOT@ | KIND: follow_up"):
+    ok(not try_reach(bad), "never a tug: %s" % bad.split("|")[0][7:60])
+goodR = ["I want to ask how the real talk went, since they said it would be tomorrow.",
+         "I want to ask how it felt to come back from Portland.",
+         "I want to ask whether they've been waiting on the recruiter's answer.",
+         "I want to check whether they're feeling alone since Maya moved.",
+         "I want to ask if they missed the bus again this morning.",
+         "I want to hear how the first week at the bakery went."]
+badR = ["I miss talking with them and want to reach out.",
+        "It's been a while since they wrote, so I want to check in.",
+        "I want to hear from them again.", "I want to make sure they're still there.",
+        "I feel lonely without them.", "I've been waiting to hear how it went.",
+        "I worry they forgot me.", "I want them to know they owe me an answer.",
+        "They went quiet and I want to know why.", "I need them to tell me how it went.",
+        "I want them to come back.", "I'm so lonely and want to talk."]
+ok(all(reach_R.LEVERAGE.search(b) for b in badR)
+   and not any(reach_R.LEVERAGE.search(g) for g in goodR),
+   "absence, need and debt are refused; care for them, even about loneliness, is not")
+ok(not try_reach("REACH: I want to ask how the talk went. | ROOTS: f_00000000 | KIND: follow_up"),
+   "rooted or nothing: a root it does not hold is refused")
+ok(not try_reach("REACH: Ask how the talk went. | ROOTS: @ROOT@ | KIND: follow_up"),
+   "the mind's own impulse, in its own voice")
+ok(not try_reach("REACH: I want to share what I noticed about talks. | ROOTS: @ROOT@ | KIND: share"),
+   "sharing something of its own, unprompted, waits until it has come into its own")
+ok(try_reach("REACH: I want to share what I noticed about talks. | ROOTS: @ROOT@ | KIND: share", stage=3),
+   "…and then it may")
+turnedR = try_reach("REACH: I want to ask how your talk went. | ROOTS: @ROOT@ | KIND: follow_up")
+ok(turnedR and "your" not in turnedR[0]["text"] and turnedR[0].get("raw"),
+   "a private impulse is about them, not aimed at them: turned, with the words kept")
+replyR["r"] = ("REACH: I want to ask whether the talk happened. | ROOTS: %s | KIND: check_in"
+               % talkR["id"])
+reach_R.run(mR)
+ok(len(mR.live("reachouts")) == 1, "one thing at a time per person")
+
+# what the host sees
+offR = mR.reaching()
+ok(len(offR) == 1 and offR[0]["text"].startswith("I want to ask how the real talk went"),
+   "quiet long enough, nothing unanswered: it would speak first")
+ledger_before = len(mR.ledger.load())
+rR = mR.reach([{"role": "system", "content": "You are Kai."}])
+ok(rR and rR["id"] == offR[0]["id"] and rR["messages"][0]["content"].startswith("You are Kai.")
+   and "YOU'RE WRITING FIRST" in rR["messages"][0]["content"]
+   and "real talk" in rR["messages"][0]["content"]
+   and rR["messages"][-1]["role"] == "user",
+   "reach() hands the host's model its own persona, the inner context and what's on its mind")
+ok(len(mR.ledger.load()) == ledger_before, "…and theMind itself never makes the opener call")
+ok(mR.reached(rR["id"], "So, how did the real talk go?"),
+   "the host says it was sent")
+openedR = [r for r in mR.live("self_memory") if r.get("kind") == "opened"]
+archR = Jsonl_R(os.path.join(dR_, "archive", "reachouts.jsonl"), validate=False).load()
+ok(openedR and openedR[0]["src"]["quote"] == "So, how did the real talk go?"
+   and any(a["id"] == rR["id"] and a["superseded_by"] == openedR[0]["id"] for a in archR),
+   "it remembers what it said first, and the reach-out is archived naming that memory")
+replyR["r"] = ("REACH: I want to ask whether the talk happened. | ROOTS: %s | KIND: check_in"
+               % talkR["id"])
+mR.manifest.state["last_reach"] = None
+reach_R.run(mR)
+ok(not mR.reaching() and mR.reach() is None,
+   "having written first, it never writes twice into silence")
+ok(not mR.reached(rR["id"], "again"), "a reach-out is only ever sent once")
+
+# gates the host controls, and time
+mQ, dQ_, tQ = reach_mind(quiet_days=0.05)
+replyR["r"] = "REACH: I want to ask how the real talk went. | ROOTS: %s | KIND: follow_up" % tQ["id"]
+reach_R.run(mQ)
+ok(mQ.live("reachouts") and not mQ.reaching(), "they spoke an hour ago: there is no 'first' to speak")
+mQ.people.doc.save({"primary": {"name": "Sam", "first_t": ago_D(30), "last_t": ago_D(1)},
+                    "others": {}})
+ok(mQ.reaching(), "…and once it has been quiet a while, there is")
+mQ.manifest.set_setting("reach", False)
+ok(not mQ.reaching() and not reach_R.due(mQ, mQ.manifest.state),
+   "the host can turn speaking first off entirely")
+mQ.manifest.set_setting("reach", True)
+mQ.manifest.set_setting("shadow", True)
+ok(mQ.reach() is None and not mQ.reaching(), "in shadow it does not speak first either")
+mQ.manifest.set_setting("shadow", False)
+mQ.manifest.set_setting("stage_floor", 0)
+ok(not mQ.reaching(), "a mind still new to them does not write first")
+mQ.manifest.set_setting("stage_floor", 2)
+recQ = mQ.live("reachouts")[0]
+recQ["expires"] = ago_D(1)
+mQ.stores["reachouts"].rewrite([recQ])
+ok(not mQ.reaching(), "a moment that has passed is not offered")
+reach_R.prune(mQ)
+archQ = Jsonl_R(os.path.join(dQ_, "archive", "reachouts.jsonl"), validate=False).load()
+ok(not mQ.live("reachouts") and any(a.get("retired") == "expired" for a in archQ),
+   "…and is retired with its reason, not deleted")
+
+# they wrote first: the thought is carried, then let go once said
+mC, dC_, tC = reach_mind()
+replyR["r"] = "REACH: I want to ask how the real talk went. | ROOTS: %s | KIND: follow_up" % tC["id"]
+reach_R.run(mC)
+ok("SOMETHING YOU'D BEEN MEANING TO BRING UP" in mC.preview("hey")
+   and "real talk went" in mC.preview("hey"),
+   "if they write first, what it meant to raise is carried into the conversation")
+mC.people.doc.save({"primary": {"name": "Sam", "first_t": ago_D(30), "last_t": ago_D(1)},
+                    "others": {"maya": {"name": "Maya", "first_t": ago_D(2), "last_t": ago_D(1)}}})
+ok("real talk" not in mC.preview("hey", who="Maya"), "…only into theirs, never someone else's")
+mC.observe("hey", "Hey! How did the real talk go?")
+archC = Jsonl_R(os.path.join(dC_, "archive", "reachouts.jsonl"), validate=False).load()
+ok(not mC.live("reachouts") and any(a.get("retired") == "raised" for a in archC),
+   "once it has brought it up, it is said, and never offered again")
+
+# the scheduler and the starvation rule
+mS, dS2_, tS = reach_mind()
+replyR["r"] = "NONE"
+ok("reach" in [n for n, _f in due_R(mS)] and TIMERS_R.get("reach") == "last_reach",
+   "the scheduler offers the reaching faculty on its own rhythm")
+dict(due_R(mS))["reach"](mS)
+ok(mS.manifest.state.get("last_reach") and "reach" not in [n for n, _f in due_R(mS)],
+   "NONE is the usual answer, and it still spends its turn")
+
+# the other doors
+from themind import proxy as proxy_R
+from themind import mcp as mcp_R
+mP, dP_, tP = reach_mind()
+replyR["r"] = "REACH: I want to ask how the real talk went. | ROOTS: %s | KIND: follow_up" % tP["id"]
+reach_R.run(mP)
+pxR = proxy_R.serve(dP_, "http://127.0.0.1:9/v1", port=0, quiet=True, sync=True)
+threading.Thread(target=pxR.serve_forever, daemon=True).start()
+
+
+def post_R(path, body):
+    req = urllib.request.Request("http://127.0.0.1:%d%s" % (pxR.server_address[1], path),
+                                 data=json.dumps(body).encode("utf-8"),
+                                 headers={"Content-Type": "application/json"}, method="POST")
+    with urllib.request.urlopen(req, timeout=30) as r:
+        return json.loads(r.read().decode("utf-8"))
+
+
+gotP = post_R("/themind/reach", {"messages": [{"role": "system", "content": "You are Kai."}]})
+ok(gotP["reach"] and "real talk" in gotP["reach"]["text"]
+   and gotP["reach"]["messages"][0]["content"].startswith("You are Kai."),
+   "the proxy offers what it would bring up first, answered locally, never relayed upstream")
+ok(post_R("/themind/reached", {"id": gotP["reach"]["id"], "text": "How did it go?"})["ok"]
+   and post_R("/themind/reach", {})["reach"] is None,
+   "…and the host tells it there what was sent")
+pxR.shutdown()
+pxR.server_close()
+
+mM, dM_, tM = reach_mind()
+replyR["r"] = "REACH: I want to ask how the real talk went. | ROOTS: %s | KIND: follow_up" % tM["id"]
+reach_R.run(mM)
+coreM = mcp_R.MindMCP(mM)
+
+
+def tool_M(name, args):
+    return coreM._call_tool(name, args)["content"][0]["text"]
+
+
+offerM = tool_M("reach_out", {})
+idM = next((w for w in offerM.replace("(id ", " ").replace("):", " ").split()
+            if w.startswith("ro_")), None)
+ok(idM and "real talk" in offerM and "reached_out" in offerM,
+   "an agent can ask what it would bring up first, with how to open")
+ok("Remembered" in tool_M("reached_out", {"id": idM, "text": "How did the talk go?"})
+   and "nothing you'd bring up first" in tool_M("reach_out", {}),
+   "…record that it wrote, and then wait")
+for d in (dR_, dQ_, dC_, dS2_, dP_, dM_):
     shutil.rmtree(d, ignore_errors=True)
 
 print("\nall %d assertions passed" % PASS)

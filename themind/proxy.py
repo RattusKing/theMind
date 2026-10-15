@@ -184,10 +184,34 @@ class _Handler(BaseHTTPRequestHandler):
         self._relay(self._read_body())
 
     def do_POST(self):
-        if self.path.split("?", 1)[0].rstrip("/").endswith("/chat/completions"):
+        path = self.path.split("?", 1)[0].rstrip("/")
+        if path in ("/themind/reach", "/themind/reached"):
+            self._mind_endpoint(path)
+        elif path.endswith("/chat/completions"):
             self._chat()
         else:
             self._relay(self._read_body())
+
+    def _mind_endpoint(self, path):
+        """theMind's own two endpoints, never relayed upstream. POST
+        /themind/reach {messages?, who?} -> {"reach": null | {id, text, kind,
+        messages}}: what it would bring up first, ready for your model.
+        POST /themind/reached {id, text} -> {"ok": bool}: you sent it."""
+        try:
+            body = json.loads(self._read_body().decode("utf-8") or "{}")
+            body = body if isinstance(body, dict) else {}
+        except Exception:
+            body = {}
+        mind = self.server.mind
+        try:
+            if path.endswith("/reach"):
+                out = {"reach": mind.reach(body.get("messages"), who=body.get("who"))}
+            else:
+                out = {"ok": bool(mind.reached(body.get("id"), body.get("text")))}
+            self._send(200, "application/json", json.dumps(out).encode("utf-8"))
+        except Exception as e:
+            self._send(500, "application/json", json.dumps(
+                {"error": {"message": str(e), "type": "themind_proxy"}}).encode("utf-8"))
 
     def _relay(self, body):
         try:
