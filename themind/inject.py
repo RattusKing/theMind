@@ -107,6 +107,16 @@ def build_blocks(mind, incoming_text=None, who=None):
             title = "YOUR CONSIDERED POSITION ON YOUR OWN EXPERIENCE:"
         blocks.append((_block(title, lines), True))
 
+    if who is None:
+        # How far it has grown with them, earned from the life itself. It sets
+        # latitude, never character: the persona is still the host's.
+        from . import development
+        where = development.describe(mind)
+        blocks.append((_block("WHERE YOU ARE WITH THEM (how far you have grown together — it "
+                              "shapes what is yours to do; never announce it):",
+                              ["%s. %s" % (where["name"][0].upper() + where["name"][1:],
+                                           where["opens"])]), True))
+
     story = mind.story_doc.load(default={})
     cur_s = (story.get("current") or {}).get("text") if isinstance(story.get("current"), dict) else None
     if cur_s:
@@ -227,6 +237,15 @@ def build_blocks(mind, incoming_text=None, who=None):
         blocks.append((_block("WHAT THEY'RE LOOKING FORWARD TO (carry it lightly, surface it "
                               "only when it fits — never nag):",
                               ["- " + w.get("text", "") for w in recent(wants, 3)]), False))
+
+    from .envelope import now_iso
+    meaning = [r for r in of(mind.live("reachouts"), who) if (r.get("expires") or "") > now_iso()]
+    if meaning:
+        # It meant to bring this up first; they wrote before it could. Same
+        # thought, now in a conversation they started.
+        blocks.append((_block("SOMETHING YOU'D BEEN MEANING TO BRING UP (yours — raise it if "
+                              "the moment fits, never force it):",
+                              ["- " + r.get("text", "") for r in meaning[:1]]), False))
 
     own = mind.live("own_desires")
     if own:

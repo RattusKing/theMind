@@ -82,6 +82,22 @@ class Jsonl:
             self._archive(r)
         return self.rewrite(keep)
 
+    def retire(self, rec_id, reason):
+        """Move a record to the archive that nothing replaced: it ended
+        rather than being superseded (a reach-out that expired unsent, or one
+        raised in conversation). The tombstone says why; nothing is deleted."""
+        recs = self.load()
+        keep, gone = [], []
+        for r in recs:
+            (gone if r.get("id") == rec_id else keep).append(r)
+        if not gone:
+            return False
+        for r in gone:
+            r["retired"] = str(reason)[:40]
+            r["archived_t"] = now_iso()
+            self._archive(r)
+        return self.rewrite(keep)
+
     def _archive(self, rec):
         if not self.archive_path:
             return

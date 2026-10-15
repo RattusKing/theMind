@@ -25,11 +25,12 @@ import sys
 import tempfile
 from datetime import datetime, timedelta
 
-from .mind import Mind
+from .mind import Mind, STORES
+from .store import Jsonl
 from .envelope import valid_record
 from .cognition import (extract, challenge, consolidate, selfhood, felt_sense,
                         reflect, growth, desire, inner_state, divergence, expect, story,
-                        apprehend, interest)
+                        apprehend, interest, reach)
 
 _ISO = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 _FMT = "%Y-%m-%dT%H:%M:%SZ"
@@ -174,6 +175,13 @@ class Architect:
                 return "NONE"
             return ("EXPECT: I expect they will tell me how the interview landed. | "
                     "ROOTS: %s" % roots[0])
+        if system == reach.SYSTEM:
+            roots = self._roots(user.split("KINDS OPEN TO YOU NOW", 1)[0])
+            if not roots:
+                return "NONE"
+            return ("REACH: I want to ask whether the harbor is still where they go to think "
+                    "things through, now that the interview is behind them. | ROOTS: %s | "
+                    "KIND: check_in" % roots[0])
         return "NONE"
 
 
@@ -391,6 +399,29 @@ def _score(mind, root):
     check(u_b.get("apprehend") and offered and offered[0] in u_b,
           "something that crossed a line is thought about first, not when its turn comes round")
 
+    # Development: earned from the life, remembered step by step.
+    grew = [r for r in mind.live("reflections") if r.get("kind") == "grew"]
+    stage_now = mind.stage()["stage"]
+    check(stage_now >= 2 and len(grew) == stage_now
+          and sorted(r.get("stage") for r in grew) == list(range(1, stage_now + 1)),
+          "it has grown with them, and remembers each step it took")
+
+    # Speaking first: rooted in the life, never a tug at them.
+    held = {r.get("id") for store in STORES for r in mind.stores[store].load()
+            + Jsonl(mind.stores[store].archive_path, validate=False).load()}
+    offers = mind.reaching()
+    pending = {r["id"]: r for r in mind.live("reachouts")}
+    check(offers and all(o["id"] in pending and pending[o["id"]].get("roots")
+                         and set(pending[o["id"]]["roots"]) <= held
+                         and not reach.LEVERAGE.search(o["text"]) for o in offers),
+          "it would speak first, about something real, never to fill a silence")
+    sent = mind.reached(offers[0]["id"], "Is the harbor still where you go to think?") \
+        if offers else False
+    opened = [r for r in mind.live("self_memory") if r.get("kind") == "opened"]
+    check(sent and opened and not mind.reaching() and offers[0]["id"] not in
+          {r["id"] for r in mind.live("reachouts")},
+          "having written first, it remembers what it said and waits to be answered")
+
     # Shadow: it goes on learning while saying nothing.
     mind.manifest.set_setting("shadow", True)
     quiet = Mind(root, sync=True)
@@ -405,7 +436,7 @@ def _score(mind, root):
 
     purposes = {e.get("purpose") for e in mind.ledger.load()}
     check({"extract", "reflect", "consolidate", "felt_sense", "self", "desire",
-           "inner_state", "expect", "story", "apprehend", "interest"} <= purposes,
+           "inner_state", "expect", "story", "apprehend", "interest", "reach"} <= purposes,
           "every kind of thinking it did is in the ledger")
     passed = sum(1 for okd, _ in checks if okd)
     report = ["%s  %s" % ("PASS" if okd else "FAIL", label) for okd, label in checks]

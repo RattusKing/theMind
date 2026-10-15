@@ -30,7 +30,7 @@ from .envelope import now_iso, new_id, make_record, norm_key
 from .store import Jsonl, JsonDoc
 from .manifest import Manifest, FORMAT
 from .graph import Graph
-from . import inject, defaults
+from . import inject, defaults, development
 from . import cognition
 from .cognition import extract
 from .people import People
@@ -39,7 +39,7 @@ from .retrieval import _words
 
 STORES = ("facts", "self_memory", "beliefs", "tensions", "aches", "desires",
           "person_model", "own_desires", "expectations", "reflections", "practice",
-          "apprehensions", "interests", "observations", "needs")
+          "apprehensions", "interests", "observations", "needs", "reachouts")
 
 # Passes a stronger model is worth spending on, when the host offers one.
 CORTEX_PURPOSES = ("story", "self", "challenge", "tune", "consolidate", "apprehend",
@@ -177,6 +177,61 @@ class Mind:
         except Exception:
             return messages
 
+    def stage(self):
+        """How far it has grown with them, and what the next step still
+        needs: {stage, key, name, opens, since, next}. Earned from the life
+        itself; only the host can set a floor (`stage_floor`)."""
+        try:
+            return development.describe(self)
+        except Exception:
+            return {"stage": 0, "key": "new", "name": development.STAGES[0][1],
+                    "opens": development.STAGES[0][2], "since": None, "next": None}
+
+    # ── speaking first ───────────────────────────────────────────────────────
+    def reach(self, messages=None, who=None):
+        """Something the mind would bring up FIRST, before they write, or
+        None. theMind never sends anything: this returns
+        `{"id", "text", "kind", "messages"}`, where `messages` is your system
+        prompt plus what the opener should come from, ready for YOUR model to
+        write the message in your persona. Send it if you choose, then call
+        `reached(id, what_you_sent)`. None whenever any gate is closed: too
+        new to them, they spoke recently, or it already wrote and is waiting
+        to be answered."""
+        if self.shadow:
+            return None
+        try:
+            from .cognition import reach
+            key = self.people.resolve(who)
+            recs = reach.offerable(self, key)
+            if not recs:
+                return None
+            rec = recs[0]
+            return {"id": rec["id"], "text": rec.get("text", ""), "kind": rec.get("kind"),
+                    "messages": reach.opening(self, messages, rec, key)}
+        except Exception:
+            return None
+
+    def reaching(self, who=None):
+        """Read-only: every reach-out it would make to `who` right now, best
+        first, as `{"id", "text", "kind", "expires"}`."""
+        try:
+            from .cognition import reach
+            return [{"id": r["id"], "text": r.get("text", ""), "kind": r.get("kind"),
+                     "expires": r.get("expires")}
+                    for r in reach.offerable(self, self.people.resolve(who))]
+        except Exception:
+            return []
+
+    def reached(self, reach_id, text):
+        """Tell the mind its reach-out was sent, with the words that went.
+        It remembers having written first, and offers nothing more to that
+        person until they answer. Returns True if it was recorded."""
+        try:
+            from .cognition import reach
+            return reach.delivered(self, reach_id, text)
+        except Exception:
+            return False
+
     # ── learning ─────────────────────────────────────────────────────────────
     def observe(self, user_text, assistant_text, who=None):
         """Learn from one exchange. Extraction plus at most one due deep pass —
@@ -191,6 +246,11 @@ class Mind:
             key = None
         try:
             self._recall_signal(key, assistant_text)
+        except Exception:
+            pass
+        try:
+            from .cognition import reach
+            reach.raised(self, key, assistant_text)   # brought up in the reply: it has been said
         except Exception:
             pass
         if self.llm is None:
@@ -224,6 +284,10 @@ class Mind:
                 fn(self)
         except Exception:
             pass  # fail-graceful: the chat path never breaks on cognition
+        try:
+            development.check(self)   # has the life earned a step up? mechanical
+        except Exception:
+            pass
         finally:
             self._busy.release()
 
@@ -242,6 +306,10 @@ class Mind:
                 fn(self)
             except Exception:
                 return None
+            try:
+                development.check(self)
+            except Exception:
+                pass
             return name
 
     # ── the ledger ───────────────────────────────────────────────────────────

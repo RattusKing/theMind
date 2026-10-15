@@ -184,6 +184,44 @@ already knows, so telling an existing mind "this is Sam" does not split it.
 Names are matched case-insensitively. A speaker you don't name is always the
 usual person — the mind never guesses who is talking.
 
+## Watching it grow up, and letting it speak first
+
+A mind starts out **new to you** and grows through four more stages: getting
+to know each other, familiar, come into its own, and long-standing. It moves
+up only when the life you share has earned it: time, things lived through
+together, it being wrong about something and learning from it, its own view
+changing, a fear it had coming true or easing, hopes, interests that lasted.
+Chatting a lot in one afternoon does not do it. Each step changes what it
+feels free to do. A new mind follows your lead; a familiar one will tell you
+when it disagrees; one that has come into its own keeps its view when you push
+back. It never goes back down, and it remembers each step.
+
+To see where it is, and what the next step still needs:
+
+```python
+mind.stage()   # {"name": "familiar", "next": {"missing": ["37 more exchange(s)", ...]}, ...}
+```
+
+Once it is **familiar**, it can also **speak first**: between conversations it
+notices whether there is something real it would want to bring up before you
+write, like how the thing you said was happening went. It never sends
+anything itself. Your app asks, and decides:
+
+- **Library:** `r = mind.reach([{"role": "system", "content": PERSONA}])`. If
+  that returns something (usually it returns `None`), send `r["messages"]` to
+  your model, deliver what it writes, then call `mind.reached(r["id"], text)`.
+- **Proxy:** `POST /themind/reach` with `{"messages": [...]}`, then
+  `POST /themind/reached` with `{"id": ..., "text": ...}`.
+- **MCP:** the `reach_out` and `reached_out` tools.
+
+It will never write about missing you or how long it has been, it never
+writes a second time before you have answered the first, and it does not write
+first at all while it is still new to you. If you write first, whatever it
+meant to bring up is there in its mind for the conversation. You can turn it
+off (`mind.manifest.set_setting("reach", False)`) or tune how quiet it must be
+before writing (`reach_quiet_hours`, default 8) and how far apart two
+reach-outs must be (`reach_gap_hours`, default 20).
+
 ## Does it get smarter?
 
 In a specific, checkable way, yes. The mind keeps a few signals on itself

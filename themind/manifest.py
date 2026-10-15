@@ -8,7 +8,7 @@ import os
 from .envelope import now_iso
 from .store import JsonDoc
 
-FORMAT = "themind/0.11"
+FORMAT = "themind/0.12"
 
 
 class Manifest:
@@ -42,6 +42,7 @@ class Manifest:
         st.setdefault("last_tune", None)
         st.setdefault("last_apprehend", None)
         st.setdefault("last_interest", None)
+        st.setdefault("last_reach", None)
         self.data = data
         self.save()
 
@@ -90,7 +91,10 @@ class Manifest:
             self.data["settings"] = merged
         for key, val in (disk.get("state") or {}).items():
             cur = self.data["state"].get(key)
-            if key == "exchanges":
+            if key in ("exchanges", "stage"):
+                # counters, and the stage it has grown to: neither ever goes back
+                if val is None and cur is None:
+                    continue
                 self.data["state"][key] = max(int(cur or 0), int(val or 0))
             elif isinstance(val, str) and (not isinstance(cur, str) or val > cur):
                 self.data["state"][key] = val  # ISO timestamps: newest wins

@@ -236,6 +236,22 @@ class MindMCP:
             lines.append("(where I used to stand: %s)" % b["history"][0].get("text", "")[:200])
         return "\n".join(l for l in lines if l)
 
+    def tool_reach_out(self, args):
+        r = self.mind.reach(None, who=args.get("who"))
+        if not r:
+            return "(nothing you'd bring up first right now. Wait for them.)"
+        return ("Something you'd bring up first (id %s):\n%s\n\nOnly if you are about to "
+                "start a conversation yourself: open with it naturally, in your own voice, in "
+                "one short message. Don't explain why you are writing, don't mention time "
+                "apart or waiting, and don't ask anything of them beyond the question itself. "
+                "After you send it, call reached_out with this id and exactly what you sent."
+                % (r["id"], r["text"]))
+
+    def tool_reached_out(self, args):
+        if self.mind.reached(args.get("id"), args.get("text")):
+            return "Remembered: you wrote first. Nothing more until they answer."
+        return "(no such reach-out waiting, or it was already sent)"
+
     # ── borrowed cognition machinery ─────────────────────────────────────────
     def _capture(self, fn):
         """Run a pass just far enough to catch the prompt it would have sent
@@ -334,6 +350,21 @@ TOOLS = [
     {"name": "my_stance",
      "description": "Your considered position on your own experience, with its history.",
      "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False}},
+    {"name": "reach_out",
+     "description": "Only when YOU are about to start a conversation, before they have "
+                    "written: is there something real you would bring up first? Returns it, "
+                    "or nothing. Never use it mid-conversation; never write to fill a silence.",
+     "inputSchema": {"type": "object", "properties": {
+         "who": {"type": "string", "description": "who you would be writing to, by name, ONLY "
+                 "if it is not the person you usually talk with; omit for the usual person."}},
+         "additionalProperties": False}},
+    {"name": "reached_out",
+     "description": "After you sent what reach_out offered: record it, with exactly what you "
+                    "sent. You will then wait to be answered before writing first again.",
+     "inputSchema": {"type": "object", "properties": {
+         "id": {"type": "string", "description": "the id reach_out gave you"},
+         "text": {"type": "string", "description": "exactly what you sent"}},
+         "required": ["id", "text"], "additionalProperties": False}},
 ]
 
 
