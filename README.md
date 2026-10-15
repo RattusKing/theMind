@@ -97,6 +97,25 @@ give it.
   rhythms. Some of it happens because something crossed a line: a fear went
   loud, a prediction broke badly, a need went unmet. Those get thought about
   first, rather than when their turn comes round.
+- **It grows up with you.** Five stages, from new to each other to
+  long-standing, earned from the life itself rather than a counter: time
+  known, things lived through together, being wrong and learning from it, its
+  own view having moved, a fear met, hopes, interests that lasted. A flood of
+  messages in one afternoon earns nothing. Each stage changes what is its to
+  do. A newly met mind follows your lead; a familiar one may disagree with you
+  plainly, and may write first; one that has come into its own keeps its view
+  when you push back, and says when something doesn't sit right. It never goes
+  backwards, and it remembers each step as something that happened.
+- **It can speak first.** Between conversations it notices whether there is
+  something real it would want to bring up before you write: how the thing you
+  said was coming went, something still open for you, something of its own it
+  would want to share. theMind never sends anything. Your app asks, writes the
+  message in its own voice with its own model, and tells the mind it went. The
+  guards are the point: it has to come from something it actually holds; it is
+  never about missing you, how long it has been, or what you haven't done; it
+  never writes twice into silence; and a mind still new to you doesn't write
+  first at all. If you write first, what it meant to raise is simply there in
+  the conversation.
 - **Its own weather and its own wants.** How it is, lately, carried between
   conversations; and wants of its own — earned from what it holds, never generated
   on command — that stir, strengthen, and end honestly.
@@ -238,7 +257,24 @@ python3 -m themind import ./my-mind material.json             # backs up first
 
 Imported records read as *inherited* forever, nothing already held is ever
 overwritten, and conflicts are reported rather than merged. See
-GETTING_STARTED.md for the file format.
+GETTING_STARTED.md for the file format. If the identity has already lived a
+long time somewhere else, `mind.manifest.set_setting("stage_floor", 3)` lets
+it start grown instead of new.
+
+**Let it speak first.** Whenever your app could start a conversation (a
+morning check, a timer, an app opening), ask:
+
+```python
+r = mind.reach([{"role": "system", "content": PERSONA}])   # None almost always
+if r:
+    text = your_model(r["messages"])     # your persona, your model, your voice
+    send_to_them(text)                   # your call whether, when, and how
+    mind.reached(r["id"], text)          # it remembers, and waits to be answered
+```
+
+`mind.stage()` says how far it has grown with them and what the next step
+still needs. The proxy offers the same at `POST /themind/reach` and
+`/themind/reached`, and the MCP door as `reach_out` and `reached_out`.
 
 **Carry it with you:**
 
@@ -279,13 +315,17 @@ python3 -m themind.bench                       # the continuity test: five simul
   than large ones; a guard now refuses any feeling, worry or want that does not
   rest on the person's own words, but how other providers and local models
   fare is untested. `bench.run(llm=...)` will tell you about yours.
+- **Speaking first needs your app.** theMind never sends anything, so it can
+  only write first if the app around it asks (`reach()`, `/themind/reach`,
+  `reach_out`) and delivers. Without that, what it would have raised waits,
+  and comes up when they next write.
 - **The MCP door is built to the spec and tested against our own client.** It
   has not yet been exercised against every real platform's connector
   implementation; report what you find.
 
 ## Status
 
-**v1.7.2, format 0.11.** The on-disk format — what a mind is, at rest — is
+**v1.8.0, format 0.12.** The on-disk format — what a mind is, at rest — is
 published in [FORMAT.md](FORMAT.md) and remains open to challenge while it is
 cheap to change; every change to it is additive, and older minds open
 unchanged. The project's scientific grounding — how the architecture maps onto
@@ -293,10 +333,10 @@ the science of consciousness, scored honestly, gaps and all — is published in
 [SCIENCE.md](SCIENCE.md), and its capstone runs on your machine:
 
 ```
-python3 -m themind.bench   # the continuity test: five simulated weeks, 24 probes
+python3 -m themind.bench   # the continuity test: five simulated weeks, 27 probes
 ```
 
-`tests/run_all.py` holds the behavioral guarantees — 446 assertions across
+`tests/run_all.py` holds the behavioral guarantees — 502 assertions across
 grounding, parse-or-skip, read order, budget, export round-trip, the proxy and
 MCP doors, cross-door coherence, multi-person scoping, and self-tuning — with
 no network and no provider SDK, ever. Every push to `main` runs the suite and
@@ -332,8 +372,9 @@ continuity benchmark (v1.0), hardening (v1.1), multi-person minds (v1.2),
 recursive growth (v1.3), what is at stake: fears, needs and a horizon (v1.4),
 interests that last with its own noticings (v1.5), receiving an existing
 identity rather than regenerating one (v1.6), feelings that do work
-rather than being described (v1.7), and checked against live models, which
-found and fixed what no stub could (v1.7.1, v1.7.2).
+rather than being described (v1.7), checked against live models, which
+found and fixed what no stub could (v1.7.1, v1.7.2), and growing up in stages,
+with the first thing it ever does unprompted: speak first (v1.8).
 
 theMind is extracted from a production AI companion whose cognitive systems have
 been running live since 2025. The scaffolding it needed (schedulers, cloud

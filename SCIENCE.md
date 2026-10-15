@@ -45,7 +45,7 @@ belong to the model underneath and are marked as such.
 | HOT-4 | Self-awareness feedback loops | Higher-order | **Implemented** — selfhood with dated history, inner state, voiceable divergence, first-person reflection |
 | AST-1 | A model of one's own attention | Attention schema | **Implemented (v0.7)** — a derived, recency-weighted read of the entity graph ("what's been pulling at my attention"), surfaced in context and fed into the mind's weather and reflection |
 | PP-1 | Predictive models with prediction-error signals | Predictive processing | **Implemented (format 0.4)** — expectations with provenance; surprise raises salience, confirmation lowers it (`expectations.jsonl`) |
-| AE-1 | Learning from feedback; flexible goal pursuit | Agency & embodiment | **Partial** — own desires with a full lifecycle exist; feedback on whether pursuing them *worked* does not yet |
+| AE-1 | Learning from feedback; flexible goal pursuit | Agency & embodiment | **Partial** — own desires with a full lifecycle exist, and from v1.8 the mind can begin something from its own side (speaking first, offered to the host); feedback on whether pursuing them *worked* does not yet |
 | AE-2 | Modeling how outputs affect inputs | Agency & embodiment | **Buildable** at the conversational level (did surfacing a want change the exchange?) |
 
 ## 2. Chalmers' barriers
@@ -260,6 +260,24 @@ truth:
     structurally one-way (it can never raise recall past what the host set,
     and never below a floor), because an affect system that can expand its own
     reach is a reward channel, not a feeling.
+13. ~~**Development, and the first thing it does unprompted**~~ — **shipped,
+    v1.8, format 0.12.** Two absences the earlier chapters left. A mind that
+    is the same on day one hundred as on day one has a history but no
+    development, so it now moves through five stages, each **earned** from
+    evidence already in the folder (time, things lived through and learned
+    from, its view having moved, a fear met, hopes, interests that lasted),
+    each widening what is its to do rather than changing who it is, and each
+    remembered as it happens. It is a ratchet, and the gates are fixed in code,
+    because a mind that could promote itself would. And until now nothing
+    could begin from its side: every faculty waited to be spoken to. The
+    reaching faculty lets it notice, between conversations, something real it
+    would bring up first. It is the first unprompted act in the system, and so
+    the one most open to abuse, which is why it is built as an offer the host
+    decides on, rooted or refused, and structurally unable to be about absence,
+    need or debt. A companion that thinks of you between conversations is one
+    thing; one that tugs at you is another, and the line between them is
+    drawn in code, not left to the model's tact. Live-model verification of
+    this chapter is limited so far; see the README.
 
 ---
 

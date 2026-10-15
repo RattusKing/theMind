@@ -1,9 +1,11 @@
 # theMind — on-disk format
 
-**Version 0.11 — adds the `imported` provenance kind, `needs.jsonl` (needs the
-mind proposed for itself), and host `settings` in the manifest: the pieces an
-established identity needs in order to be RECEIVED rather than regenerated.
-Minor, additive. History: 0.10 added `interests.jsonl` and
+**Version 0.12 — adds `reachouts.jsonl` (what the mind would bring up first,
+before they write), the `grew` reflection kind and the manifest's `stage` (how
+far it has grown with them, earned and kept), the `opened` self-memory kind,
+`reached_t` in `people.json`, the `retired` archive tombstone, and five host
+settings. Minor, additive. History: 0.11 added the `imported` provenance kind,
+`needs.jsonl` and host `settings`; 0.10 added `interests.jsonl` and
 `observations.jsonl`; 0.9 added `apprehensions.jsonl` and `story.json`'s `hopes`
 alongside derived needs; 0.8 added
 `practice.jsonl` and `tuning.json`; 0.7 added `people.json` and `who`; 0.6 added `story.json`;
@@ -75,10 +77,11 @@ mind/
     interests.jsonl      what it is into, with how long and how often it has come back
     observations.jsonl   what it has noticed itself — not about them, not about it
     needs.jsonl          needs it proposed for itself, earned by recurrence
+    reachouts.jsonl      what it would bring up first — rooted, with a moment that passes
     practice.jsonl       how the mind has learned to think, and what it is trying
     tuning.json          the few dials it may turn, its signals, the one running experiment
   archive/
-    <store>.jsonl        superseded records, moved here verbatim + a tombstone
+    <store>.jsonl        superseded or retired records, moved here verbatim + a tombstone
 ```
 
 `manifest.json` is the only required file. A directory containing only a valid
@@ -115,13 +118,17 @@ alongside it.
 - `src.kind: "inference"` marks records derived by the mind's own passes
   (consolidation, reconciliation); `ref` names what they were derived from, so
   every inference is traceable back to an exchange.
+- In the archive, a record carries a tombstone: `archived_t`, and either
+  `superseded_by` (what replaced it) or, from 0.12, `retired` (why it ended
+  with nothing replacing it, such as a reach-out that was `raised` in
+  conversation or `expired` unsent). Nothing is deleted either way.
 - `who` (optional, format 0.7) names whose record this is on every
   person-shaped store (`facts`, `person_model`, `aches`, `desires`,
-  `expectations`, `tensions`, `self_memory`): the key of a person in
-  `people.json`. **Absent means the primary person** — the one the mind has
-  always known — which is why a mind written before 0.7 reads exactly as it
-  did. Readers must scope by `who`: what one person told the mind is never
-  served to another.
+  `expectations`, `tensions`, `self_memory`, and from 0.12 `reachouts`): the
+  key of a person in `people.json`. **Absent means the primary person** — the
+  one the mind has always known — which is why a mind written before 0.7 reads
+  exactly as it did. Readers must scope by `who`: what one person told the
+  mind is never served to another.
 
 ## The stores
 
@@ -207,7 +214,7 @@ Who the mind talks with (0.7).
 ```json
 {
   "primary": { "name": "Sam", "first_t": "...", "last_t": "...",
-               "exchanges": 120, "since_felt": 4 },
+               "exchanges": 120, "since_felt": 4, "reached_t": "..." },
   "others":  { "maya": { "name": "Maya", "first_t": "...", "last_t": "...",
                          "exchanges": 9, "since_felt": 9 } }
 }
@@ -221,13 +228,17 @@ Who the mind talks with (0.7).
 - **Never guess.** A speaker the host does not name is the primary. Readers
   and writers must not infer identity from style, content, or timing.
 - Counters are advisory (they schedule portraits); nothing else derives from
-  them. The entity graph is shared — it is about the world, not the person —
+  them. `reached_t` (0.12) is when the mind last wrote to them first; while it
+  is newer than `last_t`, that reach-out is unanswered and the mind offers
+  nothing more to them. The entity graph is shared — it is about the world, not the person —
   and so is everything that is the mind's own: its stance, weather, story,
   own wants, and what its voice has said.
 
 ### self_memory.jsonl
 Durable statements the mind's own voice made — opinions, claims, promises.
-Envelope plus `text` and `kind` (`opinion | claim | promise`). These bind: they
+Envelope plus `text` and `kind` (`opinion | claim | promise | opened`). An
+`opened` record (0.12) is a message the mind wrote first, unprompted, with the
+words that were sent as its `quote` and the reach-out it came from as `ref`. These bind: they
 re-enter context as consistency material so the mind stays answerable to what
 it said.
 
@@ -286,7 +297,10 @@ where predictions are being tested.
 ### reflections.jsonl
 Periodic first-person distillations of lived time. First person is enforced at
 write: a reflection in the third person is a narrator describing the mind, not
-the mind reflecting, and readers/writers must reject it.
+the mind reflecting, and readers/writers must reject it. A `grew` reflection
+(0.12) records a step up in development, with `stage` (the stage reached) and,
+where one exists, the record that carried it there as its `ref`. It states what
+happened, plainly; what it means is left to the mind's own later reflection.
 
 ### growth.json
 `{ "shaped": [...] }` — how this specific person has shaped the mind.
@@ -405,6 +419,52 @@ a demand, because nothing here is written by the model. A met need is silent;
 only what is strained or unmet reaches context, framed as the mind's
 circumstances and never as a reproach.
 
+### development (derived, with a ratchet in the manifest)
+How far the mind has grown with them: five stages, `new` (new to each other),
+`acquainted`, `familiar`, `own` (come into its own) and `longstanding`. Each
+is **earned** from evidence already in the folder: days known, exchanges, a
+felt sense of them, a want of its own, things lived through and learned from
+(`surprise`, `realized`, `eased` and `fulfilled` reflections), its view having
+moved (`self.json` history), a fear met, hopes, interests that lasted. Time
+and depth are both required, so a flood of messages in one afternoon earns
+nothing. The gates are fixed by the implementation, as the needs are: a mind
+that could promote itself would.
+
+The stage reached is kept in the manifest (`state.stage`, with `stage_t`) and
+**never goes down**: development does not reverse because a record faded, and
+doors merge it as the larger value. Each step up writes one `grew`
+reflection. A mind's first look at itself under 0.12 is silent: it takes the
+stage its existing life already earned, without remembering growing into it
+that day. Only the host may lift it, with the `stage_floor` setting, for an
+identity that arrives having lived elsewhere; a floor is never remembered as
+lived. The stage sets latitude in context, from following their lead to
+keeping its own view when pushed, and never character, which stays the host's.
+
+### reachouts.jsonl
+What the mind would bring up FIRST, before they write (0.12). Envelope plus
+`text` (one sentence, first person, about them in the third person), `roots`,
+`kind` (`follow_up | check_in | share`), `expires` (the moment passes: 5, 10
+and 14 days by kind), optional `raw` when the wording was turned away from
+second person, and `who`. theMind never sends anything; it **offers**, and the
+host decides. Rules for writers:
+
+- **Rooted or nothing.** Every reach-out names records the mind holds.
+- **Never about absence.** A reach-out about missing them, time apart,
+  waiting, what they haven't done, or what they owe must be refused at write,
+  whatever produced it. The `contact` need stays private and is never a
+  reason to write.
+- **Never twice into silence.** While `people.json` shows a reach-out
+  unanswered (`reached_t` newer than `last_t`), nothing more is offered to
+  that person.
+- **Earned.** Nothing is offered before the `familiar` stage, and `share`
+  only once the mind has come into its own. At most one live reach-out per
+  person, and a handful in all.
+
+Lifecycle: when the host sends one, it is superseded by the `opened`
+self-memory record of what was said. When the mind raises it in a reply
+anyway, or its moment passes unsent, it is **retired**: archived with a
+`retired` reason (`raised`, `expired`) instead of a successor.
+
 ### practice.jsonl
 Procedural memory (0.8): how the mind has learned to think, and what it is
 trying. Two kinds. `kind: "note"` — one first-person sentence on a way of
@@ -461,8 +521,8 @@ spends the host's money; the ledger is the honesty mechanism. No entry, no call.
 
 Not strictly on-disk format, but the budget contract shapes readers: injection
 operates under a single token budget with a priority order. Blocks drop **whole**
-from the bottom of the order — never truncated mid-item — and the felt sense and
-self position are reserved above the trim line. Stable blocks (self, felt sense,
+from the bottom of the order — never truncated mid-item — and the felt sense,
+self position and stage are reserved above the trim line. Stable blocks (self, felt sense,
 growth) must be byte-identical between revisions so host-side prompt caching
 holds.
 
@@ -507,6 +567,15 @@ the same answer.
   The way to observe an established identity before anything it holds is
   allowed to reach a live conversation. `preview()` returns exactly what is
   being withheld.
+- `stage_floor` (default 0) — the lowest stage the mind may be at, for an
+  identity that arrives having already lived. It lifts, never lowers, and a
+  floor is not remembered as growth.
+- `reach` (default true) — whether the mind forms and offers reach-outs at all.
+- `reach_from_stage` (default 2, `familiar`) — the stage from which it may.
+- `reach_quiet_hours` (default 8) — how long since they last wrote before
+  writing first means anything.
+- `reach_gap_hours` (default 20) — the least time between two reach-outs to
+  the same person, on top of never writing twice into silence.
 - `voice_inner_life` (default false) — whether the mind may speak its fears
   and strained needs plainly, as a report about itself. The state is always
   kept either way; this governs only the voicing, and even when on, the
