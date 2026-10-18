@@ -706,8 +706,8 @@ ok(conf_fn({"src": {"kind": "default"}, "salience": 0.5}) == "given",
 
 mem = mindC.context("swim training fencing morning").split("WHAT YOU REMEMBER ABOUT THEM:")[1]
 mem_lines = mem.splitlines()
-ok(any(l.strip() == "- They swim every single morning." for l in mem_lines),
-   "a well-remembered thing speaks plainly")
+ok(any(l.strip() == "- They swim every single morning. (just now)" for l in mem_lines),
+   "a well-remembered thing speaks plainly: what it is and when, no hedging")
 ok(any("pieced together" in l for l in mem_lines if "training" in l),
    "an inference admits it's an inference")
 ok(any("hazy" in l for l in mem_lines if "fencing" in l),
@@ -3092,6 +3092,73 @@ ok("Remembered" in tool_M("reached_out", {"id": idM, "text": "How did the talk g
    and "nothing you'd bring up first" in tool_M("reach_out", {}),
    "…record that it wrote, and then wait")
 for d in (dR_, dQ_, dC_, dS2_, dP_, dM_):
+    shutil.rmtree(d, ignore_errors=True)
+
+# ── 35. a sense of time: every memory says when ──────────────────────────────
+print("sense of time")
+from themind.envelope import ago as ago_T, when as when_T, make_record as mk_T
+
+ok(ago_T(ago_D(0.01)) == "just now" and ago_T(ago_D(5 / 24.0)) == "5 hours ago"
+   and ago_T(ago_D(3)) == "3 days ago" and ago_T(ago_D(21)) == "3 weeks ago"
+   and ago_T(ago_D(120)) == "4 months ago" and ago_T("") == "" and ago_T("garbage") == "",
+   "how long ago, the way a person would say it, and nothing when it can't tell")
+
+mindT, dT_ = fresh()
+walkT = mk_T("f", {"kind": "exchange", "quote": "walked the harbor twice today", "ref": None},
+             text="They walked the harbor twice today.", entities=["harbor"])
+walkT["t"] = ago_D(21)
+oldT = mk_T("f", {"kind": "imported", "ref": "journal-2025", "quote": None},
+            text="They grew up by the sea.", entities=["sea"])
+oldT["t"] = ago_D(1)
+feelT = mk_T("pm", {"kind": "exchange", "quote": "i am nervous", "ref": None},
+             text="They feel nervous about the interview.", kind="feels")
+feelT["t"] = ago_D(4)
+acheT = mk_T("a", {"kind": "exchange", "quote": "still no word", "ref": None},
+             text="The interview outcome is still open.")
+acheT["t"] = ago_D(4)
+for store, rec in (("facts", walkT), ("facts", oldT), ("person_model", feelT), ("aches", acheT)):
+    mindT.stores[store].append(rec)
+ok(when_T(walkT) == " (3 weeks ago)" and when_T(oldT) == "",
+   "a remembered thing carries when it was learned; inherited material does not pretend to")
+ctxT = mindT.preview("harbor sea interview")
+ok("They walked the harbor twice today. (3 weeks ago)" in ctxT,
+   "'today' three weeks later reads as three weeks ago, not as today")
+ok("They grew up by the sea." in ctxT and "They grew up by the sea. (" not in ctxT,
+   "…while what it inherited carries no false 'when'")
+ok("They feel nervous about the interview. (4 days ago)" in ctxT
+   and "The interview outcome is still open. (4 days ago)" in ctxT,
+   "their feelings and open threads say when, too")
+
+mindT.people.doc.save({"primary": {"name": "Sam", "first_t": ago_D(30), "last_t": ago_D(5)},
+                       "others": {"maya": {"name": "Maya", "first_t": ago_D(9),
+                                           "last_t": ago_D(2)}}})
+ctxT2 = mindT.preview("hey")
+ok("It has been 5 days since you last talked with them." in ctxT2
+   and "never a reproach" in ctxT2 and "never 'I missed you'" in ctxT2,
+   "coming back after days, it knows how long it has been, framed so it can't become a reproach")
+ok("It has been 2 days since you last talked with Maya." in mindT.preview("hey", who="Maya"),
+   "…for each person, by their own time")
+mindT.people.doc.save({"primary": {"name": "Sam", "first_t": ago_D(30), "last_t": ago_D(0.05)},
+                       "others": {}})
+ok("TIME SINCE YOU LAST TALKED" not in mindT.preview("hey"),
+   "in the middle of a conversation, there is no gap to speak of")
+fresh_T, dT2_ = fresh()
+ok("TIME SINCE YOU LAST TALKED" not in fresh_T.preview("hey"),
+   "and a mind that has never been spoken to has no 'since'")
+ok(mindT.preview("harbor") == mindT.preview("harbor"),
+   "the same moment builds the same context, byte for byte")
+
+mRT, dRT_, tRT = reach_mind()
+tRT_old = mRT.live("facts")[0]
+tRT_old["t"] = ago_D(6)
+mRT.stores["facts"].rewrite([tRT_old])
+callsR.clear()
+replyR["r"] = "NONE"
+reach_R.run(mRT)
+ok(callsR and "They plan a real talk tomorrow. (6 days ago)" in callsR[0]
+   and "had time to happen" in reach_R.SYSTEM,
+   "what it would reach out about says when it learned it, so 'tomorrow' is not mistaken for tomorrow")
+for d in (dT_, dT2_, dRT_):
     shutil.rmtree(d, ignore_errors=True)
 
 print("\nall %d assertions passed" % PASS)

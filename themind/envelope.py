@@ -29,6 +29,44 @@ def age_days(t):
     return max(0.0, (datetime.now(timezone.utc) - dt).total_seconds() / 86400.0)
 
 
+def ago(t):
+    """How long ago, the way a person would say it: "just now", "5 hours
+    ago", "3 days ago", "2 weeks ago", "4 months ago". Derived from the
+    record's own timestamp at read time, never stored. A memory that says
+    "today" means nothing three weeks later unless it also says when it was
+    today. Empty if there is no timestamp to read."""
+    if parse_iso(t or "") is None:
+        return ""
+    days = age_days(t)
+    hours = days * 24.0
+    if hours < 1:
+        return "just now"
+    if hours < 36:
+        n = int(round(hours))
+        return "%d hour%s ago" % (n, "" if n == 1 else "s")
+    if days < 14:
+        n = int(round(days))
+        return "%d days ago" % n
+    if days < 60:
+        n = int(round(days / 7.0))
+        return "%d weeks ago" % n
+    if days < 730:
+        n = int(round(days / 30.4))
+        return "%d months ago" % n
+    n = int(round(days / 365.25))
+    return "%d years ago" % n
+
+
+def when(rec):
+    """ " (3 days ago)": when this was learned, to sit after its text.
+    Inherited material gets nothing, because its timestamp is when it
+    arrived in this folder, not when it was lived."""
+    if ((rec or {}).get("src") or {}).get("kind") == "imported":
+        return ""
+    a = ago((rec or {}).get("t"))
+    return " (%s)" % a if a else ""
+
+
 def new_id(prefix):
     return "%s_%s" % (prefix, os.urandom(4).hex())
 

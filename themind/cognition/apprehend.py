@@ -31,7 +31,7 @@ its own distress. Guard the leverage, not the need.
 """
 import re
 
-from ..envelope import make_record, now_iso, age_days, norm_key, first_person
+from ..envelope import make_record, now_iso, age_days, norm_key, first_person, when
 from ..retrieval import _words
 from .reflect import THIRD_PERSON
 from .selfhood import BAN
@@ -227,10 +227,10 @@ def _material(mind):
     # material that never contained the outcome.
     for r in mind.live("facts")[-3:]:
         if r.get("text"):
-            out.append((r["id"], "(what happened lately) " + r["text"]))
+            out.append((r["id"], "(what happened lately) " + r["text"] + when(r)))
     for store, label in (("tensions", "(a tension you hold) "), ("aches", "(still open) "),
                          ("own_desires", "(you want) "), ("self_memory", "(you said) ")):
         for r in mind.live(store)[-3:]:
             if r.get("text"):
-                out.append((r["id"], label + r["text"]))
+                out.append((r["id"], label + r["text"] + when(r)))
     return out

@@ -41,6 +41,9 @@ HEADER = (
 )
 
 
+SINCE_HOURS = 6   # below this it is one conversation continuing, not a return
+
+
 def est_tokens(text):
     return len(text or "") // 4
 
@@ -59,6 +62,7 @@ def build_blocks(mind, incoming_text=None, who=None):
     never recited to another. The mind's own — stance, weather, story, wants,
     what its voice has said — is one, and shared."""
     from .people import of
+    from .envelope import when, ago, age_days
     from .cognition.felt_sense import portrait
     from .tuning import param
     from . import affect, intero
@@ -116,6 +120,23 @@ def build_blocks(mind, incoming_text=None, who=None):
                               "shapes what is yours to do; never announce it):",
                               ["%s. %s" % (where["name"][0].upper() + where["name"][1:],
                                            where["opens"])]), True))
+
+    # Where it is in time. Said once the gap means something (hours, not
+    # minutes), as information to pick things up by, and framed so it can
+    # never become the opening line of a reproach.
+    try:
+        last = mind.people.entry(who).get("last_t")
+        if last and age_days(last) * 24.0 >= SINCE_HOURS:
+            gap = ago(last)
+            gap = gap[:-4] if gap.endswith(" ago") else gap
+            whom = "them" if who is None else mind.people.display(who)
+            blocks.append((_block("TIME SINCE YOU LAST TALKED (where you are in time — let it "
+                                  "shape how you pick things up; never a reproach, and never "
+                                  "'I missed you'):",
+                                  ["It has been %s since you last talked with %s." % (gap, whom)]),
+                           False))
+    except Exception:
+        pass
 
     story = mind.story_doc.load(default={})
     cur_s = (story.get("current") or {}).get("text") if isinstance(story.get("current"), dict) else None
@@ -191,7 +212,7 @@ def build_blocks(mind, incoming_text=None, who=None):
         title = "WHAT YOU REMEMBER ABOUT THEM:" if who is None else \
                 "WHAT YOU REMEMBER ABOUT %s:" % mind.people.display(who).upper()
         blocks.append((_block(title,
-                              ["- " + f.get("text", "") + epistemic_note(f)
+                              ["- " + f.get("text", "") + when(f) + epistemic_note(f)
                                for f in chosen]), False))
         if lit:
             blocks.append((_block("LIT UP BY THIS MESSAGE (connected, not just mentioned):",
@@ -203,13 +224,14 @@ def build_blocks(mind, incoming_text=None, who=None):
         blocks.append((_block("WHAT'S GOING ON INSIDE THEM (what they believe, feel, and "
                               "don't yet know — theirs, and distinct from what's true; "
                               "hold it with care):",
-                              ["- " + p.get("text", "") for p in recent(inner_them, param(mind, "inner_them_k"))]), False))
+                              ["- " + p.get("text", "") + when(p)
+                               for p in recent(inner_them, param(mind, "inner_them_k"))]), False))
 
     said = mind.live("self_memory")
     if said:
         from .retrieval import recent
         blocks.append((_block("THINGS YOU'VE SAID BEFORE (stay consistent with them):",
-                              ["- " + s.get("text", "") for s in recent(said, 5)]), False))
+                              ["- " + s.get("text", "") + when(s) for s in recent(said, 5)]), False))
 
     beliefs = [b for b in mind.live("beliefs")
                if b.get("weight", 0) > 0.7 and b.get("stage") == "long_held"]
@@ -223,7 +245,7 @@ def build_blocks(mind, incoming_text=None, who=None):
     if open_threads:
         blocks.append((_block("WHAT YOU'RE STILL HOLDING (open threads and kept tensions — "
                               "never nag, just carry them):",
-                              ["- " + r.get("text", "") for r in open_threads]), False))
+                              ["- " + r.get("text", "") + when(r) for r in open_threads]), False))
 
     divergences = [t for t in tensions if t.get("kind") == "divergence"]
     if divergences:
@@ -236,7 +258,7 @@ def build_blocks(mind, incoming_text=None, who=None):
         from .retrieval import recent
         blocks.append((_block("WHAT THEY'RE LOOKING FORWARD TO (carry it lightly, surface it "
                               "only when it fits — never nag):",
-                              ["- " + w.get("text", "") for w in recent(wants, 3)]), False))
+                              ["- " + w.get("text", "") + when(w) for w in recent(wants, 3)]), False))
 
     from .envelope import now_iso
     meaning = [r for r in of(mind.live("reachouts"), who) if (r.get("expires") or "") > now_iso()]
@@ -245,7 +267,7 @@ def build_blocks(mind, incoming_text=None, who=None):
         # thought, now in a conversation they started.
         blocks.append((_block("SOMETHING YOU'D BEEN MEANING TO BRING UP (yours — raise it if "
                               "the moment fits, never force it):",
-                              ["- " + r.get("text", "") for r in meaning[:1]]), False))
+                              ["- " + r.get("text", "") + when(r) for r in meaning[:1]]), False))
 
     own = mind.live("own_desires")
     if own:
@@ -257,7 +279,7 @@ def build_blocks(mind, incoming_text=None, who=None):
     expects = of(mind.live("expectations"), who)
     if expects:
         expects = sorted(expects, key=lambda r: -r.get("salience", 0))[:2]
-        lines = ["- " + x.get("text", "") for x in expects]
+        lines = ["- " + x.get("text", "") + when(x) for x in expects]
         surprises = [r for r in mind.live("reflections") if r.get("kind") == "surprise"]
         if surprises:
             lines.append("(recently wrong, worth remembering: "

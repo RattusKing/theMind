@@ -30,7 +30,7 @@ miss you", "it's been a while"), so the guards are the point:
 """
 import re
 
-from ..envelope import make_record, now_iso, age_days, norm_key
+from ..envelope import make_record, now_iso, age_days, norm_key, when
 from ..people import of, owner
 from ..retrieval import _words
 from .. import development
@@ -53,6 +53,9 @@ SYSTEM = (
     "KIND: <one of the kinds open to you>\n"
     "Kinds: follow_up (asking after something they told you was coming), check_in (asking "
     "after something still open for them), share (offering something of yours).\n"
+    "Each item says how long ago you learned it. Words like 'today' or 'tomorrow' inside an "
+    "item mean then, not now; a follow_up is only for something that has had time to "
+    "happen, and never says 'today' about something that wasn't.\n"
     "Rules: it must come from what you hold. Never about missing them, how long it has "
     "been, waiting, or being alone; never to get something from them, test them, or make "
     "them feel they owe you anything; never a reminder of something they haven't done."
@@ -131,7 +134,7 @@ def _material(mind, who):
                             ("facts", "(what happened lately) ", 4)):
         for r in of(mind.live(store), who)[-n:]:
             if r.get("text"):
-                out.append((r["id"], label + r["text"]))
+                out.append((r["id"], label + r["text"] + when(r)))
     if not out:
         return []   # nothing of theirs to come from: no reason to write
     for r in sorted(mind.live("interests"), key=lambda x: -x.get("salience", 0))[:2]:
