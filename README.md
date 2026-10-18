@@ -93,6 +93,11 @@ give it.
   it ran to its own limits. A mind that notices "that was expensive and I lost
   most of it" has something nearer a felt state than one reading its own prose
   back. An easy condition stays silent.
+- **A sense of time.** Everything it remembers about you says when it learned
+  it, so "I'm nervous about Friday" read three weeks later is three weeks old,
+  not today's news. Coming back after a few days, it knows how long it has
+  been, as something to pick things up by and never as a reproach. Ages are
+  read from timestamps the folder already keeps; nothing new is stored.
 - **Thoughts that arrive unbidden.** Most of its thinking happens on its own
   rhythms. Some of it happens because something crossed a line: a fear went
   loud, a prediction broke badly, a need went unmet. Those get thought about
@@ -204,6 +209,15 @@ pip install git+https://github.com/RattusKing/theMind.git
 Prefer to read the code before running it? `git clone` this repo and work from
 inside the folder instead; every command below behaves the same either way.
 
+**Just talk to it — the companion.** One file, no code, in your terminal. It
+uses your Anthropic or OpenAI key if you have one set, and otherwise a free
+local model through Ollama:
+
+```
+curl -O https://raw.githubusercontent.com/RattusKing/theMind/main/examples/companion.py
+python3 companion.py --model <your model's name>      # /show to see its mind, /quit to leave
+```
+
 **No code — the proxy.** Run one command, then point your app's `base_url` at
 it. Works with anything speaking the OpenAI wire format (OpenAI, Ollama,
 LM Studio, OpenRouter, vLLM…):
@@ -279,6 +293,7 @@ still needs. The proxy offers the same at `POST /themind/reach` and
 **Carry it with you:**
 
 ```
+python3 -m themind show ./my-mind              # the mind, readable, in one page
 python3 -m themind export ./my-mind            # one file, the whole mind
 python3 -m themind restore back.json ./new-home
 python3 -m themind curriculum ./my-mind        # its verified outcomes, as training pairs
@@ -325,7 +340,7 @@ python3 -m themind.bench                       # the continuity test: five simul
 
 ## Status
 
-**v1.8.0, format 0.12.** The on-disk format — what a mind is, at rest — is
+**v1.9.0, format 0.12.** The on-disk format — what a mind is, at rest — is
 published in [FORMAT.md](FORMAT.md) and remains open to challenge while it is
 cheap to change; every change to it is additive, and older minds open
 unchanged. The project's scientific grounding — how the architecture maps onto
@@ -336,7 +351,7 @@ the science of consciousness, scored honestly, gaps and all — is published in
 python3 -m themind.bench   # the continuity test: five simulated weeks, 27 probes
 ```
 
-`tests/run_all.py` holds the behavioral guarantees — 502 assertions across
+`tests/run_all.py` holds the behavioral guarantees — 528 assertions across
 grounding, parse-or-skip, read order, budget, export round-trip, the proxy and
 MCP doors, cross-door coherence, multi-person scoping, and self-tuning — with
 no network and no provider SDK, ever. Every push to `main` runs the suite and
@@ -377,7 +392,8 @@ interests that last with its own noticings (v1.5), receiving an existing
 identity rather than regenerating one (v1.6), feelings that do work
 rather than being described (v1.7), checked against live models, which
 found and fixed what no stub could (v1.7.1, v1.7.2), and growing up in stages,
-with the first thing it ever does unprompted: speak first (v1.8).
+with the first thing it ever does unprompted: speak first (v1.8), and a
+sense of time, a page to see it on, and a companion to meet it with (v1.9).
 
 theMind is extracted from a production AI companion whose cognitive systems have
 been running live since 2025. The scaffolding it needed (schedulers, cloud

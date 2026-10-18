@@ -10,9 +10,45 @@ Ollama, LM Studio, OpenRouter, vLLM, and most others. It needs **no accounts,
 no API key of its own, and no extra services** — it rides the connection your
 app already has.
 
-There are three ways to use it. Most people want the first or second.
+There are three ways to plug it into an app you already have. If you just
+want to meet it first, start with the companion below: no app needed.
 
 ---
+
+## Just talk to it: the companion
+
+One file, nothing else to install, in your terminal:
+
+```
+pip install git+https://github.com/RattusKing/theMind.git
+curl -O https://raw.githubusercontent.com/RattusKing/theMind/main/examples/companion.py
+python3 companion.py --model <your model's name>
+```
+
+It uses whatever you have. With `ANTHROPIC_API_KEY` set it uses Anthropic;
+with `OPENAI_API_KEY` set it uses OpenAI (or any OpenAI-compatible server,
+with `--base-url`); with neither, it uses [Ollama](https://ollama.com) on your
+own machine, which is free and private (`ollama pull <model>`, then pass that
+name). `--name` and `--persona` change who it is.
+
+Type to talk. `/show` shows you its mind, `/quit` saves it and leaves. Its mind
+is the folder `./my-companion-mind`; keep it, back it up, or move it. Come back
+after a while and it may speak first, about something real.
+
+## Seeing its mind
+
+At any time, from anywhere:
+
+```
+python3 -m themind show ./my-companion-mind
+```
+
+One readable page: how far it has grown with you, who you are to it, how it
+is lately, what it wants and fears, what it remembers and when, what it would
+bring up first, and when each part of it last thought. On a new mind it says
+plainly that it is early days, because most of its inner life starts after the
+first handful of exchanges and some of it runs on weekly rhythms. Looking
+never changes anything in the folder. `--json` gives the same as data.
 
 ## Option 1 — the proxy: no code at all
 
