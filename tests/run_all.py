@@ -3343,4 +3343,108 @@ provC.server_close()
 for d in (dC1, dC2, dC3):
     shutil.rmtree(d, ignore_errors=True)
 
+# ── 38. hosted: your own always-on mind, reachable from the apps ─────────────
+print("hosted")
+import subprocess as sp_H
+import socket as sock_H
+from themind import mcp as mcp_H
+
+tokH = "aB3+/xYz9Q/7+kLmN0pQrStUvWxYz0123456789AB="
+ok(mcp_H.path_secret(tokH) == "aB3-_xYz9Q_7-kLmN0pQrStUvWxYz0123456789AB",
+   "a generated secret becomes a link-safe one: no '/' to split the path")
+dH = tempfile.mkdtemp(prefix="mind_")
+srvH = mcp_H.serve(dH, port=0, token=tokH)
+threading.Thread(target=srvH.serve_forever, daemon=True).start()
+baseH = "http://127.0.0.1:%d" % srvH.server_address[1]
+
+
+def call_H(path, headers=None):
+    body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "ping"}).encode()
+    req = urllib.request.Request(baseH + path, data=body, method="POST",
+                                 headers=dict({"Content-Type": "application/json"}, **(headers or {})))
+    try:
+        with urllib.request.urlopen(req, timeout=10) as r:
+            return r.status
+    except urllib.error.HTTPError as e:
+        return e.code
+
+
+with urllib.request.urlopen(baseH + "/healthz", timeout=10) as rH:
+    healthH = (rH.status, rH.read())
+ok(healthH == (200, b"ok"), "the host's health check is answered without the secret, and says nothing else")
+ok(call_H("/%s/mcp" % mcp_H.path_secret(tokH)) == 200
+   and call_H("/mcp", {"Authorization": "Bearer " + tokH}) == 200,
+   "the link-safe secret in the path opens it, and so does the raw secret as a header")
+ok(call_H("/mcp") == 401 and call_H("/wrong-secret/mcp") == 401 and call_H("/healthz/mcp") == 401,
+   "without the secret, nothing")
+srvH.shutdown()
+srvH.server_close()
+
+envH = dict(os.environ)
+envH.pop("THEMIND_TOKEN", None)
+errH = io.StringIO()
+with contextlib.redirect_stderr(errH):
+    os_env_saved = dict(os.environ)
+    os.environ.pop("THEMIND_TOKEN", None)
+    try:
+        codeH = mcp_H.main(["--host", "0.0.0.0", "--port", "0", "--mind", dH])
+    finally:
+        os.environ.clear()
+        os.environ.update(os_env_saved)
+ok(codeH == 2 and "without a secret" in errH.getvalue(),
+   "it refuses to put a mind on a public address without a secret")
+
+sH = sock_H.socket()
+sH.bind(("127.0.0.1", 0))
+portH = sH.getsockname()[1]
+sH.close()
+envH.update({"PORT": str(portH), "THEMIND_TOKEN": tokH,
+             "RENDER_EXTERNAL_URL": "https://themind-test.onrender.com"})
+procH = sp_H.Popen([sys.executable, "-m", "themind.mcp", "--host", "127.0.0.1", "--mind",
+                    os.path.join(dH, "hosted"), "--quiet"],
+                   cwd=os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."),
+                   env=envH, stdout=sp_H.PIPE, stderr=sp_H.PIPE, text=True)
+linesH = [procH.stdout.readline() for _ in range(3)]
+baseH = "http://127.0.0.1:%d" % portH
+statusH = call_H("/%s/mcp" % mcp_H.path_secret(tokH))
+procH.terminate()
+outH, errH2 = procH.communicate(timeout=10)
+linkH = "https://themind-test.onrender.com/%s/mcp" % mcp_H.path_secret(tokH)
+ok(any(linkH in l for l in linesH) and statusH == 200,
+   "on a host it prints the exact link to paste into ChatGPT or Claude, and that link works")
+ok(mcp_H.path_secret(tokH) not in errH2 and tokH not in errH2,
+   "…and the secret never lands in the request logs")
+
+renderH = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "render.yaml")).read()
+ok("mountPath: /var/data" in renderH and "--mind /var/data/mind" in renderH
+   and "healthCheckPath: /healthz" in renderH and "generateValue: true" in renderH
+   and "--quiet" in renderH and "plan: starter" in renderH and "THEMIND_TOKEN" not in
+   renderH.split("startCommand:")[1].split("\n")[0],
+   "the Render blueprint keeps the mind on a disk, checks health, generates the secret, logs nothing")
+
+# a mind living only through MCP still notices what it said, and still grows
+mM2, dM2, tM2 = reach_mind()
+replyR["r"] = "REACH: I want to ask how the real talk went. | ROOTS: %s | KIND: follow_up" % tM2["id"]
+reach_R.run(mM2)
+coreM2 = mcp_H.MindMCP(mM2)
+coreM2._call_tool("submit_extraction", {"user_text": "hey", "your_reply": "How did the real talk go?",
+                                        "lines": "NONE"})
+archM2 = Jsonl_R(os.path.join(dM2, "archive", "reachouts.jsonl"), validate=False).load()
+ok(not mM2.live("reachouts") and any(a.get("retired") == "raised" for a in archM2),
+   "over MCP too, once it has brought something up, it is said")
+mG, dG_ = fresh()
+dev_D.check(mG)
+mG.people.doc.save({"primary": {"name": None, "first_t": ago_D(10), "last_t": ago_D(1)},
+                    "others": {}})
+mG.manifest.state["exchanges"] = 12
+mG.manifest.save()
+mG.felt_doc.save({"current": {"text": "I feel them as someone steady.", "t": now_iso()},
+                  "history": []})
+mcp_H.MindMCP(mG)._call_tool("submit_extraction", {"user_text": "hey", "your_reply": "hi",
+                                                   "lines": "NONE"})
+ok([r for r in mG.live("reflections") if r.get("kind") == "grew" and r.get("stage") == 1],
+   "…and a mind living only through MCP remembers growing up")
+for d in (dH, dM2, dG_):
+    shutil.rmtree(d, ignore_errors=True)
+
 print("\nall %d assertions passed" % PASS)

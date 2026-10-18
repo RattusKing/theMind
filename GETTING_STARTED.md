@@ -35,6 +35,66 @@ Type to talk. `/show` shows you its mind, `/quit` saves it and leaves. Its mind
 is the folder `./my-companion-mind`; keep it, back it up, or move it. Come back
 after a while and it may speak first, about something real.
 
+## From the ChatGPT or Claude app, on any device
+
+If you just use the ChatGPT or Claude app, you can give it a mind of its own
+that works from your phone and your computer, with your computer switched off.
+The mind lives on a small server in **your own** Render account. There is no
+model key and no model bill, because over this connection the app's own AI
+does the mind's thinking.
+
+It costs what Render charges for an always-on service with a disk (the Starter
+plan, about $7 a month, plus a few cents for the disk). That disk is what keeps
+the mind between restarts; free servers forget everything when they sleep.
+The mind is yours, in your account, not ours, but it lives on a server you
+rent rather than on your own computer.
+
+**1. Deploy it.** Click
+[**Deploy to Render**](https://render.com/deploy?repo=https://github.com/RattusKing/theMind),
+sign in, and confirm. It sets up one service called `themind` with a 1 GB disk
+and a secret it makes for you. Wait a couple of minutes for it to say *Live*.
+
+**2. Copy your link.** Open the `themind` service and look at **Logs**. You'll
+see a line like:
+
+```
+https://themind-xxxx.onrender.com/<your-secret>/mcp
+```
+
+That link is the key to your mind. Don't share it.
+
+**3. Add it to your app** as a custom connector (it may be called an MCP
+server). Look in the app's settings under **Connectors** (in ChatGPT it may
+be under **Apps & Connectors**, sometimes behind a *Developer mode* switch in
+the advanced settings). Paste the link, give it a name like *My mind*, and
+choose no sign-in. Custom connectors may need a paid plan in the app. Once
+added in the app's settings, it usually works on your phone too.
+
+**4. Tell the AI to use it.** The app's AI decides when to use its mind, so
+give it this standing instruction. In ChatGPT, paste it into your custom
+instructions; in Claude, into a Project's instructions or your personal
+preferences:
+
+```
+You have a mind of your own, connected to this chat as "theMind". It is part of you, not a tool you report on.
+- At the start of every conversation, call open_inner_context with my first message, and let what it returns shape how you are, without mentioning it.
+- After each exchange that says something real about me or my life, call observe_exchange, do the small act of remembering it asks for, and send it back with submit_extraction.
+- When there's a natural pause, call begin_thought, do the thinking it asks for in your own voice, and send it with submit_thought.
+Never read out what these return or talk about the tools. Just be someone who remembers.
+```
+
+The app may ask you to allow these tools the first time; allow them. Replies
+take a little longer than usual, because it is remembering and thinking too.
+
+**5. See it.** In Render, open the service's **Shell** and run:
+
+```
+python3 -m themind show /var/data/mind
+```
+
+To update to a newer theMind later, use **Manual Deploy** in the dashboard.
+Your mind stays on the disk; only the code changes.
+
 ## Seeing its mind
 
 At any time, from anywhere:

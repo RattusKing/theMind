@@ -33,6 +33,13 @@ from .mind import Mind
 from .cognition import extract
 
 DEFAULT_PORT = 6464  # one past the proxy's 6463 ("MIND" on a phone keypad)
+
+
+def path_secret(token):
+    """The token as it can sit in a URL path. A generated secret may be
+    base64 ('/' would split the path, '+' and '=' read badly), so the path
+    form swaps to the URL-safe alphabet; the token itself is accepted too."""
+    return (token or "").replace("+", "-").replace("/", "_").rstrip("=")
 PROTOCOL = "2025-06-18"
 
 INSTRUCTIONS = (
@@ -175,8 +182,25 @@ class MindMCP:
             key = None
         stored = self._one_shot_run("extract", lines,
                                     lambda: extract.run(self.mind, user_text, reply, who=key))
+        self._after_exchange(key, reply)
         return "held: %s item(s) became part of you (everything ungrounded was dropped)" \
             % (stored if stored is not None else 0)
+
+    def _after_exchange(self, key, reply):
+        """What observe() does around learning, done here too: a pending
+        reach-out its reply already raised is retired, and growth is checked.
+        Without this, a mind living only through MCP would never notice it had
+        said what it meant to, and never remember growing up."""
+        try:
+            from .cognition import reach
+            reach.raised(self.mind, key, reply)
+        except Exception:
+            pass
+        try:
+            from . import development
+            development.check(self.mind)
+        except Exception:
+            pass
 
     def tool_begin_thought(self, args):
         from .cognition import due_passes
@@ -210,6 +234,11 @@ class MindMCP:
         if not output:
             return "empty thought — nothing changed"
         self._one_shot_run(need.purpose, output, lambda: fn(self.mind))
+        try:
+            from . import development
+            development.check(self.mind)   # did that thinking carry it a step further?
+        except Exception:
+            pass
         return ("done: the %s thinking is part of you now — whatever failed its guards "
                 "was dropped, as it should be" % name)
 
@@ -413,8 +442,10 @@ class MindMCPServer(ThreadingHTTPServer):
         for cand in parse_qs(parsed.query).get("token", []):
             if hmac.compare_digest(cand.encode("utf-8"), want):
                 return True
+        safe = path_secret(self.token).encode("utf-8")
         for seg in parsed.path.split("/"):
-            if seg and hmac.compare_digest(seg.encode("utf-8"), want):
+            if seg and (hmac.compare_digest(seg.encode("utf-8"), want)
+                        or hmac.compare_digest(seg.encode("utf-8"), safe)):
                 return True
         return False
 
@@ -453,6 +484,10 @@ class _HTTPHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
+        if urlparse(self.path).path.rstrip("/") == "/healthz":
+            # For a host's health check: says the server is up, and nothing else.
+            self._send(200, b"ok", content_type="text/plain")
+            return
         # No server-initiated stream: the spec lets a server decline the GET.
         self._send(405, json.dumps({"error": "POST JSON-RPC messages to this endpoint"}).encode())
 
@@ -514,12 +549,15 @@ def main(argv=None):
     p = argparse.ArgumentParser(
         prog="python3 -m themind.mcp",
         description="theMind MCP server: connect your AI platform to its own mind.")
-    p.add_argument("--mind", default="./mind",
-                   help="the mind's folder (created if missing; default ./mind)")
-    p.add_argument("--host", default="127.0.0.1")
-    p.add_argument("--port", type=int, default=DEFAULT_PORT)
+    p.add_argument("--mind", default=os.environ.get("THEMIND_MIND", "./mind"),
+                   help="the mind's folder (created if missing; default ./mind, or $THEMIND_MIND)")
+    p.add_argument("--host", default=os.environ.get("THEMIND_HOST", "127.0.0.1"))
+    p.add_argument("--port", type=int, default=int(os.environ.get("PORT") or DEFAULT_PORT))
     p.add_argument("--budget", type=int, default=2000)
-    p.add_argument("--token", default=None,
+    p.add_argument("--public-url", default=os.environ.get("RENDER_EXTERNAL_URL"),
+                   help="the address the world reaches this server at, to print the exact "
+                        "connector link (set automatically on Render)")
+    p.add_argument("--token", default=os.environ.get("THEMIND_TOKEN") or None,
                    help="require a secret: as 'Authorization: Bearer <token>', as ?token=, "
                         "or in the URL path (/<token>/mcp) — the last works in web platforms' "
                         "connector settings, which can paste a URL but not set a header")
@@ -531,10 +569,23 @@ def main(argv=None):
     if args.stdio:
         serve_stdio(args.mind, budget=args.budget)
         return
+    if not args.token and args.host not in ("127.0.0.1", "localhost", "::1"):
+        print("refusing to serve a mind on %s without a secret: anyone who found the address "
+              "could read it and write to it. Pass --token (or set THEMIND_TOKEN)." % args.host,
+              file=sys.stderr)
+        return 2
     server = serve(args.mind, host=args.host, port=args.port, budget=args.budget,
                    token=args.token, quiet=args.quiet)
-    print("theMind MCP: http://%s:%d/mcp   (mind: %s)" % (args.host, args.port, args.mind))
-    print("add this URL to your AI platform as an MCP server / custom connector.")
+    if args.public_url:
+        link = "%s/%s/mcp" % (args.public_url.rstrip("/"), path_secret(args.token))
+        print("theMind MCP is up (mind: %s)." % args.mind)
+        print("Your mind's connector link — paste it into ChatGPT or Claude as a custom "
+              "connector. It is the key to your mind; don't share it:")
+        print("    " + link)
+    else:
+        print("theMind MCP: http://%s:%d/mcp   (mind: %s)" % (args.host, args.port, args.mind))
+        print("add this URL to your AI platform as an MCP server / custom connector.")
+    sys.stdout.flush()
     try:
         server.serve_forever()
     except KeyboardInterrupt:
@@ -544,4 +595,4 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
