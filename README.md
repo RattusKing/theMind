@@ -218,6 +218,15 @@ curl -O https://raw.githubusercontent.com/RattusKing/theMind/main/examples/compa
 python3 companion.py --model <your model's name>      # /show to see its mind, /quit to leave
 ```
 
+**From the ChatGPT or Claude app — your own always-on mind.** One click puts
+your mind on your own Render account, with a link to paste into ChatGPT or
+Claude as a custom connector. It works from any device with your computer off,
+and needs no model key, because the app's own AI does the thinking. It costs
+Render's always-on plan with a disk (about $7 a month).
+[Step-by-step, with the instruction to paste](GETTING_STARTED.md#from-the-chatgpt-or-claude-app-on-any-device).
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/RattusKing/theMind)
+
 **No code — the proxy.** Run one command, then point your app's `base_url` at
 it. Works with anything speaking the OpenAI wire format (OpenAI, Ollama,
 LM Studio, OpenRouter, vLLM…):
@@ -340,7 +349,7 @@ python3 -m themind.bench                       # the continuity test: five simul
 
 ## Status
 
-**v1.9.0, format 0.12.** The on-disk format — what a mind is, at rest — is
+**v1.10.0, format 0.12.** The on-disk format — what a mind is, at rest — is
 published in [FORMAT.md](FORMAT.md) and remains open to challenge while it is
 cheap to change; every change to it is additive, and older minds open
 unchanged. The project's scientific grounding — how the architecture maps onto
@@ -351,7 +360,7 @@ the science of consciousness, scored honestly, gaps and all — is published in
 python3 -m themind.bench   # the continuity test: five simulated weeks, 27 probes
 ```
 
-`tests/run_all.py` holds the behavioral guarantees — 528 assertions across
+`tests/run_all.py` holds the behavioral guarantees — 538 assertions across
 grounding, parse-or-skip, read order, budget, export round-trip, the proxy and
 MCP doors, cross-door coherence, multi-person scoping, and self-tuning — with
 no network and no provider SDK, ever. Every push to `main` runs the suite and
@@ -395,7 +404,8 @@ identity rather than regenerating one (v1.6), feelings that do work
 rather than being described (v1.7), checked against live models, which
 found and fixed what no stub could (v1.7.1, v1.7.2), and growing up in stages,
 with the first thing it ever does unprompted: speak first (v1.8), and a
-sense of time, a page to see it on, and a companion to meet it with (v1.9).
+sense of time, a page to see it on, and a companion to meet it with (v1.9),
+and your own always-on mind for the ChatGPT and Claude apps (v1.10).
 
 theMind is extracted from a production AI companion whose cognitive systems have
 been running live since 2025. The scaffolding it needed (schedulers, cloud

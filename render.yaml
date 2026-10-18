@@ -1,0 +1,26 @@
+# Deploy your own theMind to Render: one always-on server holding YOUR mind on
+# a disk in YOUR account, reachable by ChatGPT and Claude as a custom connector.
+# No model key is needed: over MCP, the app's own AI does the mind's thinking.
+#
+# A disk is what keeps the mind between restarts, and disks need a paid
+# instance (Starter). Free instances forget everything when they sleep.
+services:
+  - type: web
+    name: themind
+    runtime: python
+    plan: starter
+    # Pure standard library: nothing to install. This only shows the version.
+    buildCommand: python3 --version
+    # --quiet: request logs would write the secret link into your logs.
+    startCommand: python3 -m themind.mcp --host 0.0.0.0 --port $PORT --mind /var/data/mind --quiet
+    healthCheckPath: /healthz
+    # Your mind stays on the version you deployed until you choose to update
+    # (Manual Deploy in the dashboard), so nothing changes under it unasked.
+    autoDeploy: false
+    disk:
+      name: mind
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: THEMIND_TOKEN
+        generateValue: true
