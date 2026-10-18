@@ -3161,4 +3161,60 @@ ok(callsR and "They plan a real talk tomorrow. (6 days ago)" in callsR[0]
 for d in (dT_, dT2_, dRT_):
     shutil.rmtree(d, ignore_errors=True)
 
+# ── 36. show: the mind, readable, in one page, and never written to ─────────
+print("show")
+from themind import show as show_S
+
+
+def run_cli_S(*argv):
+    buf, err = io.StringIO(), io.StringIO()
+    with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(err):
+        code = cli_main(list(argv))
+    return code, buf.getvalue(), err.getvalue()
+
+
+newS, dS_ = fresh()
+codeS, outS, _ = run_cli_S("show", dS_)
+ok(codeS == 0 and "WHERE IT IS WITH THEM" in outS and "New to each other" in outS
+   and "It's early" in outS and "(nothing right now)" in outS,
+   "a newborn mind shows plainly: new to them, early days, and why nothing has happened yet")
+
+mS2, dS2b_, tS2 = reach_mind()
+replyR["r"] = "REACH: I want to ask how the real talk went. | ROOTS: %s | KIND: follow_up" % tS2["id"]
+reach_R.run(mS2)
+mS2.felt_doc.save({"current": {"text": "I feel them as someone who plans things out loud.",
+                               "t": now_iso()}, "history": []})
+codeS2, outS2, _ = run_cli_S("show", dS2b_)
+ok(codeS2 == 0 and "plans things out loud" in outS2 and "real talk went" in outS2
+   and "They plan a real talk tomorrow. (" in outS2 and "· due now" in outS2,
+   "a lived mind shows who they are to it, what it would bring up first, and memories with when")
+codeJ, outJ, _ = run_cli_S("show", dS2b_, "--json")
+repJ = json.loads(outJ)
+ok(codeJ == 0 and repJ["stage"]["key"] == "familiar" and repJ["would_bring_up"]
+   and {f["faculty"] for f in repJ["faculties"]} >= {"reflect", "reach"},
+   "…and the same page as JSON, for anything that wants to read it")
+
+oldS = tempfile.mkdtemp(prefix="mind_")
+with open(os.path.join(oldS, "manifest.json"), "w") as fS:
+    json.dump({"format": "themind/0.11", "mind_id": "0011aabbccddeeff", "created": ago_D(9),
+               "state": {"exchanges": 3}, "settings": {}}, fS)
+before_S = open(os.path.join(oldS, "manifest.json"), "rb").read()
+codeO, outO, _ = run_cli_S("show", oldS)
+ok(codeO == 0 and open(os.path.join(oldS, "manifest.json"), "rb").read() == before_S
+   and sorted(os.listdir(oldS)) == ["manifest.json"],
+   "looking never writes: no upgrade, no folders, not a byte changed")
+codeN, _o, errN = run_cli_S("show", tempfile.mkdtemp(prefix="notmind_"))
+ok(codeN == 2 and "not a mind folder" in errN, "and it never makes a mind where there was none")
+
+roS = Mind(dS2b_, readonly=True)
+exS = int(roS.manifest.state.get("exchanges") or 0)
+roS.observe("hello", "hi")
+ok(int(Mind(dS2b_, readonly=True).manifest.state.get("exchanges") or 0) == exS
+   and roS.llm is None and roS.step() is None
+   and roS.reached(mS2.live("reachouts")[0]["id"], "hi") is False
+   and mS2.live("reachouts"),
+   "a read-only mind can be looked at, never lived in: no learning, no thinking, no sending")
+for d in (dS_, dS2b_, oldS):
+    shutil.rmtree(d, ignore_errors=True)
+
 print("\nall %d assertions passed" % PASS)

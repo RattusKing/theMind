@@ -19,7 +19,7 @@ from .mind import Mind
 def main(argv=None):
     p = argparse.ArgumentParser(
         prog="python3 -m themind",
-        description="theMind: export a mind to one file, or restore one from it.")
+        description="theMind: look at a mind, export it to one file, restore it, or bring material in.")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     e = sub.add_parser("export", help="write a single-file snapshot of a mind")
@@ -40,11 +40,24 @@ def main(argv=None):
     i.add_argument("--dry-run", action="store_true",
                    help="report what would be received, and write nothing — do this first")
 
+    sh = sub.add_parser("show", help="the mind, readable, in one page (never writes)")
+    sh.add_argument("mind", help="the mind folder")
+    sh.add_argument("--json", action="store_true", help="the same, as JSON")
+
     r = sub.add_parser("restore", help="recreate a mind folder from an export file")
     r.add_argument("export_file", help="a file written by export")
     r.add_argument("dest", help="the folder to become the mind (created if missing)")
 
     args = p.parse_args(argv)
+    if args.cmd == "show":
+        if not os.path.isfile(os.path.join(args.mind, "manifest.json")):
+            print("not a mind folder (no manifest.json): %s" % args.mind, file=sys.stderr)
+            return 2
+        from . import show
+        rep = show.report(Mind(args.mind, readonly=True))
+        sys.stdout.write(show.to_json(rep) + "\n" if args.json else show.render(rep))
+        return 0
+
     if args.cmd == "export":
         # Refuse to invent a mind out of a typo: export reads, it never creates.
         if not os.path.isfile(os.path.join(args.mind, "manifest.json")):

@@ -12,7 +12,7 @@ FORMAT = "themind/0.12"
 
 
 class Manifest:
-    def __init__(self, path):
+    def __init__(self, path, persist=True):
         self.doc = JsonDoc(path)
         data = self.doc.load(default=None) or {}
         if not data.get("mind_id"):
@@ -44,7 +44,9 @@ class Manifest:
         st.setdefault("last_interest", None)
         st.setdefault("last_reach", None)
         self.data = data
-        self.save()
+        self.persist = persist
+        if persist:
+            self.save()   # read-only opens never write, not even a format upgrade
 
     @property
     def mind_id(self):
@@ -102,5 +104,7 @@ class Manifest:
                 self.data["state"][key] = val
 
     def save(self):
+        if not getattr(self, "persist", True):
+            return
         self._merge_from_disk()
         self.doc.save(self.data)
