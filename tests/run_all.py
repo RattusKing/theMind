@@ -706,8 +706,8 @@ ok(conf_fn({"src": {"kind": "default"}, "salience": 0.5}) == "given",
 
 mem = mindC.context("swim training fencing morning").split("WHAT YOU REMEMBER ABOUT THEM:")[1]
 mem_lines = mem.splitlines()
-ok(any(l.strip() == "- They swim every single morning." for l in mem_lines),
-   "a well-remembered thing speaks plainly")
+ok(any(l.strip() == "- They swim every single morning. (just now)" for l in mem_lines),
+   "a well-remembered thing speaks plainly: what it is and when, no hedging")
 ok(any("pieced together" in l for l in mem_lines if "training" in l),
    "an inference admits it's an inference")
 ok(any("hazy" in l for l in mem_lines if "fencing" in l),
@@ -3092,6 +3092,255 @@ ok("Remembered" in tool_M("reached_out", {"id": idM, "text": "How did the talk g
    and "nothing you'd bring up first" in tool_M("reach_out", {}),
    "…record that it wrote, and then wait")
 for d in (dR_, dQ_, dC_, dS2_, dP_, dM_):
+    shutil.rmtree(d, ignore_errors=True)
+
+# ── 35. a sense of time: every memory says when ──────────────────────────────
+print("sense of time")
+from themind.envelope import ago as ago_T, when as when_T, make_record as mk_T
+
+ok(ago_T(ago_D(0.01)) == "just now" and ago_T(ago_D(5 / 24.0)) == "5 hours ago"
+   and ago_T(ago_D(3)) == "3 days ago" and ago_T(ago_D(21)) == "3 weeks ago"
+   and ago_T(ago_D(120)) == "4 months ago" and ago_T("") == "" and ago_T("garbage") == "",
+   "how long ago, the way a person would say it, and nothing when it can't tell")
+
+mindT, dT_ = fresh()
+walkT = mk_T("f", {"kind": "exchange", "quote": "walked the harbor twice today", "ref": None},
+             text="They walked the harbor twice today.", entities=["harbor"])
+walkT["t"] = ago_D(21)
+oldT = mk_T("f", {"kind": "imported", "ref": "journal-2025", "quote": None},
+            text="They grew up by the sea.", entities=["sea"])
+oldT["t"] = ago_D(1)
+feelT = mk_T("pm", {"kind": "exchange", "quote": "i am nervous", "ref": None},
+             text="They feel nervous about the interview.", kind="feels")
+feelT["t"] = ago_D(4)
+acheT = mk_T("a", {"kind": "exchange", "quote": "still no word", "ref": None},
+             text="The interview outcome is still open.")
+acheT["t"] = ago_D(4)
+for store, rec in (("facts", walkT), ("facts", oldT), ("person_model", feelT), ("aches", acheT)):
+    mindT.stores[store].append(rec)
+ok(when_T(walkT) == " (3 weeks ago)" and when_T(oldT) == "",
+   "a remembered thing carries when it was learned; inherited material does not pretend to")
+ctxT = mindT.preview("harbor sea interview")
+ok("They walked the harbor twice today. (3 weeks ago)" in ctxT,
+   "'today' three weeks later reads as three weeks ago, not as today")
+ok("They grew up by the sea." in ctxT and "They grew up by the sea. (" not in ctxT,
+   "…while what it inherited carries no false 'when'")
+ok("They feel nervous about the interview. (4 days ago)" in ctxT
+   and "The interview outcome is still open. (4 days ago)" in ctxT,
+   "their feelings and open threads say when, too")
+
+mindT.people.doc.save({"primary": {"name": "Sam", "first_t": ago_D(30), "last_t": ago_D(5)},
+                       "others": {"maya": {"name": "Maya", "first_t": ago_D(9),
+                                           "last_t": ago_D(2)}}})
+ctxT2 = mindT.preview("hey")
+ok("It has been 5 days since you last talked with them." in ctxT2
+   and "never a reproach" in ctxT2 and "never 'I missed you'" in ctxT2,
+   "coming back after days, it knows how long it has been, framed so it can't become a reproach")
+ok("It has been 2 days since you last talked with Maya." in mindT.preview("hey", who="Maya"),
+   "…for each person, by their own time")
+mindT.people.doc.save({"primary": {"name": "Sam", "first_t": ago_D(30), "last_t": ago_D(0.05)},
+                       "others": {}})
+ok("TIME SINCE YOU LAST TALKED" not in mindT.preview("hey"),
+   "in the middle of a conversation, there is no gap to speak of")
+fresh_T, dT2_ = fresh()
+ok("TIME SINCE YOU LAST TALKED" not in fresh_T.preview("hey"),
+   "and a mind that has never been spoken to has no 'since'")
+ok(mindT.preview("harbor") == mindT.preview("harbor"),
+   "the same moment builds the same context, byte for byte")
+
+mRT, dRT_, tRT = reach_mind()
+tRT_old = mRT.live("facts")[0]
+tRT_old["t"] = ago_D(6)
+mRT.stores["facts"].rewrite([tRT_old])
+callsR.clear()
+replyR["r"] = "NONE"
+reach_R.run(mRT)
+ok(callsR and "They plan a real talk tomorrow. (6 days ago)" in callsR[0]
+   and "had time to happen" in reach_R.SYSTEM,
+   "what it would reach out about says when it learned it, so 'tomorrow' is not mistaken for tomorrow")
+for d in (dT_, dT2_, dRT_):
+    shutil.rmtree(d, ignore_errors=True)
+
+# ── 36. show: the mind, readable, in one page, and never written to ─────────
+print("show")
+from themind import show as show_S
+
+
+def run_cli_S(*argv):
+    buf, err = io.StringIO(), io.StringIO()
+    with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(err):
+        code = cli_main(list(argv))
+    return code, buf.getvalue(), err.getvalue()
+
+
+newS, dS_ = fresh()
+codeS, outS, _ = run_cli_S("show", dS_)
+ok(codeS == 0 and "WHERE IT IS WITH THEM" in outS and "New to each other" in outS
+   and "It's early" in outS and "(nothing right now)" in outS,
+   "a newborn mind shows plainly: new to them, early days, and why nothing has happened yet")
+
+mS2, dS2b_, tS2 = reach_mind()
+replyR["r"] = "REACH: I want to ask how the real talk went. | ROOTS: %s | KIND: follow_up" % tS2["id"]
+reach_R.run(mS2)
+mS2.felt_doc.save({"current": {"text": "I feel them as someone who plans things out loud.",
+                               "t": now_iso()}, "history": []})
+codeS2, outS2, _ = run_cli_S("show", dS2b_)
+ok(codeS2 == 0 and "plans things out loud" in outS2 and "real talk went" in outS2
+   and "They plan a real talk tomorrow. (" in outS2 and "· due now" in outS2,
+   "a lived mind shows who they are to it, what it would bring up first, and memories with when")
+codeJ, outJ, _ = run_cli_S("show", dS2b_, "--json")
+repJ = json.loads(outJ)
+ok(codeJ == 0 and repJ["stage"]["key"] == "familiar" and repJ["would_bring_up"]
+   and {f["faculty"] for f in repJ["faculties"]} >= {"reflect", "reach"},
+   "…and the same page as JSON, for anything that wants to read it")
+
+oldS = tempfile.mkdtemp(prefix="mind_")
+with open(os.path.join(oldS, "manifest.json"), "w") as fS:
+    json.dump({"format": "themind/0.11", "mind_id": "0011aabbccddeeff", "created": ago_D(9),
+               "state": {"exchanges": 3}, "settings": {}}, fS)
+before_S = open(os.path.join(oldS, "manifest.json"), "rb").read()
+codeO, outO, _ = run_cli_S("show", oldS)
+ok(codeO == 0 and open(os.path.join(oldS, "manifest.json"), "rb").read() == before_S
+   and sorted(os.listdir(oldS)) == ["manifest.json"],
+   "looking never writes: no upgrade, no folders, not a byte changed")
+codeN, _o, errN = run_cli_S("show", tempfile.mkdtemp(prefix="notmind_"))
+ok(codeN == 2 and "not a mind folder" in errN, "and it never makes a mind where there was none")
+
+roS = Mind(dS2b_, readonly=True)
+exS = int(roS.manifest.state.get("exchanges") or 0)
+roS.observe("hello", "hi")
+ok(int(Mind(dS2b_, readonly=True).manifest.state.get("exchanges") or 0) == exS
+   and roS.llm is None and roS.step() is None
+   and roS.reached(mS2.live("reachouts")[0]["id"], "hi") is False
+   and mS2.live("reachouts"),
+   "a read-only mind can be looked at, never lived in: no learning, no thinking, no sending")
+for d in (dS_, dS2b_, oldS):
+    shutil.rmtree(d, ignore_errors=True)
+
+# ── 37. the companion: no code, any provider, stdlib only ────────────────────
+print("companion")
+import importlib.util as ilu_C
+spec_C = ilu_C.spec_from_file_location(
+    "companion_C", os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "examples",
+                                "companion.py"))
+comp_C = ilu_C.module_from_spec(spec_C)
+spec_C.loader.exec_module(comp_C)
+
+
+class _ProviderStub(BaseHTTPRequestHandler):
+    seen = []
+
+    def log_message(self, *a):
+        pass
+
+    def do_POST(self):
+        body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)).decode())
+        _ProviderStub.seen.append((self.path, dict(self.headers), body))
+        if self.path.endswith("/v1/messages"):
+            system = body.get("system", "")
+        else:
+            system = (body.get("messages") or [{}])[0].get("content", "")
+        thinking = "faculty" in system
+        text = "NONE" if thinking else (
+            "So, how did the real talk go?" if "WRITING FIRST" in system
+            else "Hey! Good to hear from you.")
+        if self.path.endswith("/v1/messages"):
+            out = {"content": [{"type": "text", "text": text}]}
+        else:
+            out = {"choices": [{"message": {"role": "assistant", "content": text}}]}
+        data = json.dumps(out).encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
+
+provC = ThreadingHTTPServer(("127.0.0.1", 0), _ProviderStub)
+threading.Thread(target=provC.serve_forever, daemon=True).start()
+baseC = "http://127.0.0.1:%d" % provC.server_address[1]
+
+
+def session_C(lines, *extra):
+    out = io.StringIO()
+    code = comp_C.main(list(extra), stdin=io.StringIO("".join(l + "\n" for l in lines)),
+                       stdout=out)
+    return code, out.getvalue()
+
+
+dC1 = tempfile.mkdtemp(prefix="mind_")
+_ProviderStub.seen.clear()
+codeC, outC = session_C(["hello there", "/show", "/quit"], "--model", "any-model",
+                        "--provider", "openai", "--base-url", baseC + "/v1", "--mind", dC1)
+ok(codeC == 0 and "kai: Hey! Good to hear from you." in outC and "WHERE IT IS WITH THEM" in outC
+   and "Its mind is saved in" in outC,
+   "a whole conversation with no code: it answers, /show shows its mind, /quit saves it")
+ok(int(Mind(dC1, readonly=True).manifest.state.get("exchanges") or 0) == 1,
+   "…and leaving waits for it to finish learning from what was said")
+chatsC = [b for path, h, b in _ProviderStub.seen if "faculty" not in b["messages"][0]["content"]]
+thinksC = [b for path, h, b in _ProviderStub.seen if "faculty" in b["messages"][0]["content"]]
+ok(chatsC and chatsC[0]["model"] == "any-model" and "INNER CONTEXT" in chatsC[0]["messages"][0]["content"]
+   and thinksC,
+   "the reply carries its inner context, and its own thinking rides the same provider")
+
+dC2 = tempfile.mkdtemp(prefix="mind_")
+_ProviderStub.seen.clear()
+codeA, outA = session_C(["hello", "/quit"], "--model", "any-model", "--provider", "anthropic",
+                        "--base-url", baseC, "--mind", dC2)
+anthC = [(h, b) for path, h, b in _ProviderStub.seen if path == "/v1/messages"]
+chatA = [b for h, b in anthC if "faculty" not in b.get("system", "")]
+ok(codeA == 0 and anthC and all({k.lower(): v for k, v in h.items()}.get("anthropic-version")
+                                 == "2023-06-01" for h, b in anthC)
+   and chatA and chatA[0]["messages"][0]["role"] == "user"
+   and "INNER CONTEXT" in chatA[0]["system"],
+   "Anthropic works too: system apart, turns starting with the person")
+sysA, turnsA = comp_C._alternating([{"role": "system", "content": "S"},
+                                    {"role": "assistant", "content": "hi first"},
+                                    {"role": "user", "content": "a"},
+                                    {"role": "user", "content": "b"}])
+ok(sysA == "S" and turnsA[0]["role"] == "user" and turnsA[1]["role"] == "assistant"
+   and turnsA[2] == {"role": "user", "content": "a\n\nb"},
+   "…even when it spoke first, or two messages arrive together")
+
+mC3, dC3, tC3 = reach_mind()
+replyR["r"] = "REACH: I want to ask how the real talk went. | ROOTS: %s | KIND: follow_up" % tC3["id"]
+reach_R.run(mC3)
+_ProviderStub.seen.clear()
+codeF, outF = session_C(["/quit"], "--model", "any-model", "--provider", "openai",
+                        "--base-url", baseC + "/v1", "--mind", dC3)
+ok(codeF == 0 and "kai: So, how did the real talk go?" in outF
+   and [r for r in Mind(dC3, readonly=True).live("self_memory") if r.get("kind") == "opened"],
+   "open it after a while and it may speak first, about something real, and remember it did")
+codeF2, outF2 = session_C(["/quit"], "--model", "any-model", "--provider", "openai",
+                          "--base-url", baseC + "/v1", "--mind", dC3)
+ok("real talk" not in outF2, "…and not again until they answer")
+
+envC = dict(os.environ)
+try:
+    for k in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "THEMIND_BASE_URL"):
+        os.environ.pop(k, None)
+    p0 = comp_C.pick_provider()
+    os.environ["OPENAI_API_KEY"] = "x"
+    p1 = comp_C.pick_provider()
+    os.environ["ANTHROPIC_API_KEY"] = "y"
+    p2 = comp_C.pick_provider()
+finally:
+    os.environ.clear()
+    os.environ.update(envC)
+ok((p0, p1, p2) == ("ollama", "openai", "anthropic"),
+   "it uses whatever key you have, and with none, a free local model")
+errC = io.StringIO()
+saved_model_C = os.environ.pop("THEMIND_MODEL", None)
+try:
+    with contextlib.redirect_stderr(errC):
+        codeM = comp_C.main(["--mind", dC1], stdin=io.StringIO(""), stdout=io.StringIO())
+finally:
+    if saved_model_C is not None:
+        os.environ["THEMIND_MODEL"] = saved_model_C
+ok(codeM == 2 and "--model" in errC.getvalue(), "without a model name it says what it needs")
+provC.shutdown()
+provC.server_close()
+for d in (dC1, dC2, dC3):
     shutil.rmtree(d, ignore_errors=True)
 
 print("\nall %d assertions passed" % PASS)

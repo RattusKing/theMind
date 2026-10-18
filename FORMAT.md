@@ -522,7 +522,12 @@ spends the host's money; the ledger is the honesty mechanism. No entry, no call.
 Not strictly on-disk format, but the budget contract shapes readers: injection
 operates under a single token budget with a priority order. Blocks drop **whole**
 from the bottom of the order — never truncated mid-item — and the felt sense,
-self position and stage are reserved above the trim line. Stable blocks (self, felt sense,
+self position and stage are reserved above the trim line. Each remembered thing
+about the person ends with how long ago it was learned ("3 weeks ago"),
+derived from its `t` at read time; inherited material carries none, because its
+`t` is when it arrived, not when it was lived. After a gap of six hours or
+more, the context also says how long it has been since they last talked, from
+`people.json`'s `last_t`. Neither writes anything. Stable blocks (self, felt sense,
 growth) must be byte-identical between revisions so host-side prompt caching
 holds.
 

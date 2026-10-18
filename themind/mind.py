@@ -48,7 +48,7 @@ CORTEX_PURPOSES = ("story", "self", "challenge", "tune", "consolidate", "apprehe
 
 class Mind:
     def __init__(self, path, llm=None, budget_tokens=2000, sync=False, retriever=None,
-                 cortex=None, defaults=None, shadow=None):
+                 cortex=None, defaults=None, shadow=None, readonly=False):
         """`retriever` swaps the memory-recall backend: a callable
         `(records, query_text, lit_entity_labels, k) -> records` returning the
         most relevant of `records`, best first. Default is `retrieval.recall`
@@ -65,12 +65,20 @@ class Mind:
         established identity can be observed for a while before anything is
         allowed to reach a live conversation. Both are host choices, stored in
         the manifest so every door honors them, and both are sticky: pass them
-        once, not on every call."""
+        once, not on every call.
+
+        `readonly=True` opens a mind to look at it and nothing else: no
+        folders are made, the manifest is not rewritten (not even a format
+        upgrade), there is no model, and observing, thinking or recording a
+        reach-out do nothing. For dashboards, inspection, and `show`."""
         self.root = os.path.abspath(path)
-        os.makedirs(os.path.join(self.root, "stores"), exist_ok=True)
-        os.makedirs(os.path.join(self.root, "archive"), exist_ok=True)
-        self.manifest = Manifest(os.path.join(self.root, "manifest.json"))
-        self.llm = llm
+        self.readonly = bool(readonly)
+        if not self.readonly:
+            os.makedirs(os.path.join(self.root, "stores"), exist_ok=True)
+            os.makedirs(os.path.join(self.root, "archive"), exist_ok=True)
+        self.manifest = Manifest(os.path.join(self.root, "manifest.json"),
+                                 persist=not self.readonly)
+        self.llm = None if self.readonly else llm
         self.budget_tokens = budget_tokens
         self.sync = sync
         self.retriever = retriever
@@ -92,9 +100,9 @@ class Mind:
         self.story_doc = JsonDoc(self._p("stores", "story.json"))
         self.people = People(JsonDoc(self._p("stores", "people.json")))
         self.tuning = Tuning(JsonDoc(self._p("stores", "tuning.json")))
-        if defaults is not None:
+        if defaults is not None and not self.readonly:
             self.manifest.set_setting("defaults", bool(defaults))
-        if shadow is not None:
+        if shadow is not None and not self.readonly:
             self.manifest.set_setting("shadow", bool(shadow))
 
     def _p(self, *parts):
@@ -226,6 +234,8 @@ class Mind:
         """Tell the mind its reach-out was sent, with the words that went.
         It remembers having written first, and offers nothing more to that
         person until they answer. Returns True if it was recorded."""
+        if self.readonly:
+            return False
         try:
             from .cognition import reach
             return reach.delivered(self, reach_id, text)
@@ -238,6 +248,8 @@ class Mind:
         on a background thread by default so the host's turn never waits.
         `who` names the speaker (omitted = the primary person; the first name
         a mind ever hears becomes the primary's)."""
+        if self.readonly:
+            return
         self.manifest.bump("exchanges")
         try:
             key = self.people.resolve(who, bind=True)

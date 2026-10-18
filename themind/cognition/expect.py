@@ -11,7 +11,7 @@ future recall. Prediction error is what deserves thought.
 The provenance rule holds here as everywhere: no roots among held records,
 no prediction — an expectation with no basis is a guess wearing a costume.
 """
-from ..envelope import make_record, now_iso, age_days, norm_key, first_person
+from ..envelope import make_record, now_iso, age_days, norm_key, first_person, when
 from ..retrieval import _words
 from ..people import owner, of, tag
 from ..tuning import param
@@ -145,10 +145,10 @@ def _material(mind):
     out = []
     for f in mind.live("facts")[-8:]:
         if f.get("text"):
-            out.append((f["id"], tag(f, mind.people) + "(about them) " + f["text"]))
+            out.append((f["id"], tag(f, mind.people) + "(about them) " + f["text"] + when(f)))
     for store, label in (("aches", "(still open) "), ("desires", "(they want) "),
                          ("own_desires", "(you want) "), ("tensions", "(a tension) ")):
         for r in mind.live(store)[-3:]:
             if r.get("text"):
-                out.append((r["id"], tag(r, mind.people) + label + r["text"]))
+                out.append((r["id"], tag(r, mind.people) + label + r["text"] + when(r)))
     return out
