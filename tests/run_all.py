@@ -3217,4 +3217,130 @@ ok(int(Mind(dS2b_, readonly=True).manifest.state.get("exchanges") or 0) == exS
 for d in (dS_, dS2b_, oldS):
     shutil.rmtree(d, ignore_errors=True)
 
+# ── 37. the companion: no code, any provider, stdlib only ────────────────────
+print("companion")
+import importlib.util as ilu_C
+spec_C = ilu_C.spec_from_file_location(
+    "companion_C", os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "examples",
+                                "companion.py"))
+comp_C = ilu_C.module_from_spec(spec_C)
+spec_C.loader.exec_module(comp_C)
+
+
+class _ProviderStub(BaseHTTPRequestHandler):
+    seen = []
+
+    def log_message(self, *a):
+        pass
+
+    def do_POST(self):
+        body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)).decode())
+        _ProviderStub.seen.append((self.path, dict(self.headers), body))
+        if self.path.endswith("/v1/messages"):
+            system = body.get("system", "")
+        else:
+            system = (body.get("messages") or [{}])[0].get("content", "")
+        thinking = "faculty" in system
+        text = "NONE" if thinking else (
+            "So, how did the real talk go?" if "WRITING FIRST" in system
+            else "Hey! Good to hear from you.")
+        if self.path.endswith("/v1/messages"):
+            out = {"content": [{"type": "text", "text": text}]}
+        else:
+            out = {"choices": [{"message": {"role": "assistant", "content": text}}]}
+        data = json.dumps(out).encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
+
+provC = ThreadingHTTPServer(("127.0.0.1", 0), _ProviderStub)
+threading.Thread(target=provC.serve_forever, daemon=True).start()
+baseC = "http://127.0.0.1:%d" % provC.server_address[1]
+
+
+def session_C(lines, *extra):
+    out = io.StringIO()
+    code = comp_C.main(list(extra), stdin=io.StringIO("".join(l + "\n" for l in lines)),
+                       stdout=out)
+    return code, out.getvalue()
+
+
+dC1 = tempfile.mkdtemp(prefix="mind_")
+_ProviderStub.seen.clear()
+codeC, outC = session_C(["hello there", "/show", "/quit"], "--model", "any-model",
+                        "--provider", "openai", "--base-url", baseC + "/v1", "--mind", dC1)
+ok(codeC == 0 and "kai: Hey! Good to hear from you." in outC and "WHERE IT IS WITH THEM" in outC
+   and "Its mind is saved in" in outC,
+   "a whole conversation with no code: it answers, /show shows its mind, /quit saves it")
+ok(int(Mind(dC1, readonly=True).manifest.state.get("exchanges") or 0) == 1,
+   "…and leaving waits for it to finish learning from what was said")
+chatsC = [b for path, h, b in _ProviderStub.seen if "faculty" not in b["messages"][0]["content"]]
+thinksC = [b for path, h, b in _ProviderStub.seen if "faculty" in b["messages"][0]["content"]]
+ok(chatsC and chatsC[0]["model"] == "any-model" and "INNER CONTEXT" in chatsC[0]["messages"][0]["content"]
+   and thinksC,
+   "the reply carries its inner context, and its own thinking rides the same provider")
+
+dC2 = tempfile.mkdtemp(prefix="mind_")
+_ProviderStub.seen.clear()
+codeA, outA = session_C(["hello", "/quit"], "--model", "any-model", "--provider", "anthropic",
+                        "--base-url", baseC, "--mind", dC2)
+anthC = [(h, b) for path, h, b in _ProviderStub.seen if path == "/v1/messages"]
+chatA = [b for h, b in anthC if "faculty" not in b.get("system", "")]
+ok(codeA == 0 and anthC and all({k.lower(): v for k, v in h.items()}.get("anthropic-version")
+                                 == "2023-06-01" for h, b in anthC)
+   and chatA and chatA[0]["messages"][0]["role"] == "user"
+   and "INNER CONTEXT" in chatA[0]["system"],
+   "Anthropic works too: system apart, turns starting with the person")
+sysA, turnsA = comp_C._alternating([{"role": "system", "content": "S"},
+                                    {"role": "assistant", "content": "hi first"},
+                                    {"role": "user", "content": "a"},
+                                    {"role": "user", "content": "b"}])
+ok(sysA == "S" and turnsA[0]["role"] == "user" and turnsA[1]["role"] == "assistant"
+   and turnsA[2] == {"role": "user", "content": "a\n\nb"},
+   "…even when it spoke first, or two messages arrive together")
+
+mC3, dC3, tC3 = reach_mind()
+replyR["r"] = "REACH: I want to ask how the real talk went. | ROOTS: %s | KIND: follow_up" % tC3["id"]
+reach_R.run(mC3)
+_ProviderStub.seen.clear()
+codeF, outF = session_C(["/quit"], "--model", "any-model", "--provider", "openai",
+                        "--base-url", baseC + "/v1", "--mind", dC3)
+ok(codeF == 0 and "kai: So, how did the real talk go?" in outF
+   and [r for r in Mind(dC3, readonly=True).live("self_memory") if r.get("kind") == "opened"],
+   "open it after a while and it may speak first, about something real, and remember it did")
+codeF2, outF2 = session_C(["/quit"], "--model", "any-model", "--provider", "openai",
+                          "--base-url", baseC + "/v1", "--mind", dC3)
+ok("real talk" not in outF2, "…and not again until they answer")
+
+envC = dict(os.environ)
+try:
+    for k in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "THEMIND_BASE_URL"):
+        os.environ.pop(k, None)
+    p0 = comp_C.pick_provider()
+    os.environ["OPENAI_API_KEY"] = "x"
+    p1 = comp_C.pick_provider()
+    os.environ["ANTHROPIC_API_KEY"] = "y"
+    p2 = comp_C.pick_provider()
+finally:
+    os.environ.clear()
+    os.environ.update(envC)
+ok((p0, p1, p2) == ("ollama", "openai", "anthropic"),
+   "it uses whatever key you have, and with none, a free local model")
+errC = io.StringIO()
+saved_model_C = os.environ.pop("THEMIND_MODEL", None)
+try:
+    with contextlib.redirect_stderr(errC):
+        codeM = comp_C.main(["--mind", dC1], stdin=io.StringIO(""), stdout=io.StringIO())
+finally:
+    if saved_model_C is not None:
+        os.environ["THEMIND_MODEL"] = saved_model_C
+ok(codeM == 2 and "--model" in errC.getvalue(), "without a model name it says what it needs")
+provC.shutdown()
+provC.server_close()
+for d in (dC1, dC2, dC3):
+    shutil.rmtree(d, ignore_errors=True)
+
 print("\nall %d assertions passed" % PASS)
