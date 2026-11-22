@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>themind_ros</name>
-  <version>1.12.0</version>
+  <version>1.13.0</version>
   <description>theMind for ROS 2: what a robot's senses report becomes what its mind lives through. It listens and never commands anything.</description>
   <maintainer email="theMind@users.noreply.github.com">RattusKing</maintainer>
   <license>Apache-2.0</license>

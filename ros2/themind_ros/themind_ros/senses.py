@@ -37,6 +37,14 @@ def _names(value):
     return out
 
 
+def _finite(v):
+    try:
+        v = float(v)
+    except Exception:
+        return None
+    return None if math.isnan(v) or math.isinf(v) else v
+
+
 def _payload(text):
     """A message's text as a dict: JSON when it is a JSON object, else the
     plain words as {"text": ...}. Broken JSON is nothing, not words."""
@@ -71,19 +79,30 @@ class Senses:
         self.present = []
         self.heard = None      # (who, text): said to it, waiting for its reply
         self.offered = None    # the reach-out last offered, by id
+        self.out_of_100 = False   # this battery counts its percentage to 100
 
     def _source(self, topic):
         return "%s:%s" % (self.prefix, topic) if topic else self.prefix
 
     # ── the body ─────────────────────────────────────────────────────────────
-    def battery(self, percentage):
-        """sensor_msgs/BatteryState.percentage: 0..1, NaN when unknown."""
-        try:
-            value = float(percentage)
-        except Exception:
-            return None
-        if math.isnan(value) or math.isinf(value) or value < 0:
-            return None
+    def battery(self, percentage, charge=None, capacity=None):
+        """sensor_msgs/BatteryState. Charge over capacity first, whenever the
+        battery gives both: physical units are never ambiguous. Otherwise its
+        percentage, which the standard says runs 0..1 but some drivers and
+        simulators count to 100. Once a battery has said anything above 1,
+        every reading from it is read out of 100, so that 0.8% is never
+        taken for 80%. Neither, and it says nothing rather than guess."""
+        c, cap = _finite(charge), _finite(capacity)
+        if c is not None and cap is not None and c >= 0 and cap > 0:
+            value = min(1.0, c / cap)
+        else:
+            value = _finite(percentage)
+            if value is None or value < 0:
+                return None
+            if value > 1.0:
+                self.out_of_100 = True
+            if self.out_of_100:
+                value = min(1.0, value / 100.0)
         return self.mind.sense_body({"energy": value})
 
     def body(self, text):

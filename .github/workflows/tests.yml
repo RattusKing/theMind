@@ -47,6 +47,21 @@ jobs:
         shell: bash
         run: ros2/live_check.sh
 
+  physics:
+    # Gazebo, headless and faster than real time: a robot drives from the
+    # kitchen to the garden while its battery drains and Sam comes and goes,
+    # and the mind is checked against what the physics really did.
+    name: physics (Gazebo)
+    runs-on: ubuntu-24.04
+    container: ros:jazzy-ros-base
+    steps:
+      - uses: actions/checkout@v5
+      - name: install Gazebo and its ROS bridge
+        run: apt-get update -qq && apt-get install -y -qq ros-jazzy-ros-gz-sim ros-jazzy-ros-gz-bridge > /dev/null
+      - name: the mind beside a robot in a physics simulation
+        shell: bash
+        run: ros2/sim_check.sh
+
   guards:
     name: guards
     runs-on: ubuntu-latest

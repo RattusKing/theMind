@@ -28,6 +28,9 @@ Topics it publishes (std_msgs/String, JSON):
 It also serves the web API and the MCP door on `api_port` (default 6464), on
 the same mind, so anything else on the robot can reach it over HTTP.
 
+With `use_sim_time:=true` (as in a Gazebo simulation) the mind lives on the
+simulation's clock, at whatever pace it runs.
+
 Parameters: `mind` (the folder), `api_port` (0 turns it off), `api_token`,
 `model_base_url` and `model` (an OpenAI-compatible endpoint the mind may
 think with, such as a local Ollama; the key, if any, is read from
@@ -40,6 +43,7 @@ import json
 import os
 import threading
 import urllib.request
+from datetime import datetime, timedelta, timezone
 
 import rclpy
 from rclpy.executors import ExternalShutdownException
@@ -49,6 +53,7 @@ from sensor_msgs.msg import BatteryState
 from std_msgs.msg import String
 
 from themind import Mind
+from themind.envelope import set_clock
 
 from .senses import Senses
 
@@ -84,6 +89,12 @@ class Bridge(Node):
             ("battery_topic", "/battery_state"))}
         llm = openai_llm(p["model_base_url"], p["model"]) \
             if p["model_base_url"] and p["model"] else None
+        # In a simulation the robot lives on simulated time, so the mind must
+        # too: ages, freshness, how much an hour may add, when a rhythm is due.
+        self._anchor = None
+        self.sim_time = bool(self.get_parameter("use_sim_time").value)
+        if self.sim_time:
+            set_clock(self._sim_now)
         self.mind = Mind(p["mind"], llm=llm)
         self.senses = Senses(self.mind)
         self._thinking = threading.Lock()
@@ -122,7 +133,7 @@ class Bridge(Node):
 
     # ── senses ───────────────────────────────────────────────────────────────
     def _on_battery(self, msg):
-        self.senses.battery(msg.percentage)
+        self.senses.battery(msg.percentage, msg.charge, msg.capacity)
 
     def _on_body(self, msg):
         self.senses.body(msg.data)
@@ -169,7 +180,22 @@ class Bridge(Node):
                 self._thinking.release()
         threading.Thread(target=run, daemon=True).start()
 
+    def _sim_now(self):
+        """Simulated time, as a moment the mind can live in: anchored to the
+        real clock when the first simulated tick arrives, then running at
+        whatever pace the simulation runs. Before the first tick, None, and
+        the real clock stands in."""
+        ns = self.get_clock().now().nanoseconds
+        if ns <= 0:
+            return None
+        if self._anchor is None:
+            self._anchor = (ns, datetime.now(timezone.utc))
+        ns0, wall0 = self._anchor
+        return wall0 + timedelta(microseconds=(ns - ns0) / 1000.0)
+
     def destroy_node(self):
+        if self.sim_time:
+            set_clock(None)
         if self.server is not None:
             self.server.shutdown()
             self.server.server_close()
@@ -183,6 +209,9 @@ def main(args=None):
         rclpy.spin(node)
     except (KeyboardInterrupt, ExternalShutdownException):
         pass
+    except Exception:
+        if rclpy.ok():
+            raise   # a real failure, not the context closing under it at Ctrl-C
     finally:
         try:   # a second Ctrl-C (launch sends one too) must not break the goodbye
             node.destroy_node()

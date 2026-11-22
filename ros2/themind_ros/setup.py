@@ -4,7 +4,7 @@ package_name = "themind_ros"
 
 setup(
     name=package_name,
-    version="1.12.0",
+    version="1.13.0",
     packages=[package_name],
     data_files=[
         ("share/ament_index/resource_index/packages", ["resource/" + package_name]),
