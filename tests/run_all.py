@@ -1062,8 +1062,8 @@ ok("your own mind" in init["result"]["instructions"],
 names = {t["name"] for t in rpc("tools/list")["result"]["tools"]}
 ok(names == {"open_inner_context", "observe_exchange", "submit_extraction",
              "begin_thought", "submit_thought", "remember", "my_stance",
-             "reach_out", "reached_out"},
-   "all nine doors of the voluntary half are listed")
+             "reach_out", "reached_out", "lived_through"},
+   "all ten doors of the voluntary half are listed")
 
 ok("INNER CONTEXT" in tcall("open_inner_context", {"message": "hey"}),
    "inner context serves over MCP")
@@ -1135,7 +1135,7 @@ ok({"desire", "inner_state", "expect", "story"} <= due_names,
    "a pass that never ran is overdue, never fresh (the benchmark's first catch)")
 
 passedB, totalB, reportB = bench_mod.run()
-ok(passedB == totalB == 27,
+ok(passedB == totalB == 30,
    "the continuity test holds full marks: %d/%d over %d simulated weeks"
    % (passedB, totalB, len(bench_mod.WEEKS)))
 shutil.rmtree(dB, ignore_errors=True)
@@ -3446,5 +3446,370 @@ ok([r for r in mG.live("reflections") if r.get("kind") == "grew" and r.get("stag
    "…and a mind living only through MCP remembers growing up")
 for d in (dH, dM2, dG_):
     shutil.rmtree(d, ignore_errors=True)
+
+# ── 39. a body: what it lives through, where, and how its body is (0.13) ────
+print("a body")
+from datetime import datetime as dt_B, timedelta as td_B, timezone as tz_B
+from themind import body as body_B, intero as intero_B
+from themind.envelope import valid_src as valid_src_B, confidence as conf_B
+from themind.cognition import lived as lived_B, urgency as urgency_B, due_passes as due_B
+from themind.cognition import inner_state as inner_B
+from themind.store import Jsonl as Jsonl_B
+
+
+def hours_ago_B(h):
+    return (dt_B.now(tz_B.utc) - td_B(hours=h)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+mB, dB = fresh()
+ctx0 = mB.context("hello there")
+ok(not any(t in ctx0 for t in ("WHERE YOU ARE (", "HOW YOUR BODY IS", "WHAT YOU'VE LIVED")),
+   "a mind never given a body has none of it: nothing new reaches its context")
+ok(mB.manifest.data["format"] == "themind/0.13", "the format is 0.13")
+ok(valid_src_B({"kind": "sensed", "quote": "The door opened.", "ref": "camera"})
+   and not valid_src_B({"kind": "sensed", "quote": "", "ref": "camera"})
+   and not valid_src_B({"kind": "sensed", "quote": "The door opened."}),
+   "a sensed record needs the body's own report and the sense that made it, or it is invalid")
+xB = mB.experience("The door opened and cold air came in.", kind="see", where="the hall",
+                   source="camera!!", intensity=0.9)
+recB = mB.live("experiences")[0]
+ok(xB and recB["src"] == {"kind": "sensed", "quote": "The door opened and cold air came in.",
+                          "ref": "camera"}
+   and recB["kind"] == "saw" and recB["where"] == "the hall" and conf_B(recB) == "lived",
+   "an experience keeps the body's report as its evidence, and reads as lived")
+ok(recB["salience"] > 0.6 and mB.experience("") is None and mB.experience("   ") is None,
+   "how strongly it registered counts, and an empty report is nothing to keep")
+ok(mB.experience("Something odd.", kind="levitated") and
+   mB.live("experiences")[-1]["kind"] == "happened", "an unknown kind of moment just happened")
+again = mB.experience("The door opened and cold air came in.", kind="saw", where="the hall")
+ok(again == xB and mB.live("experiences")[0]["times"] == 2 and len(mB.live("experiences")) == 2,
+   "the same report again within minutes strengthens what is held, it is not two things")
+ok(mB.experience("The door opened and cold air came in.", kind="saw", where="the porch") != xB,
+   "…but somewhere else it is a moment of its own")
+past = mB.experience("The lamp flickered.", at=hours_ago_B(30))
+future = mB.experience("The clock struck.", at="2099-01-01T00:00:00Z")
+recs_B = {r["id"]: r for r in mB.live("experiences")}
+ok(recs_B[past]["t"] == hours_ago_B(30)[:13] + recs_B[past]["t"][13:]
+   and recs_B[future]["t"] <= now_iso(),
+   "a body reporting late is believed about when; the future is not")
+ok(mB.live("experiences")[0]["id"] == past, "and what happened earlier is remembered earlier")
+
+saved_ph = body_B.PER_HOUR
+body_B.PER_HOUR = 8
+mF, dF = fresh()
+kept = [mF.experience("tick %d" % i) for i in range(12)]
+body_B.PER_HOUR = saved_ph
+ok(kept[:8] == [k for k in kept[:8] if k] and kept[8:] == [None] * 4,
+   "a flood earns nothing: an hour can only add so much")
+saved_ml = body_B.MAX_LIVE
+body_B.MAX_LIVE = 5
+for i in range(4):
+    mF.experience("later %d" % i)
+body_B.MAX_LIVE = saved_ml
+archF = Jsonl_B(os.path.join(dF, "archive", "experiences.jsonl"), validate=False).load()
+ok(len(mF.live("experiences")) == 5 and archF and all(a.get("retired") == "faded" for a in archF),
+   "past the ceiling the faintest old moments fade to the archive; nothing is deleted")
+
+# places
+mP, dP = fresh()
+mP.experience("Gulls on the wall.", where="Harbor", at=hours_ago_B(50))
+mP.experience("Boats came in.", where="harbor", at=hours_ago_B(26))
+mP.experience("The kettle whistled.", where="kitchen", at=hours_ago_B(5))
+mP.experience("The rope creaked.", where="harbor")
+spot = mP.place()
+ok(spot and spot["key"] == "harbor" and spot["name"] == "Harbor" and spot["visits"] == 3,
+   "it comes to know places: where it is, and how often it has been back")
+ctxP = mP.context("anything")
+ok("You are here: Harbor. You have been here 3 times; the first was 2 days ago." in ctxP
+   and "What happened here before:" in ctxP and "Gulls on the wall." in
+   ctxP.split("What happened here before:")[1].split("\n\n")[0],
+   "being somewhere brings back what happened there before")
+docP = mP.places_doc.load()
+docP["here_t"] = hours_ago_B(13)
+mP.places_doc.save(docP)
+ok(mP.place() is None and "WHERE YOU ARE (" not in mP.context("anything"),
+   "where it last was, half a day ago, is no longer where it is")
+ctxR = mP.context("did the kettle go?")
+ok("Brought back by this:" in ctxR and "The kettle whistled." in ctxR.split("Brought back by this:")[1]
+   or "The kettle whistled." in ctxR.split("WHAT YOU'VE LIVED THROUGH")[1].split("\n\n")[0],
+   "something said can bring a moment back")
+
+# who was there
+mW, dW = fresh()
+mW.observe("hi, I'm Ana", "Hi Ana.", who="Ana")
+mW.experience("Sam cried at the kitchen table.", where="kitchen", present=["Sam"])
+mW.experience("The window rattled in the wind.", where="kitchen")
+mW.experience("Ana laughed at the radio.", where="kitchen", present=["Ana"])
+ctxAna = mW.context("hey", who="Ana")
+ctxSam = mW.context("hey", who="Sam")
+ok("Sam cried" not in ctxAna and "Sam cried" in ctxSam
+   and "window rattled" in ctxAna and "window rattled" in ctxSam
+   and "Ana laughed" in ctxAna and "Ana laughed" not in ctxSam,
+   "what happened around someone stays with the people who were there")
+entSam = mW.people.entry("sam")
+ok(entSam.get("name") == "Sam" and entSam.get("seen_t") and not entSam.get("exchanges")
+   and not entSam.get("last_t"),
+   "someone it was with is known by name, without counting as having spoken")
+from themind.cognition import reach as reach_B
+ok(reach_B.whom(mW)[1] != "sam", "…and someone who has never written is never written to first")
+ok("with Sam" in body_B.describe(mW, [x for x in mW.live("experiences") if "Sam" in x["text"]][0]),
+   "a moment remembers who was there")
+
+# the body's condition
+mY, dY = fresh()
+rowsY = mY.sense_body({"battery": 12, "heat": 0.3, "smell": 0.9, "strain": "high"})
+ok(rowsY[0] == ("body energy", "strained", "my energy is nearly gone")
+   and ("body heat", "easy", "") in rowsY and len(rowsY) == 2,
+   "readings come in as 0..1 or a percentage; unknown or unreadable ones are ignored")
+lowY = [x for x in mY.live("experiences") if x.get("kind") == "felt"]
+ok(len(lowY) == 1 and lowY[0]["text"] == "My energy ran very low."
+   and lowY[0]["src"] == {"kind": "sensed", "quote": "energy 0.12", "ref": "body"},
+   "running low is something it lived through, with the reading as its evidence")
+mY.sense_body({"battery": 0.1})
+ok(len([x for x in mY.live("experiences") if x.get("kind") == "felt"]) == 1,
+   "…once: staying low is not running low again")
+ctxY = mY.context("how are you?")
+ok("HOW YOUR BODY IS" in ctxY and "my energy is nearly gone" in ctxY
+   and "HOW THE THINKING ITSELF IS GOING" not in ctxY,
+   "a body that is strained is felt in its own words, apart from how the thinking is going")
+ok(intero_B.strain(mY) > 0 and urgency_B(mY, mY.manifest.state).get("inner_state"),
+   "a strained body colors its condition and can jump its thinking")
+ok("(how my body is) my energy is nearly gone" in "\n".join(inner_B._material(mY)),
+   "…and is part of what its weather is made from")
+mY.sense_body({"energy": 0.95})
+ok([x for x in mY.live("experiences") if x.get("text") == "My energy came back."]
+   and "HOW YOUR BODY IS" not in mY.context("how are you?"),
+   "coming back from it is lived too, and an easy body is a quiet one")
+docY = mY.body_doc.load()
+docY["signals"]["energy"] = {"value": 0.05, "t": hours_ago_B(1)}
+mY.body_doc.save(docY)
+ok(not [r for r in body_B.read(mY) if r[0] == "body energy"]
+   and "HOW YOUR BODY IS" not in mY.context("how are you?"),
+   "a reading from an hour ago says nothing about how the body is now")
+mY.experience("Sam hugged me goodbye.", present=["Sam"], intensity=0.9)
+mY.experience("The garden sprinkler soaked me.", intensity=0.9)
+matY = "\n".join(inner_B._material(mY))
+ok("sprinkler soaked me" in matY and "hugged" not in matY,
+   "what stood out goes into its weather, unless someone else was part of it")
+mRO = Mind(dY, readonly=True)
+ok(mRO.experience("x") is None and len(Mind(dY).live("experiences")) ==
+   len(mY.live("experiences")), "a mind opened only to look at it lives through nothing")
+
+# making sense of what it lived through
+seenL = {}
+
+
+def llm_LV(system, user, mt):
+    if system != lived_B.SYSTEM:
+        return "NONE"
+    seenL["user"] = user
+    ids = [l.split(":", 1)[0] for l in user.splitlines() if l.startswith("x_")]
+    return seenL.get("reply", "NONE").format(*ids)
+
+
+mL, dL = fresh(llm=llm_LV)
+mL.experience("The kettle whistled at dawn.", where="kitchen", at=hours_ago_B(49))
+mL.experience("The kettle whistled at dawn again.", where="kitchen", at=hours_ago_B(25))
+mL.experience("Sam sang in the shower.", present=["Sam"])
+mL.experience("Sam sang again.", present=["Sam"])
+mL.experience("Frost on the garden path.", where="garden")
+mL.experience("A fox crossed the garden.", where="garden")
+ok("lived" not in [n for n, _f in due_B(mL)], "four moments of its own are not yet enough to make sense of")
+mL.experience("The garden gate banged in the wind.", where="garden")
+ok("lived" in [n for n, _f in due_B(mL)],
+   "five are, and never having made sense of anything counts as overdue")
+seenL["reply"] = ("NOTICED: I notice the kettle in the kitchen whistles at dawn | ROOTS: {0}, {1}\n"
+                  "NOTICED: I notice the moon is made of cheese | ROOTS: {0}\n"
+                  "NOTICED: The garden is cold | ROOTS: {2}\n"
+                  "NOTICED: I notice frost and a fox in the garden | ROOTS: x_00000000\n"
+                  "NOTICED: I notice I am conscious in the garden | ROOTS: {2}")
+lived_B.run(mL)
+obsL = mL.live("observations")
+ok(len(obsL) == 1 and obsL[0]["text"] == "I notice the kettle in the kitchen whistles at dawn"
+   and obsL[0].get("lived") is True and obsL[0]["src"]["kind"] == "inference",
+   "lived through often enough, it notices something of its own; invention, a narrator's "
+   "voice, roots it was not shown, and a claim to consciousness are all dropped")
+ok(set(obsL[0]["roots"]) <= {x["id"] for x in mL.live("experiences")}
+   and "Sam sang" not in seenL["user"] and "PLACES YOU KNOW" in seenL["user"],
+   "…rooted in real moments, and never in one someone else was part of")
+ok("lived" not in [n for n, _f in due_B(mL)] and mL.manifest.state.get("last_lived"),
+   "having made sense of it, it waits for more to live through")
+ok("I notice the kettle in the kitchen whistles at dawn" in mL.context("morning"),
+   "what it noticed is part of what it brings")
+
+# shadow, export, restore
+mS, dS = fresh()
+mS.manifest.set_setting("shadow", True)
+mS.experience("The porch light came on.", where="porch")
+mS.sense_body({"battery": 5})
+ok(mS.context("hi") == "" and "porch light" in mS.preview("hi") and mS.live("experiences"),
+   "in shadow it still lives through things, and says nothing")
+mS.manifest.set_setting("shadow", False)
+expS = mS.export()
+dS2 = tempfile.mkdtemp(prefix="mind_")
+twinS = Mind.restore(expS, dS2)
+ok(twinS.live("experiences") == mS.live("experiences") and twinS.place() == mS.place()
+   and body_B.read(twinS) == body_B.read(mS),
+   "one file still carries the whole mind: what it lived through, its places, its body")
+for d in (dB, dF, dP, dW, dY, dL, dS, dS2):
+    shutil.rmtree(d, ignore_errors=True)
+
+# ── 40. the web API: any language, any device ────────────────────────────────
+print("the web API")
+from themind import api as api_W
+from themind import mcp as mcp_W
+import urllib.error as urlerr_W
+
+dWA = tempfile.mkdtemp(prefix="mind_")
+srvW = mcp_W.serve(dWA, port=0, token="tok-W")
+threading.Thread(target=srvW.serve_forever, daemon=True).start()
+baseW = "http://127.0.0.1:%d" % srvW.server_address[1]
+
+
+def call_W(method, path, body=None, token="tok-W", raw=None):
+    data = raw if raw is not None else (json.dumps(body).encode() if body is not None else None)
+    headers = {"Content-Type": "application/json"}
+    if token:
+        headers["Authorization"] = "Bearer " + token
+    req = urllib.request.Request(baseW + path, data=data, method=method, headers=headers)
+    try:
+        with urllib.request.urlopen(req, timeout=10) as r:
+            return r.status, json.loads(r.read().decode())
+    except urlerr_W.HTTPError as e:
+        return e.code, json.loads(e.read().decode() or "{}")
+
+
+ok(call_W("GET", "/api", token=None)[0] == 401 and call_W("POST", "/api/context", {}, token=None)[0] == 401,
+   "without the secret, the API gives nothing")
+stW, idxW = call_W("GET", "/api")
+ok(stW == 200 and "POST /api/experience" in idxW["routes"] and idxW["format"] == "themind/0.13",
+   "GET /api says what it offers")
+stO, specW = call_W("GET", "/tok-W/api/openapi.json", token=None)
+ok(stO == 200 and specW["openapi"].startswith("3.") and specW["servers"][0]["url"] == baseW + "/tok-W"
+   and {"/api" + r for _m, r in api_W.ROUTES if r and r != "/openapi.json"} <= set(specW["paths"]),
+   "its OpenAPI description is open to fetch, covers every route, and keeps the path you came by")
+ok(call_W("GET", "/tok-W/api/stage", token=None)[0] == 200, "the secret in the path works here too")
+stC, ctxW = call_W("POST", "/api/context", {"message": "hello"})
+ok(stC == 200 and "INNER CONTEXT" in ctxW["context"], "the inner context, for any language")
+stE, enrW = call_W("POST", "/api/enrich", {"messages": [{"role": "user", "content": "hey"}]})
+ok(stE == 200 and enrW["messages"][0]["role"] == "system"
+   and call_W("POST", "/api/enrich", {"messages": "nope"})[0] == 400,
+   "messages in, messages with a mind out; nonsense in, a plain 400")
+stOb, obW = call_W("POST", "/api/observe", {"user_text": "my sister maya is moving to portland",
+                                           "reply": "Big news!"})
+taskW = obW["task"]
+ok(stOb == 200 and taskW and taskW["purpose"] == "extract" and taskW["system"] == extract_mod.SYSTEM
+   and "my sister maya" in taskW["user"] and taskW["max_tokens"] > 0,
+   "observing an exchange hands back the act of remembering, for whatever model you use")
+ok(int(Mind(dWA).manifest.state["exchanges"]) == 1,
+   "the exchange counts as having happened, whoever does the thinking")
+stS, subW = call_W("POST", "/api/submit", {
+    "task": taskW["id"],
+    "output": "FACT: They have a sister named Maya who is moving to Portland. | QUOTE: my sister "
+              "maya is moving to portland | ENTITIES: Maya, Portland | KIND: relationship\n"
+              "FACT: They own a yacht. | QUOTE: I own a yacht | ENTITIES: yacht | KIND: profile"})
+ok(stS == 200 and subW["ok"] and subW["held"] == 1
+   and [f["text"] for f in Mind(dWA).live("facts")] == [
+       "They have a sister named Maya who is moving to Portland."],
+   "its guards run on what comes back: the grounded memory holds, the invented one drops")
+ok(any(e.get("via") == "agent" and e.get("purpose") == "extract" for e in Mind(dWA).ledger.load()),
+   "the borrowed thinking is in the ledger like any other")
+ok(call_W("POST", "/api/submit", {"task": taskW["id"], "output": "again"})[0] == 404
+   and call_W("POST", "/api/submit", {"output": "x"})[0] == 400,
+   "a task is answered once")
+stT, thW = call_W("POST", "/api/think", {})
+stT2, thW2 = call_W("POST", "/api/think", {})
+ok(stT == 200 and thW["task"] and thW2["task"]["id"] == thW["task"]["id"] and thW2["open"],
+   "a quiet moment hands over the thinking it owes; asking again is the same open thought")
+mcp_open = srvW.core._call_tool("begin_thought", {})["content"][0]["text"]
+ok("already open" in mcp_open, "…and the MCP door sees the same open thought, never a second one")
+stS2, subW2 = call_W("POST", "/api/submit", {"task": thW["task"]["id"],
+                                            "output": "I keep thinking about Maya's move."})
+ok(stS2 == 200 and subW2["ok"] and srvW.core._pending is None, "and submitting it closes it")
+stX, exW = call_W("POST", "/api/experience", {"text": "The door opened.", "kind": "saw",
+                                              "where": "hall", "with": "Ana"})
+stX2, exW2 = call_W("POST", "/api/experience", {"events": [
+    {"text": "Rain on the window.", "kind": "heard", "where": "hall"},
+    {"what": "I picked up the cup.", "kind": "did"}]})
+ok(stX == 200 and exW["id"] and stX2 == 200 and len(exW2["ids"]) == 2 and all(exW2["ids"])
+   and len(Mind(dWA).live("experiences")) == 3,
+   "a body or a world reports what happened, one moment or many")
+ok(call_W("POST", "/api/experience", {"kind": "saw"})[0] == 400
+   and call_W("POST", "/api/experience", {"events": [{"text": "x"}] * 101})[0] == 413,
+   "…and an empty report or a flood is refused plainly")
+stBy, byW = call_W("POST", "/api/body", {"battery": 9, "heat": 0.2})
+ok(stBy == 200 and byW["body"][0] == {"signal": "energy", "level": "strained",
+                                      "note": "my energy is nearly gone"}
+   and call_W("GET", "/api/body")[1] == byW, "its body's readings in, how its body is out")
+stPl, plW = call_W("GET", "/api/place")
+ok(stPl == 200 and plW["place"]["name"] == "hall" and plW["known"][0]["visits"] == 1,
+   "where it is, and every place it knows")
+stR, rmW = call_W("POST", "/api/remember", {"query": "maya"})
+ok(stR == 200 and rmW["memories"][0]["how"] == "remembered", "what it remembers, and how it knows")
+ok(call_W("POST", "/api/reach", {})[1] == {"reach": None}
+   and call_W("POST", "/api/reached", {"id": "nope", "text": "x"})[1] == {"ok": False},
+   "a mind still new to them has nothing to bring up first")
+stSh, shW = call_W("GET", "/api/show")
+ok(stSh == 200 and shW["body"]["here"] == "hall" and shW["exchanges"] == 1,
+   "the whole mind, as one report")
+ok(call_W("GET", "/api/nowhere")[0] == 404 and call_W("GET", "/api/context")[0] == 405
+   and call_W("POST", "/api/context", raw=b"{not json")[0] == 400
+   and call_W("POST", "/api/context", raw=b"[1, 2]")[0] == 400,
+   "a wrong route, a wrong method, or a body that isn't a JSON object each get a plain answer")
+ok(call_W("POST", "/mcp", {"jsonrpc": "2.0", "id": 1, "method": "ping"})[0] == 200,
+   "the MCP door is still there, on the same server")
+livedW = srvW.core._call_tool("lived_through", {"text": "A gull landed on the rail.",
+                                                "kind": "saw", "where": "the pier"})
+ok("Lived" in livedW["content"][0]["text"] and "the pier" in livedW["content"][0]["text"]
+   and any(x["text"] == "A gull landed on the rail." and x["src"]["ref"] == "the world"
+           for x in Mind(dWA).live("experiences"))
+   and srvW.core._call_tool("lived_through", {"text": " "})["content"][0]["text"].startswith(
+       "nothing to keep"),
+   "an agent moving through a world over MCP lives it too")
+srvW.shutdown()
+srvW.server_close()
+
+# a mind that has a model of its own thinks for itself
+hostW = []
+
+
+def llm_W(s, u, m):
+    hostW.append(s)
+    return "NONE"
+
+
+dWB = tempfile.mkdtemp(prefix="mind_")
+mWB = Mind(dWB, llm=llm_W, sync=True)
+coreWB = mcp_W.MindMCP(mWB)
+apiWB = api_W.MindAPI(mWB, coreWB)
+stWB, obWB = apiWB.handle("POST", "observe", {"user_text": "the sea was loud today", "reply": "Mm."})
+ok(stWB == 200 and obWB["task"] is None and extract_mod.SYSTEM in hostW,
+   "a mind with a model of its own thinks for itself and hands you nothing to do")
+
+# the door itself
+import subprocess as sp_W
+sW = _socket.socket()
+sW.bind(("127.0.0.1", 0))
+portW = sW.getsockname()[1]
+sW.close()
+envW = dict(os.environ)
+envW.pop("THEMIND_TOKEN", None)
+envW.pop("RENDER_EXTERNAL_URL", None)
+procW = sp_W.Popen([sys.executable, "-m", "themind.api", "--port", str(portW), "--mind",
+                    os.path.join(dWB, "door"), "--quiet"],
+                   cwd=os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."),
+                   env=envW, stdout=sp_W.PIPE, stderr=sp_W.PIPE, text=True)
+lineW = procW.stdout.readline()
+try:
+    with urllib.request.urlopen("http://127.0.0.1:%d/api" % portW, timeout=10) as rW:
+        doorW = json.loads(rW.read().decode())
+finally:
+    procW.terminate()
+    procW.communicate(timeout=10)
+ok(("http://127.0.0.1:%d/api" % portW) in lineW and doorW.get("themind"),
+   "python3 -m themind.api starts it and says where it is")
+for d in (dWA, dWB):
+    shutil.rmtree(d, ignore_errors=True)
+
 
 print("\nall %d assertions passed" % PASS)

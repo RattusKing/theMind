@@ -1,10 +1,14 @@
 # theMind — on-disk format
 
-**Version 0.12 — adds `reachouts.jsonl` (what the mind would bring up first,
-before they write), the `grew` reflection kind and the manifest's `stage` (how
-far it has grown with them, earned and kept), the `opened` self-memory kind,
-`reached_t` in `people.json`, the `retired` archive tombstone, and five host
-settings. Minor, additive. History: 0.11 added the `imported` provenance kind,
+**Version 0.13 — adds a body: `experiences.jsonl` (what it lived through, as
+its body reported it), `places.json` (where it has been, and where it is),
+`body.json` (its body's latest readings), the `sensed` provenance kind, the
+`lived` observation flag, `seen_t` in `people.json` and the `last_lived`
+timer. Minor, additive. History: 0.12 added `reachouts.jsonl` (what the mind
+would bring up first, before they write), the `grew` reflection kind and the
+manifest's `stage` (how far it has grown with them, earned and kept), the
+`opened` self-memory kind, `reached_t` in `people.json`, the `retired` archive
+tombstone, and five host settings; 0.11 added the `imported` provenance kind,
 `needs.jsonl` and host `settings`; 0.10 added `interests.jsonl` and
 `observations.jsonl`; 0.9 added `apprehensions.jsonl` and `story.json`'s `hopes`
 alongside derived needs; 0.8 added
@@ -78,6 +82,9 @@ mind/
     observations.jsonl   what it has noticed itself — not about them, not about it
     needs.jsonl          needs it proposed for itself, earned by recurrence
     reachouts.jsonl      what it would bring up first — rooted, with a moment that passes
+    experiences.jsonl    what it lived through, in its body's own report — where, with whom
+    places.json          every place it has been, how often, and where it is now
+    body.json            its body's latest readings, and the level each was last at
     practice.jsonl       how the mind has learned to think, and what it is trying
     tuning.json          the few dials it may turn, its signals, the one running experiment
   archive/
@@ -98,7 +105,7 @@ alongside it.
   "id":        "f_9c1a2b",            // store-prefixed, unique within the mind
   "t":         "2026-08-23T18:04:00Z",// logical timestamp, UTC ISO-8601
   "src":       {                      // provenance — REQUIRED (rule 1)
-    "kind":    "exchange",            // exchange | record | inference | default
+    "kind":    "exchange",            // exchange | record | inference | default | imported | sensed
     "quote":   "my sister just got the job in Portland",
     "ref":     null                   // record id, when kind is record/inference
   },
@@ -115,6 +122,11 @@ alongside it.
   reports it as `inherited`, permanently: a mind that received an identity
   rather than growing one can always say so, and imported material never comes
   to look home-grown. Readers must never rewrite it to another kind.
+- `src.kind: "sensed"` (0.13) marks something the mind lived through rather
+  than was told: `quote` is the body's own report, verbatim (or the reading,
+  such as `energy 0.12`, for a change in the body itself), and `ref` names the
+  sense that made it (`camera`, `microphone`, `body`, a world). Both are
+  **required**. `confidence()` reports it as `lived`.
 - `src.kind: "inference"` marks records derived by the mind's own passes
   (consolidation, reconciliation); `ref` names what they were derived from, so
   every inference is traceable back to an exchange.
@@ -230,7 +242,11 @@ Who the mind talks with (0.7).
 - Counters are advisory (they schedule portraits); nothing else derives from
   them. `reached_t` (0.12) is when the mind last wrote to them first; while it
   is newer than `last_t`, that reach-out is unanswered and the mind offers
-  nothing more to them. The entity graph is shared — it is about the world, not the person —
+  nothing more to them. `seen_t` (0.13) is when its body was last with
+  someone: a person its body is with is known by name from then on, even if
+  they have never spoken, and the first person it is ever with becomes the
+  primary, exactly as the first name it hears does. Being seen counts as no
+  exchange, and someone who has never written is never written to first. The entity graph is shared — it is about the world, not the person —
   and so is everything that is the mind's own: its stance, weather, story,
   own wants, and what its voice has said.
 
@@ -391,7 +407,51 @@ go. The third thing it can hold about the world, distinct from a fact about
 the person (`facts`), from their inner world (`person_model`), and from its own
 life (`reflections`). Envelope plus `text` (first person), `roots` (required),
 and optionally `interest` — the id of the interest it deepens. An observation
-with no interest is still kept; it simply belongs to nothing yet.
+with no interest is still kept; it simply belongs to nothing yet. `lived: true`
+(0.13) marks one the mind made of what it lived through: its `roots` are
+experience ids, and none of them is an experience someone else was part of,
+because an observation is served to everyone.
+
+### experiences.jsonl
+What the mind lived through, rather than was told (0.13). Envelope (with
+`src.kind: "sensed"`) plus `text` (the moment, as reported), `kind` (`saw |
+heard | touched | did | felt | arrived | left | happened`), optional `where`
+(a key in `places.json`), optional `with` (the `people.json` keys of who was
+there, `null` meaning the primary), optional `entities`, and `times` with
+`last_t` when the same report came again. Rules for writers:
+
+- **theMind never moves the body.** It is told what happened and commands
+  nothing. What the body does is the host's.
+- **What happened around someone stays with the people who were there.** An
+  experience with `with` is served only to a speaker whose key is in it; one
+  with no `with` is the mind's own and may be served to anyone.
+- **A flood earns nothing.** The same `kind`, `text` and `where` again within
+  15 minutes strengthens the existing record (`times`, `salience`, `last_t`)
+  instead of adding one, and at most 120 may be added in an hour.
+- **`t` is when it happened.** A host may report late (`at`); a time in the
+  future, or more than a year back, is replaced by now.
+- **Nothing is deleted.** Past 500 live experiences, the faintest of the
+  oldest are retired to the archive with `retired: "faded"`.
+- A body reading that crosses into `strained`, or comes all the way back from
+  it, is also written here as a `felt` experience, with the reading as its
+  quote and `body` as its sense.
+
+### places.json
+Where the mind has been (0.13): `{"places": {key: {"name", "first_t",
+"last_t", "visits"}}, "here": key, "here_t": t}`. Keys are normalized like
+people's; `name` keeps the spelling as first given. A visit is counted when it
+arrives somewhere other than where it was, or comes back after three hours
+away. `here` is where its latest experience happened, and readers treat it as
+unknown once `here_t` is more than 12 hours old.
+
+### body.json
+The body's latest readings (0.13): `{"signals": {name: {"value", "t"}},
+"levels": {name: level}}`. Four signals, each 0 to 1: `energy` (charge; low is
+bad), `heat`, `strain` and `damage` (high is bad). Hosts may send a percentage
+instead, and `battery`, `charge` and `power` are read as `energy`. `levels`
+keeps the level each signal was last at, only so a crossing can be noticed.
+Readers must treat a reading older than 30 minutes as unknown: a battery level
+from yesterday says nothing about now.
 
 ### needs.jsonl
 Needs the mind proposed for itself (0.11), alongside the derived set below.
@@ -527,7 +587,11 @@ about the person ends with how long ago it was learned ("3 weeks ago"),
 derived from its `t` at read time; inherited material carries none, because its
 `t` is when it arrived, not when it was lived. After a gap of six hours or
 more, the context also says how long it has been since they last talked, from
-`people.json`'s `last_t`. Neither writes anything. Stable blocks (self, felt sense,
+`people.json`'s `last_t`. Neither writes anything. A mind with a body (0.13)
+also brings where it is and what happened there before, how its body is when
+that is working or strained, and what it has lived through lately, with
+anything a message brings back; a mind never given a body brings none of
+these, so its context is unchanged. Stable blocks (self, felt sense,
 growth) must be byte-identical between revisions so host-side prompt caching
 holds.
 
@@ -552,10 +616,13 @@ concern even when nothing new is written.
   counters: how much expensive thinking happened lately, how much of what the
   mind reached for actually held, and how close the last context ran to its
   own ceiling. Each reads `easy`, `working`, `strained` or `unknown`. An easy
-  body is silent, exactly like a met need.
+  body is silent, exactly like a met need. A mind with a real body (0.13)
+  reads its fresh `body.json` signals here too, so a strained body colors its
+  weather and can jump its thinking the same way.
 - **Urgency.** A pass may be offered because a threshold was crossed rather
   than because its rhythm came round: a fear above 0.9, a surprise newer than
-  the last reflection, an unmet need, a strained condition. Urgency jumps a
+  the last reflection, an unmet need, a strained condition (of its thinking or
+  of its body). Urgency jumps a
   rhythm but respects a six-hour floor and the pass's own material check, so
   nothing can spin on it, and urgent passes are offered before merely overdue
   ones.

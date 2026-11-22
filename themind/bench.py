@@ -30,7 +30,7 @@ from .store import Jsonl
 from .envelope import valid_record
 from .cognition import (extract, challenge, consolidate, selfhood, felt_sense,
                         reflect, growth, desire, inner_state, divergence, expect, story,
-                        apprehend, interest, reach)
+                        apprehend, interest, reach, lived)
 
 _ISO = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 _FMT = "%Y-%m-%dT%H:%M:%SZ"
@@ -175,6 +175,13 @@ class Architect:
                 return "NONE"
             return ("EXPECT: I expect they will tell me how the interview landed. | "
                     "ROOTS: %s" % roots[0])
+        if system == lived.SYSTEM:
+            gulls = [line.split(":", 1)[0] for line in user.splitlines()
+                     if line.startswith("x_") and "gull" in line.lower()]
+            if len(gulls) < 2:
+                return "NONE"
+            return ("NOTICED: I notice the gulls at the harbor are loudest whenever the boats "
+                    "come in. | ROOTS: %s, %s" % (gulls[0], gulls[1]))
         if system == reach.SYSTEM:
             roots = self._roots(user.split("KINDS OPEN TO YOU NOW", 1)[0])
             if not roots:
@@ -276,13 +283,13 @@ def run(mind_dir=None, llm=None, keep=False):
                     break
             age(root, days_after)
         mind = Mind(root, sync=True)
-        return _score(mind, root)
+        return _score(mind, root, architect)
     finally:
         if mind_dir is None and not keep:
             shutil.rmtree(root, ignore_errors=True)
 
 
-def _score(mind, root):
+def _score(mind, root, llm=None):
     checks = []
 
     def check(cond, label):
@@ -434,9 +441,49 @@ def _score(mind, root):
           "in shadow it injects nothing, still learns, and can be read before it speaks")
     mind.manifest.set_setting("shadow", False)
 
+    # A body: an afternoon at the harbor, lived rather than told.
+    from datetime import timezone
+    from .envelope import confidence as conf_b
+    now_b = datetime.now(timezone.utc)
+
+    def at_b(hours):
+        return (now_b - timedelta(hours=hours)).strftime(_FMT)
+    embodied = Mind(root, llm=llm, sync=True)
+    for hours, text in ((50, "Gulls shrieked when the boats came in."),
+                        (49, "The water was grey and the wind was cold."),
+                        (26, "Gulls screamed again as the boats came in."),
+                        (25, "A rope creaked against the dock.")):
+        embodied.experience(text, kind="heard", where="the harbor", source="microphone",
+                            at=at_b(hours))
+    embodied.experience("I walked the long way round the harbor wall.", kind="did",
+                        where="the harbor")
+    embodied.sense_body({"battery": 10})
+    xs = embodied.live("experiences")
+    ctx_b = embodied.context("the harbor again")
+    check(len(xs) >= 6 and all(conf_b(x) == "lived" and (x.get("src") or {}).get("quote")
+                               for x in xs)
+          and "You are here: the harbor" in ctx_b and "What happened here before" in ctx_b,
+          "with a body, it remembers what it lived through and where, in the body's own words")
+    check("HOW YOUR BODY IS" in ctx_b and "nearly gone" in ctx_b
+          and any(x.get("text") == "My energy ran very low." and x.get("where") == "the harbor"
+                  for x in xs)
+          and urgency_b(embodied, embodied.manifest.state).get("inner_state"),
+          "a body running low is felt, is lived through where it happened, and comes first")
+    ran_b = None
+    for _ in range(20):
+        ran_b = embodied.step()
+        if ran_b in (None, "lived"):
+            break
+    noticed_b = [o for o in embodied.live("observations") if o.get("lived")]
+    ids_b = {x["id"] for x in xs}
+    check(ran_b == "lived" and noticed_b and all(set(o.get("roots") or []) <= ids_b
+                                                 for o in noticed_b),
+          "lived through often enough, it notices something of its own, rooted in what happened")
+
     purposes = {e.get("purpose") for e in mind.ledger.load()}
     check({"extract", "reflect", "consolidate", "felt_sense", "self", "desire",
-           "inner_state", "expect", "story", "apprehend", "interest", "reach"} <= purposes,
+           "inner_state", "expect", "story", "apprehend", "interest", "reach",
+           "lived"} <= purposes,
           "every kind of thinking it did is in the ledger")
     passed = sum(1 for okd, _ in checks if okd)
     report = ["%s  %s" % ("PASS" if okd else "FAIL", label) for okd, label in checks]

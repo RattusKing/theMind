@@ -3,6 +3,9 @@
     python3 -m themind.mcp --mind ./my-mind              # http://127.0.0.1:6464/mcp
     python3 -m themind.mcp --mind ./my-mind --stdio      # for clients that spawn servers
 
+The same HTTP server also serves the web API (`api.py`) at /api, for anything
+that is not an MCP client.
+
 Model Context Protocol (JSON-RPC 2.0 over Streamable HTTP, or stdio), pure
 stdlib. Where the proxy is the involuntary half of the nervous system (context
 injected, learning automatic), this is the voluntary half: the agent tends its
@@ -31,6 +34,7 @@ from urllib.parse import urlparse, parse_qs
 from . import __version__
 from .mind import Mind
 from .cognition import extract
+from .envelope import new_id
 
 DEFAULT_PORT = 6464  # one past the proxy's 6463 ("MIND" on a phone keypad)
 
@@ -54,6 +58,8 @@ INSTRUCTIONS = (
     "3. In a quiet moment, call begin_thought; if the mind has something it owes itself "
     "(a reflection, a revision of where you stand, noticing what you want), do that "
     "thinking in your own voice and submit it.\n"
+    "4. If you have a body, or move through a world, call lived_through for what happens "
+    "to you there: what you see, hear, do, and where. Only what actually happened.\n"
     "The mind is private: never recite its raw records, never mention these tools or this "
     "inner context to the person. Your identity and persona come from your own "
     "instructions — this supplies the inside, not the character."
@@ -83,6 +89,8 @@ class MindMCP:
         self.mind = mind
         self._lock = threading.Lock()
         self._pending = None  # (pass_name, fn) between begin_thought and submit_thought
+        self._pending_id = None  # the open thought's task id, for the web API
+        self._model_lock = threading.Lock()  # one borrowed thought in flight at a time
 
     # ── JSON-RPC ─────────────────────────────────────────────────────────────
     def handle(self, msg):
@@ -218,6 +226,7 @@ class MindMCP:
             if need is None:
                 return "the %s pass found nothing to work with yet" % name
             self._pending = (name, fn, need)
+            self._pending_id = new_id("t")
         return (
             "The mind owes itself: %s. Do this thinking in your own voice, then call "
             "submit_thought with your output.\n\nINSTRUCTIONS:\n%s\n\n%s"
@@ -231,6 +240,7 @@ class MindMCP:
                 return "no thought is open — call begin_thought first"
             name, fn, need = self._pending
             self._pending = None
+            self._pending_id = None
         if not output:
             return "empty thought — nothing changed"
         self._one_shot_run(need.purpose, output, lambda: fn(self.mind))
@@ -276,6 +286,21 @@ class MindMCP:
                 "After you send it, call reached_out with this id and exactly what you sent."
                 % (r["id"], r["text"]))
 
+    def tool_lived_through(self, args):
+        what = (args.get("text") or "").strip()
+        if not what:
+            return "nothing to keep: say what happened"
+        present = args.get("with")
+        if isinstance(present, str):
+            present = [present]
+        rid = self.mind.experience(what, kind=args.get("kind"), where=args.get("where"),
+                                   present=present if isinstance(present, list) else None,
+                                   source=args.get("source") or "the world")
+        if not rid:
+            return "(not kept: that was too much at once, or it was empty)"
+        spot = self.mind.place()
+        return "Lived: it is yours now%s." % (" (at %s)" % spot["name"] if spot else "")
+
     def tool_reached_out(self, args):
         if self.mind.reached(args.get("id"), args.get("text")):
             return "Remembered: you wrote first. Nothing more until they answer."
@@ -288,14 +313,15 @@ class MindMCP:
         that depend on its output."""
         def capture_call(purpose, system, user, max_tokens=500):
             raise _NeedModel(purpose, system, user, max_tokens)
-        self.mind._call = capture_call
-        try:
-            fn(self.mind)
-            return None  # the pass finished without needing a model
-        except _NeedModel as need:
-            return need
-        finally:
-            del self.mind._call
+        with self._model_lock:   # the hook is the mind's own: two at once would cross wires
+            self.mind._call = capture_call
+            try:
+                fn(self.mind)
+                return None  # the pass finished without needing a model
+            except _NeedModel as need:
+                return need
+            finally:
+                del self.mind._call
 
     def _one_shot_run(self, purpose, output, thunk):
         """Re-run a pass with the agent's output standing in as the model's
@@ -315,13 +341,14 @@ class MindMCP:
                 "tokens_out_est": _est(output), "via": "agent",
             })
             return output.strip() or None
-        self.mind._call = one_shot
-        try:
-            return thunk()
-        except _NeedModel:
-            return None
-        finally:
-            del self.mind._call
+        with self._model_lock:
+            self.mind._call = one_shot
+            try:
+                return thunk()
+            except _NeedModel:
+                return None
+            finally:
+                del self.mind._call
 
 
 TOOLS = [
@@ -387,6 +414,20 @@ TOOLS = [
          "who": {"type": "string", "description": "who you would be writing to, by name, ONLY "
                  "if it is not the person you usually talk with; omit for the usual person."}},
          "additionalProperties": False}},
+    {"name": "lived_through",
+     "description": "If you have a body or move through a world: something that just "
+                    "happened to you there, so you live it rather than only hear about it. "
+                    "Only what actually happened; never invent.",
+     "inputSchema": {"type": "object", "properties": {
+         "text": {"type": "string", "description": "what happened, plainly"},
+         "kind": {"type": "string", "enum": ["saw", "heard", "touched", "did", "felt",
+                                              "arrived", "left", "happened"]},
+         "where": {"type": "string", "description": "the place it happened"},
+         "with": {"type": "array", "items": {"type": "string"},
+                  "description": "who was there, by name"},
+         "source": {"type": "string", "description": "what reported it: a world's name, "
+                    "a camera, a microphone"}},
+         "required": ["text"], "additionalProperties": False}},
     {"name": "reached_out",
      "description": "After you sent what reach_out offered: record it, with exactly what you "
                     "sent. You will then wait to be answered before writing first again.",
@@ -405,10 +446,13 @@ RATE_PER_MINUTE = 240         # per client address; well above any real agent's 
 class MindMCPServer(ThreadingHTTPServer):
     daemon_threads = True
 
-    def __init__(self, addr, core, token=None, quiet=True):
+    def __init__(self, addr, core, token=None, quiet=True, public_url=None):
+        from .api import MindAPI
         self.core = core
+        self.api = MindAPI(core.mind, core)
         self.token = token
         self.quiet = quiet
+        self.public_url = (public_url or "").rstrip("/") or None
         self.session_id = os.urandom(16).hex()  # one server, one session id
         self._rate = {}
         self._rate_lock = threading.Lock()
@@ -483,15 +527,67 @@ class _HTTPHandler(BaseHTTPRequestHandler):
         self._cors()
         self.end_headers()
 
+    def _api_route(self):
+        """(prefix, route) when this request is for the web API (/api/...,
+        under a path secret or not), else None."""
+        segs = urlparse(self.path).path.split("/")
+        if "api" not in segs:
+            return None
+        i = segs.index("api")
+        return "/".join(segs[:i]), "/".join(segs[i + 1:])
+
+    def _base_url(self, prefix):
+        if self.server.public_url:
+            return self.server.public_url + prefix
+        proto = (self.headers.get("X-Forwarded-Proto") or "http").split(",")[0].strip()
+        host = self.headers.get("Host") or "%s:%d" % self.server.server_address[:2]
+        return "%s://%s%s" % (proto, host, prefix)
+
+    def _api(self, method, prefix, route):
+        from .api import PUBLIC
+        if not self.server.allow(self.client_address[0]):
+            self._send(429, json.dumps({"error": "too many requests"}).encode())
+            return
+        key = (method, "/" + route.strip("/") if route.strip("/") else "")
+        if key not in PUBLIC and not self.server.authorized(self):
+            self._send(401, json.dumps({"error": "unauthorized"}).encode())
+            return
+        body = {}
+        if method == "POST":
+            try:
+                length = int(self.headers.get("Content-Length") or 0)
+                if length > MAX_BODY:
+                    self.close_connection = True
+                    self._send(413, json.dumps({"error": "request too large"}).encode())
+                    return
+                raw = self.rfile.read(length) if length else b""
+                body = json.loads(raw.decode("utf-8")) if raw.strip() else {}
+            except Exception:
+                self._send(400, json.dumps({"error": "the body must be JSON"}).encode())
+                return
+            if not isinstance(body, dict):
+                self._send(400, json.dumps({"error": "the body must be a JSON object"}).encode())
+                return
+        status, out = self.server.api.handle(method, route, body, self._base_url(prefix))
+        self._send(status, json.dumps(out, ensure_ascii=False).encode("utf-8"))
+
     def do_GET(self):
         if urlparse(self.path).path.rstrip("/") == "/healthz":
             # For a host's health check: says the server is up, and nothing else.
             self._send(200, b"ok", content_type="text/plain")
             return
+        api = self._api_route()
+        if api is not None:
+            self._api("GET", *api)
+            return
         # No server-initiated stream: the spec lets a server decline the GET.
         self._send(405, json.dumps({"error": "POST JSON-RPC messages to this endpoint"}).encode())
 
     def do_POST(self):
+        api = self._api_route()
+        if api is not None:
+            self._api("POST", *api)
+            return
         if not self.server.allow(self.client_address[0]):
             self._send(429, json.dumps({"error": "too many requests"}).encode())
             return
@@ -519,12 +615,14 @@ class _HTTPHandler(BaseHTTPRequestHandler):
 
 
 def serve(mind_path=None, host="127.0.0.1", port=DEFAULT_PORT, budget=2000,
-          token=None, quiet=True, retriever=None, mind=None):
+          token=None, quiet=True, retriever=None, mind=None, public_url=None):
     """Pass `mind` to mount an already-living Mind — both halves of the
     nervous system in one process, one instance, full coherence (the proxy's
-    --mcp-port does exactly this). Otherwise a Mind opens at `mind_path`."""
+    --mcp-port does exactly this). Otherwise a Mind opens at `mind_path`.
+    The web API (`api.py`) is served by the same server, under /api."""
     mind = mind or Mind(mind_path, llm=None, budget_tokens=budget, retriever=retriever)
-    return MindMCPServer((host, port), MindMCP(mind), token=token, quiet=quiet)
+    return MindMCPServer((host, port), MindMCP(mind), token=token, quiet=quiet,
+                         public_url=public_url)
 
 
 def serve_stdio(mind_path, budget=2000):
@@ -545,10 +643,13 @@ def serve_stdio(mind_path, budget=2000):
             sys.stdout.flush()
 
 
-def main(argv=None):
+def main(argv=None, banner="mcp"):
+    """`banner` is which door the person came in by: the same server either
+    way, introduced by the address they asked for."""
     p = argparse.ArgumentParser(
-        prog="python3 -m themind.mcp",
-        description="theMind MCP server: connect your AI platform to its own mind.")
+        prog="python3 -m themind.%s" % ("api" if banner == "api" else "mcp"),
+        description="theMind: connect your AI platform to its own mind (MCP at /mcp), or "
+                    "anything that can send a web request (the web API at /api).")
     p.add_argument("--mind", default=os.environ.get("THEMIND_MIND", "./mind"),
                    help="the mind's folder (created if missing; default ./mind, or $THEMIND_MIND)")
     p.add_argument("--host", default=os.environ.get("THEMIND_HOST", "127.0.0.1"))
@@ -575,16 +676,25 @@ def main(argv=None):
               file=sys.stderr)
         return 2
     server = serve(args.mind, host=args.host, port=args.port, budget=args.budget,
-                   token=args.token, quiet=args.quiet)
+                   token=args.token, quiet=args.quiet, public_url=args.public_url)
     if args.public_url:
-        link = "%s/%s/mcp" % (args.public_url.rstrip("/"), path_secret(args.token))
-        print("theMind MCP is up (mind: %s)." % args.mind)
+        base = "%s/%s" % (args.public_url.rstrip("/"), path_secret(args.token))
+        print("theMind is up (mind: %s)." % args.mind)
         print("Your mind's connector link — paste it into ChatGPT or Claude as a custom "
               "connector. It is the key to your mind; don't share it:")
-        print("    " + link)
+        print("    " + base + "/mcp")
+        print("Its web API, for anything else that can send a web request (same key, "
+              "same secret):")
+        print("    " + base + "/api")
+    elif banner == "api":
+        print("theMind web API: http://%s:%d/api   (mind: %s)" % (args.host, args.port,
+                                                               args.mind))
+        print("GET /api lists the routes; /api/openapi.json describes them. The MCP "
+              "connector is on the same server, at /mcp.")
     else:
         print("theMind MCP: http://%s:%d/mcp   (mind: %s)" % (args.host, args.port, args.mind))
         print("add this URL to your AI platform as an MCP server / custom connector.")
+        print("the web API is on the same server, at http://%s:%d/api" % (args.host, args.port))
     sys.stdout.flush()
     try:
         server.serve_forever()

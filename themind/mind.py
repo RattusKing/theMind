@@ -30,7 +30,7 @@ from .envelope import now_iso, new_id, make_record, norm_key
 from .store import Jsonl, JsonDoc
 from .manifest import Manifest, FORMAT
 from .graph import Graph
-from . import inject, defaults, development
+from . import inject, defaults, development, body
 from . import cognition
 from .cognition import extract
 from .people import People
@@ -39,7 +39,8 @@ from .retrieval import _words
 
 STORES = ("facts", "self_memory", "beliefs", "tensions", "aches", "desires",
           "person_model", "own_desires", "expectations", "reflections", "practice",
-          "apprehensions", "interests", "observations", "needs", "reachouts")
+          "apprehensions", "interests", "observations", "needs", "reachouts",
+          "experiences")
 
 # Passes a stronger model is worth spending on, when the host offers one.
 CORTEX_PURPOSES = ("story", "self", "challenge", "tune", "consolidate", "apprehend",
@@ -100,6 +101,8 @@ class Mind:
         self.story_doc = JsonDoc(self._p("stores", "story.json"))
         self.people = People(JsonDoc(self._p("stores", "people.json")))
         self.tuning = Tuning(JsonDoc(self._p("stores", "tuning.json")))
+        self.places_doc = JsonDoc(self._p("stores", "places.json"))
+        self.body_doc = JsonDoc(self._p("stores", "body.json"))
         if defaults is not None and not self.readonly:
             self.manifest.set_setting("defaults", bool(defaults))
         if shadow is not None and not self.readonly:
@@ -242,6 +245,49 @@ class Mind:
         except Exception:
             return False
 
+    # ── a body ───────────────────────────────────────────────────────────────
+    def experience(self, what, kind=None, where=None, present=None, source=None,
+                   intensity=None, entities=None, at=None):
+        """Something it lived through, as its body reports it: "Sam walked
+        in", "the room went dark", "I picked up the cup". theMind never moves
+        anything; it is told what happened.
+
+        `kind` is one of saw, heard, touched, did, felt, arrived, left,
+        happened (default). `where` names the place, which it comes to know.
+        `present` names who was there: only they will hear it recalled.
+        `source` names the sense that reported it (camera, microphone, a
+        world); `intensity` (0..1) is how strongly it registered; `entities`
+        are things in it worth connecting; `at` is an ISO time if it happened
+        earlier than now. Returns the experience's id, or None."""
+        if self.readonly:
+            return None
+        try:
+            return body.experience(self, what, kind=kind, where=where, present=present,
+                                   source=source, intensity=intensity, entities=entities,
+                                   at=at)
+        except Exception:
+            return None
+
+    def sense_body(self, readings, at=None):
+        """The body's readings, each 0..1 or a percentage: `energy`
+        (battery), `heat`, `strain`, `damage`. Returns how the body is, as
+        [(signal, level, note)]. A strained body colors how it is and what it
+        thinks about first; an easy one is quiet."""
+        if self.readonly:
+            return body.read(self)
+        try:
+            return body.sense(self, readings, at=at)
+        except Exception:
+            return []
+
+    def place(self):
+        """Where it is now, if its body has said lately: {key, name, visits,
+        first_t, since}, or None."""
+        try:
+            return body.here(self)
+        except Exception:
+            return None
+
     # ── learning ─────────────────────────────────────────────────────────────
     def observe(self, user_text, assistant_text, who=None):
         """Learn from one exchange. Extraction plus at most one due deep pass —
@@ -356,7 +402,8 @@ class Mind:
                           ("self", self.self_doc), ("felt_sense", self.felt_doc),
                           ("growth", self.growth_doc), ("inner_state", self.inner_doc),
                           ("story", self.story_doc), ("people", self.people.doc),
-                          ("tuning", self.tuning.doc)):
+                          ("tuning", self.tuning.doc), ("places", self.places_doc),
+                          ("body", self.body_doc)):
             data["stores"][name] = doc.load(default={})
         data["stores"]["ledger"] = self.ledger.load()
         for name in STORES:
@@ -536,7 +583,7 @@ class Mind:
             Jsonl(os.path.join(dest_dir, "stores", name + ".jsonl"),
                   validate=False).rewrite(stores.get(name) or [])
         for name in ("graph", "self", "felt_sense", "growth", "inner_state", "story", "people",
-                     "tuning"):
+                     "tuning", "places", "body"):
             if stores.get(name):
                 JsonDoc(os.path.join(dest_dir, "stores", name + ".json")).save(stores[name])
         if stores.get("ledger"):

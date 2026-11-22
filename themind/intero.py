@@ -10,7 +10,8 @@ felt condition than one that only reads its own prose back.
 
 Like confidence and like needs, all of it is DERIVED at read time and none of
 it is stored. No new file, no format change. And like needs, an easy signal
-is silent: you do not notice breathing.
+is silent: you do not notice breathing. A mind that is given a real body
+(`body.py`, format 0.13) feels that body here as well.
 """
 from .envelope import age_days
 
@@ -77,7 +78,10 @@ SIGNALS = (("effort", _effort), ("holding", _holding), ("room", _room))
 
 
 def read(mind):
-    """[(name, level, note)] for every bodily signal, worst first."""
+    """[(name, level, note)] for every bodily signal, worst first. A mind
+    with a real body (format 0.13) feels that body here too, as
+    "body energy", "body heat" and so on, so a low battery colors its
+    weather and can jump its thinking the same way a strained mind does."""
     out = []
     for name, fn in SIGNALS:
         try:
@@ -85,13 +89,20 @@ def read(mind):
         except Exception:
             level, note = "unknown", ""
         out.append((name, level, note))
+    try:
+        from . import body
+        out += body.read(mind)
+    except Exception:
+        pass
     out.sort(key=lambda row: LEVELS.get(row[1], 9))
     return out
 
 
 def felt(mind):
-    """Only what is working or strained — an easy body is a quiet one."""
-    return [row for row in read(mind) if row[1] in ("strained", "working")]
+    """Only what is working or strained — an easy body is a quiet one. The
+    thinking signals alone; the body's own are `body.felt`."""
+    return [row for row in read(mind) if row[1] in ("strained", "working")
+            and not row[0].startswith("body ")]
 
 
 def strain(mind):

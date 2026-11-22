@@ -8,7 +8,7 @@ import os
 from .envelope import now_iso
 from .store import JsonDoc
 
-FORMAT = "themind/0.12"
+FORMAT = "themind/0.13"
 
 
 class Manifest:
@@ -43,6 +43,7 @@ class Manifest:
         st.setdefault("last_apprehend", None)
         st.setdefault("last_interest", None)
         st.setdefault("last_reach", None)
+        st.setdefault("last_lived", None)
         self.data = data
         self.persist = persist
         if persist:
