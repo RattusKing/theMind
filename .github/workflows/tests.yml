@@ -14,11 +14,17 @@ permissions:
 jobs:
   suite:
     name: suite (Python ${{ matrix.python }})
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
-        python: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+        python: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        runner: [ubuntu-latest]
+        include:
+          # The newest runner image has no Python 3.9 build, and 3.9 is still
+          # the oldest Python theMind promises, so it runs where it is built.
+          - python: "3.9"
+            runner: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
