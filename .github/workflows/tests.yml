@@ -35,6 +35,18 @@ jobs:
       - name: continuity benchmark
         run: python -m themind.bench
 
+  ros2:
+    # The ROS 2 add-on, end to end on real ROS 2: built with colcon, the
+    # bridge run beside a simulated robot, and what the mind lived checked.
+    name: ROS 2 (Jazzy)
+    runs-on: ubuntu-24.04
+    container: ros:jazzy-ros-base
+    steps:
+      - uses: actions/checkout@v5
+      - name: the bridge beside a simulated robot
+        shell: bash
+        run: ros2/live_check.sh
+
   guards:
     name: guards
     runs-on: ubuntu-latest

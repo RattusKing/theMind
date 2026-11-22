@@ -74,7 +74,7 @@ def _kind(kind):
 
 
 def _source(source):
-    s = "".join(ch if (ch.isalnum() or ch in " -_.") else " " for ch in str(source or "body"))
+    s = "".join(ch if (ch.isalnum() or ch in " -_.:/") else " " for ch in str(source or "body"))
     return " ".join(s.split())[:40] or "body"
 
 

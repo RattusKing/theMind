@@ -3812,4 +3812,259 @@ for d in (dWA, dWB):
     shutil.rmtree(d, ignore_errors=True)
 
 
+# ── 41. ROS 2: a robot's senses in, a mind of its own beside it ──────────────
+print("ROS 2")
+import importlib as importlib_R2
+import importlib.util as ilu_R2
+import types as types_R2
+
+ROS_PKG = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "ros2", "themind_ros")
+
+
+def load_R2(name, path):
+    spec = ilu_R2.spec_from_file_location(name, path)
+    mod = ilu_R2.module_from_spec(spec)
+    sys.modules[name] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+senses_R2 = load_R2("themind_ros_senses_test", os.path.join(ROS_PKG, "themind_ros", "senses.py"))
+mS2, dS2b = fresh()
+sn = senses_R2.Senses(mS2)
+ok(sn.battery(float("nan")) is None and sn.battery(-1) is None and sn.battery("x") is None
+   and not mS2.live("experiences"),
+   "a battery that does not know its charge says nothing, and nothing is imagined")
+rowsS2 = sn.battery(0.12)
+ok(rowsS2[0][:2] == ("body energy", "strained")
+   and [x["text"] for x in mS2.live("experiences")] == ["My energy ran very low."],
+   "a battery running low is felt, and lived through")
+ok(sn.place("kitchen") and sn.place("kitchen") is None and sn.place("Ana's room")
+   and [x["text"] for x in mS2.live("experiences")][-2:] == ["I arrived at the kitchen.",
+                                                             "I arrived at Ana's room."],
+   "arriving somewhere is a moment; being told the same place again is not")
+sn.place("kitchen")
+idsP = sn.people('["Sam"]')
+idsP2 = sn.people("Sam, Ana")
+idsP3 = sn.people([])
+movesS2 = [(x["text"], x.get("with")) for x in mS2.live("experiences")
+           if x["text"].endswith(("came in.", "left."))]
+ok(len(idsP) == 1 and len(idsP2) == 1 and len(idsP3) == 2
+   and movesS2 == [("Sam came in.", [None]), ("Ana came in.", [None, "ana"]),
+                   ("Sam left.", [None, "ana"]), ("Ana left.", [None, "ana"])],
+   "people coming and going are moments, shared with whoever was in the room")
+ok(sn.people("{not a list") == [] and sn.present == [],
+   "a list of people it cannot read changes nothing")
+sn.people(["Sam"])
+xS2 = sn.experience("The kettle whistled.")
+recS2 = [x for x in mS2.live("experiences") if x["id"] == xS2][0]
+ok(recS2["where"] == "kitchen" and recS2["with"] == [None]
+   and recS2["src"]["ref"] == "ros2:/themind/experience",
+   "plain words are a moment, where it is, with whoever is there, from the topic they came on")
+xS3 = sn.experience(json.dumps({"text": "The cat knocked a cup over.", "kind": "saw", "with": [],
+                                "where": "hall", "source": "camera", "intensity": 0.8}))
+recS3 = [x for x in mS2.live("experiences") if x["id"] == xS3][0]
+ok(recS3["kind"] == "saw" and recS3["where"] == "hall" and not recS3.get("with")
+   and recS3["src"]["ref"] == "camera" and sn.where == "hall" and mS2.place()["key"] == "hall",
+   "a JSON moment says its own where, who and sense, and where it happened is where the body is")
+sn.place("kitchen")
+ok(sn.experience('{"text": "broken') is None and sn.experience("   ") is None
+   and sn.experience('{"kind": "saw"}') is None, "broken or empty reports are nothing")
+ok(("body heat", "strained") in [r[:2] for r in sn.body('{"heat": 0.9}')]
+   and sn.body("hot") is None,
+   "the rest of its body comes as JSON readings")
+heardS2 = sn.hear(json.dumps({"who": "Sam", "text": "I start at the bakery today"}))
+ok(heardS2["who"] == "Sam" and "INNER CONTEXT" in heardS2["context"]
+   and "You are here: kitchen. You have been here 3 times" in heardS2["context"],
+   "what it hears comes back as context for the robot's own reply, knowing where it is")
+exS2 = int(mS2.manifest.state.get("exchanges") or 0)
+ok(sn.said("Good luck today!") == "observed"
+   and int(Mind(dS2b).manifest.state.get("exchanges") or 0) == exS2 + 1 and sn.heard is None,
+   "its reply to what it heard is an exchange it learns from")
+ok(sn.hear("hello")["who"] is None, "a speaker nobody names is the person it usually talks with")
+sn.heard = None
+ok(sn.said("Just talking to myself.") is None, "words with nothing heard and nothing offered are just words")
+stS2 = sn.state()
+ok(stS2["where"] == "kitchen" and stS2["present"] == ["Sam"]
+   and any(b["signal"] == "heat" for b in stS2["body"]) and stS2["stage"],
+   "its state, for anyone watching")
+
+mRR, dRR, tRR = reach_mind()
+replyR["r"] = "REACH: I want to ask how the real talk went. | ROOTS: %s | KIND: follow_up" % tRR["id"]
+reach_R.run(mRR)
+snR = senses_R2.Senses(mRR)
+ok(snR.reach() is None, "with nobody in the room, there is no one to bring anything up to")
+snR.people(["Sam", "Ana"])
+ok(snR.reach() is None, "…and with two, it does not guess which")
+snR.people(["Sam"])
+offR = snR.reach()
+ok(offR and offR["who"] == "Sam" and "real talk" in offR["text"] and offR["messages"]
+   and snR.reach() is None,
+   "with one person there, it offers what it would bring up first, once")
+ok(snR.said("So, how did the real talk go?") == "reached" and not mRR.reaching(),
+   "said aloud, it is remembered as said, and it waits to be answered")
+
+# the node itself, wired against a stand-in for rclpy
+sent_R2 = []
+
+
+class FakePub_R2:
+    def __init__(self, topic):
+        self.topic = topic
+
+    def publish(self, msg):
+        sent_R2.append((self.topic, msg.data))
+
+
+class FakeNode_R2:
+    PARAMS = {}
+
+    def __init__(self, name):
+        self.subs, self.pubs, self.timers = {}, {}, []
+        self.logs = []
+
+    def declare_parameter(self, name, default):
+        return types_R2.SimpleNamespace(value=FakeNode_R2.PARAMS.get(name, default))
+
+    def create_subscription(self, kind, topic, fn, qos):
+        self.subs[topic] = (kind, fn)
+
+    def create_publisher(self, kind, topic, qos):
+        self.pubs[topic] = FakePub_R2(topic)
+        return self.pubs[topic]
+
+    def create_timer(self, seconds, fn):
+        self.timers.append((seconds, fn))
+
+    def get_logger(self):
+        return types_R2.SimpleNamespace(info=self.logs.append, debug=self.logs.append,
+                                        warning=self.logs.append)
+
+    def destroy_node(self):
+        return True
+
+
+class String_R2:
+    def __init__(self):
+        self.data = ""
+
+
+class Battery_R2:
+    def __init__(self):
+        self.percentage = float("nan")
+
+
+fakes_R2 = {
+    "rclpy": types_R2.SimpleNamespace(init=lambda args=None: None, spin=lambda n: None,
+                                      ok=lambda: False, shutdown=lambda: None),
+    "rclpy.node": types_R2.SimpleNamespace(Node=FakeNode_R2),
+    "rclpy.qos": types_R2.SimpleNamespace(qos_profile_sensor_data="sensor"),
+    "rclpy.executors": types_R2.SimpleNamespace(ExternalShutdownException=RuntimeError),
+    "sensor_msgs": types_R2.SimpleNamespace(), "std_msgs": types_R2.SimpleNamespace(),
+    "sensor_msgs.msg": types_R2.SimpleNamespace(BatteryState=Battery_R2),
+    "std_msgs.msg": types_R2.SimpleNamespace(String=String_R2),
+}
+saved_R2 = {k: sys.modules.get(k) for k in list(fakes_R2) + ["themind_ros", "themind_ros.senses",
+                                                          "themind_ros.bridge"]}
+sys.modules.update(fakes_R2)
+
+
+class _ModelStub_R2(BaseHTTPRequestHandler):
+    seen = []
+
+    def log_message(self, *a):
+        pass
+
+    def do_POST(self):
+        body = json.loads(self.rfile.read(int(self.headers["Content-Length"])).decode())
+        _ModelStub_R2.seen.append((self.path, self.headers.get("Authorization"), body))
+        data = json.dumps({"choices": [{"message": {"content": "NONE"}}]}).encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
+
+modelR2 = ThreadingHTTPServer(("127.0.0.1", 0), _ModelStub_R2)
+threading.Thread(target=modelR2.serve_forever, daemon=True).start()
+dB2 = tempfile.mkdtemp(prefix="mind_")
+env_R2 = dict(os.environ)
+try:
+    os.environ["THEMIND_MODEL_KEY"] = "robot-key"
+    pkg_spec = ilu_R2.spec_from_file_location(
+        "themind_ros", os.path.join(ROS_PKG, "themind_ros", "__init__.py"),
+        submodule_search_locations=[os.path.join(ROS_PKG, "themind_ros")])
+    pkg_R2 = ilu_R2.module_from_spec(pkg_spec)
+    sys.modules["themind_ros"] = pkg_R2
+    pkg_spec.loader.exec_module(pkg_R2)
+    bridge_R2 = importlib_R2.import_module("themind_ros.bridge")
+    FakeNode_R2.PARAMS = {"mind": dB2, "api_port": 0, "model": "robot-model",
+                          "model_base_url": "http://127.0.0.1:%d/v1" % modelR2.server_address[1]}
+    node_R2 = bridge_R2.Bridge()
+    ok(set(node_R2.subs) == {"/battery_state", "/themind/body", "/themind/place",
+                             "/themind/present", "/themind/experience", "/themind/heard",
+                             "/themind/said"}
+       and node_R2.subs["/battery_state"][0] is Battery_R2
+       and set(node_R2.pubs) == {"/themind/context", "/themind/reach", "/themind/state"}
+       and len(node_R2.timers) == 3 and node_R2.server is None,
+       "the node listens to the robot's senses, offers three things back, and commands nothing")
+
+    def deliver_R2(topic, data):
+        kind, fn = node_R2.subs[topic]
+        msg = kind()
+        if kind is Battery_R2:
+            msg.percentage = data
+        else:
+            msg.data = data
+        fn(msg)
+
+    deliver_R2("/themind/place", "porch")
+    deliver_R2("/themind/present", '["Ana"]')
+    deliver_R2("/battery_state", 0.1)
+    deliver_R2("/themind/experience", "A bus went by.")
+    deliver_R2("/themind/heard", '{"who": "Ana", "text": "the bus was late again"}')
+    ctx_R2 = [json.loads(d) for t, d in sent_R2 if t == "/themind/context"]
+    ok(ctx_R2 and ctx_R2[0]["who"] == "Ana" and "A bus went by." in ctx_R2[0]["context"]
+       and "HOW YOUR BODY IS" in ctx_R2[0]["context"],
+       "what it hears is answered with context: where it is, what just happened, how its body is")
+    deliver_R2("/themind/said", "Late again? That bus.")
+    settle(lambda: any(s[0] == "/v1/chat/completions" for s in _ModelStub_R2.seen))
+    ok(_ModelStub_R2.seen and _ModelStub_R2.seen[0][1] == "Bearer robot-key"
+       and _ModelStub_R2.seen[0][2]["model"] == "robot-model"
+       and "the bus was late again" in _ModelStub_R2.seen[0][2]["messages"][1]["content"],
+       "with a model of its own it learns from the exchange, the key from the environment only")
+    exportR2 = open(Mind(dB2).export(), encoding="utf-8").read()
+    ok("robot-key" not in exportR2 and "robot-model" not in exportR2,
+       "…and the key is nowhere in the mind")
+    for seconds, fn in node_R2.timers:
+        fn()
+    states_R2 = [json.loads(d) for t, d in sent_R2 if t == "/themind/state"]
+    ok(states_R2 and states_R2[-1]["where"] == "porch" and states_R2[-1]["present"] == ["Ana"],
+       "now and then it says how it is, for anyone watching")
+    FakeNode_R2.PARAMS = {"mind": dB2, "api_port": 0}
+    node_R3 = bridge_R2.Bridge()
+    ok(len(node_R3.timers) == 2 and node_R3.mind.llm is None,
+       "without a model it still lives through everything, and its thinking waits for one")
+finally:
+    os.environ.clear()
+    os.environ.update(env_R2)
+    for k, v in saved_R2.items():
+        if v is None:
+            sys.modules.pop(k, None)
+        else:
+            sys.modules[k] = v
+    modelR2.shutdown()
+    modelR2.server_close()
+
+pkgxml_R2 = open(os.path.join(ROS_PKG, "package.xml")).read()
+setup_R2 = open(os.path.join(ROS_PKG, "setup.py")).read()
+ok("<build_type>ament_python</build_type>" in pkgxml_R2 and "<exec_depend>rclpy</exec_depend>" in pkgxml_R2
+   and "bridge = themind_ros.bridge:main" in setup_R2 and "sim_robot = themind_ros.sim_robot:main" in setup_R2
+   and "<version>%s</version>" % __import__("themind").__version__ in pkgxml_R2,
+   "it is a real ROS 2 package, versioned with theMind, with the bridge and a simulated robot to run")
+for d in (dS2b, dRR, dB2):
+    shutil.rmtree(d, ignore_errors=True)
+
+
 print("\nall %d assertions passed" % PASS)
