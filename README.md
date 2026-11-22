@@ -279,7 +279,15 @@ mind.sense_body({"battery": 0.14, "heat": 0.4})
 mind.step()     # on your own heartbeat: the thinking it owes, including making sense of its day
 ```
 
-Over the web API that is `POST /api/experience` and `POST /api/body`.
+Over the web API that is `POST /api/experience` and `POST /api/body`. On a
+ROS 2 robot, the [`themind_ros`](ros2/themind_ros/README.md) package does it
+for you: it listens to the battery, the place, who is in the room and what is
+said, and hands your robot's dialogue the mind's context. It publishes no
+commands, and comes with a simulated robot to try it on:
+
+```
+ros2 launch themind_ros themind.launch.py mind:=/home/robot/mind
+```
 
 **Three lines — the library:**
 
@@ -379,17 +387,16 @@ python3 -m themind.bench                       # the continuity test: five simul
   `reach_out`) and delivers. Without that, what it would have raised waits,
   and comes up when they next write.
 - **A body is told, not sensed.** theMind has no eyes or ears of its own: it
-  keeps what your robot's perception, or a world, reports to it. It has been
-  tested against simulated bodies and a text world, not yet on robot
-  hardware, and it ships no ROS 2 bridge yet; anything that can send a web
-  request or call Python can drive it today.
+  keeps what your robot's perception, or a world, reports to it. The ROS 2
+  bridge is tested on ROS 2 Jazzy against a simulated robot, and the body
+  against a text world, but not yet on robot hardware.
 - **The MCP door is built to the spec and tested against our own client.** It
   has not yet been exercised against every real platform's connector
   implementation; report what you find.
 
 ## Status
 
-**v1.11.0, format 0.13.** The on-disk format — what a mind is, at rest — is
+**v1.12.0, format 0.13.** The on-disk format — what a mind is, at rest — is
 published in [FORMAT.md](FORMAT.md) and remains open to challenge while it is
 cheap to change; every change to it is additive, and older minds open
 unchanged. The project's scientific grounding — how the architecture maps onto
@@ -400,11 +407,12 @@ the science of consciousness, scored honestly, gaps and all — is published in
 python3 -m themind.bench   # the continuity test: five simulated weeks, 30 probes
 ```
 
-`tests/run_all.py` holds the behavioral guarantees — 602 assertions across
+`tests/run_all.py` holds the behavioral guarantees — 627 assertions across
 grounding, parse-or-skip, read order, budget, export round-trip, the proxy,
-MCP and web API doors, a body, cross-door coherence, multi-person scoping, and self-tuning — with
+MCP and web API doors, a body, the ROS 2 bridge, cross-door coherence, multi-person scoping, and self-tuning — with
 no network and no provider SDK, ever. Every push to `main` runs the suite and
-the benchmark on Python 3.9 through 3.14, along with `tests/guards.py`, which
+the benchmark on Python 3.9 through 3.14, the ROS 2 bridge beside a simulated
+robot on real ROS 2 Jazzy, and `tests/guards.py`, which
 checks by machine that the library imports nothing outside the standard
 library and declares no dependencies. Install it straight from this repo (see
 Quickstart); publishing to PyPI is ready and deliberately on hold.
@@ -455,7 +463,8 @@ with the first thing it ever does unprompted: speak first (v1.8), and a
 sense of time, a page to see it on, and a companion to meet it with (v1.9),
 your own always-on mind for the ChatGPT and Claude apps (v1.10), and a web
 API for any language and device, with a body for robots, androids and worlds
-(v1.11).
+(v1.11), and a ROS 2 bridge, so a robot's senses become what its mind lives
+through (v1.12).
 
 theMind is extracted from a production AI companion whose cognitive systems have
 been running live since 2025. The scaffolding it needed (schedulers, cloud

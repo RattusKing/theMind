@@ -284,6 +284,17 @@ It keeps what it is told, and nothing more. The same report again within
 minutes strengthens what it holds instead of adding to it, so you can send
 what your sensors see without flooding it.
 
+**On a ROS 2 robot.** The `themind_ros` package in [`ros2/`](ros2/themind_ros/README.md)
+is a ROS 2 node that does all of this for you: it listens to the battery, where
+the robot is, who is in the room, what happens and what is said to it, and
+hands your robot's dialogue the mind's context before it answers. It never
+publishes a command. Build it into your workspace, then:
+
+```
+ros2 launch themind_ros themind.launch.py mind:=/home/robot/mind
+ros2 run themind_ros sim_robot      # no robot yet? a simulated morning to try it on
+```
+
 **Let it think on your heartbeat.** A robot may live for hours without anyone
 talking to it, so call `mind.step()` (or `POST /api/think`) every few minutes
 from your own loop. Among the thinking it owes is making sense of what it
