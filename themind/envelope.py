@@ -8,7 +8,7 @@ import os
 import re
 from datetime import datetime, timezone
 
-VALID_SRC_KINDS = ("exchange", "record", "inference", "default", "imported")
+VALID_SRC_KINDS = ("exchange", "record", "inference", "default", "imported", "sensed")
 
 
 def now_iso():
@@ -81,6 +81,8 @@ def valid_src(src):
         return False
     if kind in ("record", "inference", "imported") and not src.get("ref"):
         return False  # imported material must always name where it came from
+    if kind == "sensed" and not ((src.get("quote") or "").strip() and src.get("ref")):
+        return False  # the body's own report, and the sense that made it
     return True
 
 
@@ -117,6 +119,8 @@ def confidence(rec):
       inferred    the mind's own derivation (inference/record provenance)
       given       cold-start material (src.kind "default")
       inherited   brought in from a life before this folder (src.kind "imported")
+      lived       something it went through itself, as its body reported it
+                  (src.kind "sensed")
       hazy        worn thin (salience < 0.3), whatever its origin
 
     `inherited` never decays into looking home-grown. A mind that received an
@@ -132,6 +136,8 @@ def confidence(rec):
         return "inherited"
     if kind == "default":
         return "given"
+    if kind == "sensed":
+        return "lived"
     if kind in ("inference", "record"):
         return "inferred"
     return "remembered"

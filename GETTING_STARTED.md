@@ -10,7 +10,8 @@ Ollama, LM Studio, OpenRouter, vLLM, and most others. It needs **no accounts,
 no API key of its own, and no extra services** — it rides the connection your
 app already has.
 
-There are three ways to plug it into an app you already have. If you just
+There are four ways to plug it into an app you already have, and it can be
+given a body too (a robot, an android, a character in a world). If you just
 want to meet it first, start with the companion below: no app needed.
 
 ---
@@ -194,6 +195,102 @@ mind.observe(user_text, reply)     # add this line after the reply
 
 See `examples/quickstart.py` for ready-made `my_llm` functions for
 OpenAI-compatible endpoints, Anthropic, and Gemini.
+
+## Option 4 — the web API: any language, any device
+
+Anything that can send a web request can have a mind: a JavaScript app, a game
+engine, a robot's control loop, a ChatGPT custom GPT. It is the same server as
+the MCP door, on the same port, so one command gives you both:
+
+```
+python3 -m themind.api --mind ./my-mind
+# theMind web API: http://127.0.0.1:6464/api
+```
+
+`GET /api` lists every route, and `/api/openapi.json` describes them for code
+generators (and for a custom GPT's Actions: paste that address). Everything is
+JSON in, JSON out. A turn looks like this:
+
+```
+POST /api/context   {"message": "their message"}   → {"context": "..."}  add it to your system prompt
+POST /api/observe   {"user_text": "...", "reply": "..."}  → {"task": {...}}
+```
+
+Like the MCP door, the server holds no model and no key. When the mind needs
+to think, it hands you a **task**: `system`, `user` and `max_tokens`. Run it
+on whatever model you use, then send the reply back:
+
+```
+POST /api/submit    {"task": "<the task's id>", "output": "<your model's reply>"}
+```
+
+The mind's guards run on what comes back, so it stays honest whatever model
+did the thinking. In a quiet moment, `POST /api/think` asks what it owes itself
+and hands that over as a task the same way. `POST /api/reach` and
+`/api/reached` are speaking first. To put it on a network, add a secret:
+`--token some-secret`, then send `Authorization: Bearer some-secret` (or put
+the secret in the path: `/some-secret/api/...`).
+
+---
+
+## Giving it a body: robots, androids, worlds
+
+A mind with a body lives through things nobody says. Tell it what happens and
+how its body is, and it remembers them as its own, comes to know places, and
+feels its body the way it feels its own thinking. **theMind never moves
+anything:** it is told what happened, and the body stays yours to drive.
+
+From Python:
+
+```python
+mind.experience("Sam walked into the kitchen", kind="saw", where="kitchen",
+                present=["Sam"], source="camera")
+mind.experience("I picked up the blue cup", kind="did", where="kitchen")
+mind.sense_body({"battery": 0.14, "heat": 0.4})   # 0 to 1, or a percentage
+```
+
+Over the web API:
+
+```
+POST /api/experience  {"text": "Sam walked into the kitchen", "kind": "saw",
+                       "where": "kitchen", "with": ["Sam"], "source": "camera"}
+POST /api/experience  {"events": [{...}, {...}]}       (up to 100 at once)
+POST /api/body        {"battery": 14, "heat": 0.4}
+GET  /api/place       where it is, and every place it knows
+```
+
+An AI agent connected over MCP (say, one walking through a text world) has a
+tool for it too, `lived_through`, and the mind's standing instructions tell it
+to use it for what actually happens to it there.
+
+- **Kinds of moment:** saw, heard, touched, did, felt, arrived, left, or
+  happened (the default).
+- **`where`** is the place it happened. It learns places by name: how often it
+  has been back, and what happened there before, which comes back to it when
+  it is there again.
+- **`with` (or `present`)** is who was there. What happened around someone is
+  only ever brought up with the people who were there. Someone it is with is
+  known by name from then on, even if they never speak to it.
+- **`source`** names the sense that reported it (camera, microphone, a world).
+  **`intensity`** (0 to 1) is how strongly it registered, and **`at`** is an
+  ISO time if it happened earlier than now.
+- **Its body:** `energy` (battery), `heat`, `strain` and `damage`. A strained
+  body colors how it is and what it thinks about first; an easy one is quiet,
+  and a reading older than half an hour is treated as unknown. Running low,
+  and coming back, are remembered as things it lived through, where they
+  happened.
+
+It keeps what it is told, and nothing more. The same report again within
+minutes strengthens what it holds instead of adding to it, so you can send
+what your sensors see without flooding it.
+
+**Let it think on your heartbeat.** A robot may live for hours without anyone
+talking to it, so call `mind.step()` (or `POST /api/think`) every few minutes
+from your own loop. Among the thinking it owes is making sense of what it
+lived through: the moments it has lived through often enough become things it
+has noticed itself ("I notice the kitchen gets loud when the kettle goes"),
+rooted in the moments that showed it, and never in one someone else was part
+of.
 
 ---
 

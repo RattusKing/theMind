@@ -126,6 +126,20 @@ class People:
         entry["last_t"] = now_iso()
         self.doc.save(data)
 
+    def note_seen(self, key, name=None):
+        """Someone its body was with, who may never have said a word to it:
+        known by name from now on, without counting as an exchange. Someone
+        who has never written is still never written to first."""
+        if key is None:
+            return
+        data = self.load()
+        entry = data["others"].get(key)
+        if entry is None:
+            entry = data["others"][key] = {"name": (str(name).strip()[:80] if name else key),
+                                           "first_t": now_iso()}
+        entry["seen_t"] = now_iso()
+        self.doc.save(data)
+
     def entry(self, key):
         """A copy of one person's entry (None = the primary). Read-only."""
         data = self.load()

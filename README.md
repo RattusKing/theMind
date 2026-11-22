@@ -148,6 +148,15 @@ give it.
   at a time, predicted before it starts, judged against a baseline, kept only if
   it measurably helped. The dials are few and bounded; guards, prompts, and your
   agent's character are out of its reach by construction. It never touches code.
+- **A body, if you give it one.** On a robot, an android, or a character in a
+  world, it lives through things nobody says: "Sam walked in", "the room went
+  dark", its battery running low in the garden. Each is remembered in the
+  body's own report, never invented. It comes to know places (where it is,
+  how often it has been back, what happened there before) and feels its body
+  (energy, heat, strain, damage) the way it already feels its own thinking.
+  Lived through often enough, those moments become things it has noticed
+  itself. What happened around someone stays with the people who were there.
+  And theMind never moves anything: the body is yours to drive.
 - **Many people, one mind.** Tell it who is speaking and it keeps each relationship
   distinct — a felt sense of *you* and a separate one of your sister, memories that
   never cross, and a rule it holds hard: what one person tells it is never recited
@@ -167,7 +176,7 @@ give it.
 
 ## Connecting
 
-Three doors, one engine:
+Four doors, one engine:
 
 - **Proxy** — a small local process that speaks the OpenAI wire format. Point your
   app's base URL at it and touch no code. For everything with a "custom endpoint"
@@ -177,6 +186,10 @@ Three doors, one engine:
   thinking: it is handed the act of remembering or reflecting, does it, and the
   mind's guards judge the result. The voluntary half. Both halves can run in one
   process on one folder.
+- **Web API** — plain HTTP and JSON on the same server as the MCP door, for any
+  language on any device: a web app, a game engine, a robot's control loop, a
+  ChatGPT custom GPT. Like MCP, it holds no model: when the mind needs to think,
+  it hands you the task for your model and judges what comes back.
 - **Library** — two calls in your existing loop: enrich the outgoing messages,
   observe the reply. For builders.
 
@@ -245,6 +258,28 @@ it and put a secret in the URL (`--token`):
 python3 -m themind.mcp --mind ./my-mind
 # add http://127.0.0.1:6464/mcp to your platform
 ```
+
+**Any language, any device — the web API.** The same server also speaks plain
+JSON at `/api`, described for code generators and ChatGPT custom GPTs at
+`/api/openapi.json`:
+
+```
+python3 -m themind.api --mind ./my-mind
+# POST /api/context before your model call; POST /api/observe after it,
+# run the task it hands back on your model, and POST the reply to /api/submit
+```
+
+**Give it a body.** For a robot, an android, or a character in a world, tell
+it what happens and how its body is. It never commands anything:
+
+```python
+mind.experience("Sam walked into the kitchen", kind="saw", where="kitchen",
+                present=["Sam"], source="camera")
+mind.sense_body({"battery": 0.14, "heat": 0.4})
+mind.step()     # on your own heartbeat: the thinking it owes, including making sense of its day
+```
+
+Over the web API that is `POST /api/experience` and `POST /api/body`.
 
 **Three lines — the library:**
 
@@ -343,13 +378,18 @@ python3 -m themind.bench                       # the continuity test: five simul
   only write first if the app around it asks (`reach()`, `/themind/reach`,
   `reach_out`) and delivers. Without that, what it would have raised waits,
   and comes up when they next write.
+- **A body is told, not sensed.** theMind has no eyes or ears of its own: it
+  keeps what your robot's perception, or a world, reports to it. It has been
+  tested against simulated bodies and a text world, not yet on robot
+  hardware, and it ships no ROS 2 bridge yet; anything that can send a web
+  request or call Python can drive it today.
 - **The MCP door is built to the spec and tested against our own client.** It
   has not yet been exercised against every real platform's connector
   implementation; report what you find.
 
 ## Status
 
-**v1.10.0, format 0.12.** The on-disk format — what a mind is, at rest — is
+**v1.11.0, format 0.13.** The on-disk format — what a mind is, at rest — is
 published in [FORMAT.md](FORMAT.md) and remains open to challenge while it is
 cheap to change; every change to it is additive, and older minds open
 unchanged. The project's scientific grounding — how the architecture maps onto
@@ -357,12 +397,12 @@ the science of consciousness, scored honestly, gaps and all — is published in
 [SCIENCE.md](SCIENCE.md), and its capstone runs on your machine:
 
 ```
-python3 -m themind.bench   # the continuity test: five simulated weeks, 27 probes
+python3 -m themind.bench   # the continuity test: five simulated weeks, 30 probes
 ```
 
-`tests/run_all.py` holds the behavioral guarantees — 538 assertions across
-grounding, parse-or-skip, read order, budget, export round-trip, the proxy and
-MCP doors, cross-door coherence, multi-person scoping, and self-tuning — with
+`tests/run_all.py` holds the behavioral guarantees — 602 assertions across
+grounding, parse-or-skip, read order, budget, export round-trip, the proxy,
+MCP and web API doors, a body, cross-door coherence, multi-person scoping, and self-tuning — with
 no network and no provider SDK, ever. Every push to `main` runs the suite and
 the benchmark on Python 3.9 through 3.14, along with `tests/guards.py`, which
 checks by machine that the library imports nothing outside the standard
@@ -381,7 +421,15 @@ and wrote a rooted reach-out that every guard let through. On v1.9 it scored 25
 of 27, and with every memory now saying when, a reach-out about something two
 weeks old no longer called it "today". The misses in both were judgments, not
 failures: predictions that came true leave no surprise to weigh, and a fear the
-model settled as eased rather than come true. To see how your own model does:
+model settled as eased rather than come true. For v1.11 a mind was given a body
+in a persistent text world and walked through it over the web API, with a live
+model doing all its thinking. It knew it was back in a garden for the second
+time, and from both visits noticed that the same old gardener keeps the water
+channels clear. Asked about its morning, it talked about the garden as somewhere
+it had been. On harder cases, both models declined to read a pattern into five
+unrelated moments (the small one noted, truthfully, where most had happened),
+tied a battery running low to the long walk that came before it, and invented
+no cause for lights that went out twice. To see how your own model does:
 
 ```python
 from themind import bench
@@ -405,7 +453,9 @@ rather than being described (v1.7), checked against live models, which
 found and fixed what no stub could (v1.7.1, v1.7.2), and growing up in stages,
 with the first thing it ever does unprompted: speak first (v1.8), and a
 sense of time, a page to see it on, and a companion to meet it with (v1.9),
-and your own always-on mind for the ChatGPT and Claude apps (v1.10).
+your own always-on mind for the ChatGPT and Claude apps (v1.10), and a web
+API for any language and device, with a body for robots, androids and worlds
+(v1.11).
 
 theMind is extracted from a production AI companion whose cognitive systems have
 been running live since 2025. The scaffolding it needed (schedulers, cloud

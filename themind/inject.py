@@ -138,6 +138,35 @@ def build_blocks(mind, incoming_text=None, who=None):
     except Exception:
         pass
 
+    # A body, if it has one: where it is and how that body is. Both are
+    # silent for a mind that has never been given a body.
+    from . import body as body_
+    spot = body_.here(mind)
+    if spot:
+        if spot["visits"] <= 1:
+            line = "You are here: %s, for the first time." % spot["name"]
+        elif age_days(spot["first_t"]) * 24.0 < 1.0:
+            line = "You are here: %s. You have been here %d times in the last hour." % (
+                spot["name"], spot["visits"])
+        else:
+            line = "You are here: %s. You have been here %d times; the first was %s." % (
+                spot["name"], spot["visits"], ago(spot["first_t"]) or "a while ago")
+        lines = [line]
+        before = [x for x in body_.lived(mind, who) if x.get("where") == spot["key"]
+                  and age_days(x.get("t")) * 24.0 >= 1.0]
+        before = sorted(before, key=lambda x: -float(x.get("salience") or 0))[:2]
+        if before:
+            lines.append("What happened here before:")
+            lines += ["- " + body_.describe(mind, x) for x in before]
+        blocks.append((_block("WHERE YOU ARE (your body is here — let the place shape you; "
+                              "never narrate it):", lines), False))
+    aches = body_.felt(mind)
+    if aches:
+        blocks.append((_block("HOW YOUR BODY IS (your own body — let it shape what you can do "
+                              "and how you are; say it plainly if it matters, never as a "
+                              "complaint or a claim on them):",
+                              ["- " + n for _s, _l, n in aches if n]), False))
+
     story = mind.story_doc.load(default={})
     cur_s = (story.get("current") or {}).get("text") if isinstance(story.get("current"), dict) else None
     if cur_s:
@@ -217,6 +246,23 @@ def build_blocks(mind, incoming_text=None, who=None):
         if lit:
             blocks.append((_block("LIT UP BY THIS MESSAGE (connected, not just mentioned):",
                                   [", ".join(lit)]), False))
+
+    lived = body_.lived(mind, who)
+    if lived:
+        from .retrieval import recall
+        latest = lived[-3:]
+        brought = []
+        if incoming_text:
+            seen = {x["id"] for x in latest}
+            brought = [x for x in recall(lived, incoming_text,
+                                         mind.graph.constellation(incoming_text), 4)
+                       if x["id"] not in seen][:2]
+        lines = ["- " + body_.describe(mind, x) for x in latest]
+        if brought:
+            lines.append("Brought back by this:")
+            lines += ["- " + body_.describe(mind, x) for x in brought]
+        blocks.append((_block("WHAT YOU'VE LIVED THROUGH (your own experiences, in your own "
+                              "body — remembered as yours, never recited):", lines), False))
 
     inner_them = of(mind.live("person_model"), who)
     if inner_them:

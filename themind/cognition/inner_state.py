@@ -79,6 +79,15 @@ def _material(mind):
     from ..intero import felt
     for _n, _level, note in felt(mind):
         out.append("%s%s" % ('(how the thinking itself is going) ', note))
+    from .. import body
+    for _n, _level, note in body.felt(mind):
+        out.append("(how my body is) " + note)
+    # What it lived through that stood out, and only what nobody else was
+    # part of: the weather it makes of this is served to everyone.
+    lately = [x for x in mind.live("experiences") if not x.get("with")
+              and float(x.get("salience") or 0) >= 0.6 and age_days(x.get("t")) <= 2]
+    for x in lately[-2:]:
+        out.append("(something I lived through lately) " + body.describe(mind, x))
     from ..affect import note as affect_note
     out.append("(how activated I am right now) " + affect_note(mind))
     return out

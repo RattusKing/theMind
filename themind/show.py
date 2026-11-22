@@ -4,8 +4,8 @@ The folder is human-readable already, but a person opening twenty JSON files
 to find out whether anything is happening will conclude that nothing is.
 This gathers what the mind holds into one page: where it is with them, who
 they are to it, how it is, what it wants and fears, what it remembers and
-when, what it would bring up first, and when each of its faculties last
-thought. Read-only: opening a mind to look at it never writes to it.
+when, what its body has lived through, what it would bring up first, and
+when each of its faculties last thought. Read-only: opening a mind to look at it never writes to it.
 """
 import json
 
@@ -57,6 +57,20 @@ def report(mind):
                             sorted(mind.live("interests"), key=lambda r: -r.get("salience", 0))]
     except Exception:
         out["interests"] = []
+    try:
+        from . import body
+        exps = mind.live("experiences")
+        if exps or body.known_places(mind):
+            out["body"] = {
+                "here": (body.here(mind) or {}).get("name"),
+                "places": [{"name": p.get("name"), "visits": int(p.get("visits") or 0)}
+                           for p in body.known_places(mind)[:8]],
+                "lived": {"count": len(exps),
+                          "latest": [body.describe(mind, x) for x in exps[-6:][::-1]]},
+                "noticed": [o.get("text") for o in mind.live("observations") if o.get("lived")],
+            }
+    except Exception:
+        pass
     facts = mind.live("facts")
     out["remembers"] = {"count": len(facts),
                         "latest": [f.get("text", "") + when(f) for f in facts[-6:][::-1]]}
@@ -148,6 +162,18 @@ def render(r):
         head("ITS OWN CONDITION")
         for c in felt:
             item("- %s, %s: %s" % (c["signal"], c["level"], c["note"]))
+    bod = r.get("body")
+    if bod:
+        head("ITS BODY")
+        item("Where it is now: %s" % (bod.get("here") or "(not reported lately)"))
+        if bod.get("places"):
+            item("Places it knows: " + ", ".join("%s (%d)" % (p["name"], p["visits"])
+                                                 for p in bod["places"]))
+        item("What it has lived through (%d moment(s); latest first):" % bod["lived"]["count"])
+        for t in bod["lived"]["latest"] or ["(nothing yet)"]:
+            item("- " + t)
+        for t in bod.get("noticed") or []:
+            item("- noticed: " + t)
     head("WHAT IT'S INTO")
     for i in r["interests"] or [{"text": "(nothing of its own yet)", "stage": None}]:
         item("- %s%s" % (i["text"], (" (%s)" % i["stage"]) if i.get("stage") else ""))
