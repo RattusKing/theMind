@@ -114,6 +114,9 @@ alongside it.
 }
 ```
 
+- `t` is read from the clock the process lives on. A mind beside a
+  simulation lives on simulated time (`envelope.set_clock`), so its
+  timestamps, ages and rhythms are the simulation's, at whatever pace it ran.
 - `src.kind: "default"` marks cold-start material (see Selfhood below) — real
   content shipped so the mind works at message one, never evolved from, replaced
   by the first generated equivalent.

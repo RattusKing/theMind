@@ -114,6 +114,9 @@ def main(args=None):
         rclpy.spin(node)
     except (KeyboardInterrupt, ExternalShutdownException, SystemExit):
         pass
+    except Exception:
+        if rclpy.ok():
+            raise   # a real failure, not the context closing under it at Ctrl-C
     finally:
         try:   # a second Ctrl-C (launch sends one too) must not break the goodbye
             node.destroy_node()

@@ -56,7 +56,7 @@ All `std_msgs/String` except the battery.
 
 | Topic | What to send |
 | --- | --- |
-| `/battery_state` | `sensor_msgs/BatteryState` (its `percentage`) |
+| `/battery_state` | `sensor_msgs/BatteryState`: charge over capacity when it has both, else its `percentage` (0..1, or out of 100 once it has said anything above 1) |
 | `/themind/body` | `{"energy": 0.4, "heat": 0.7, "strain": 0.2, "damage": 0}`, each 0 to 1 |
 | `/themind/place` | where it is now, by name: `kitchen` |
 | `/themind/present` | who is in the room: `["Sam", "Ana"]` or `Sam, Ana` |
@@ -116,6 +116,26 @@ python3 -m themind show /tmp/sim-mind                            # what it lived
 
 `ros2/live_check.sh` in the repository does all of that and checks the result.
 It runs on every change, on ROS 2 Jazzy.
+
+## In a physics simulation
+
+Run it beside Gazebo with `use_sim_time:=true` and the mind lives on the
+simulation's clock, at whatever pace it runs: how long ago something
+happened, how fresh a reading is, and how much an hour may add are all
+counted in simulated time.
+
+`ros2/sim_check.sh` in the repository is the physics test. Gazebo runs
+headless at about four times real time: a wheeled robot drives from a kitchen
+into a garden while its battery drains under load, Sam comes into the kitchen
+and leaves, and the robot sees with a logical camera. Small helper nodes stand
+in for the rest of a robot (wheel odometry becomes the room it is in, the
+camera becomes what it saw and who is there). Afterwards the mind is checked
+against what the physics really did: the rooms in the order it drove them,
+what it saw where it saw it, the battery running low where the robot really
+was, and the time between moments as the simulation counted it. Every log
+must be free of errors, and theMind's node must have published nothing but
+what it offers. It needs `ros-jazzy-ros-gz-sim` and `ros-jazzy-ros-gz-bridge`,
+and it runs on every change.
 
 ## The two halves
 

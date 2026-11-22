@@ -295,6 +295,9 @@ ros2 launch themind_ros themind.launch.py mind:=/home/robot/mind
 ros2 run themind_ros sim_robot      # no robot yet? a simulated morning to try it on
 ```
 
+In a Gazebo simulation, add `use_sim_time:=true` and the mind lives on the
+simulation's clock, however fast it runs.
+
 **Let it think on your heartbeat.** A robot may live for hours without anyone
 talking to it, so call `mind.step()` (or `POST /api/think`) every few minutes
 from your own loop. Among the thinking it owes is making sense of what it

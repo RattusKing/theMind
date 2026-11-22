@@ -3833,8 +3833,19 @@ senses_R2 = load_R2("themind_ros_senses_test", os.path.join(ROS_PKG, "themind_ro
 mS2, dS2b = fresh()
 sn = senses_R2.Senses(mS2)
 ok(sn.battery(float("nan")) is None and sn.battery(-1) is None and sn.battery("x") is None
-   and not mS2.live("experiences"),
+   and sn.battery(float("nan"), float("nan"), 2.0) is None and sn.battery(-0.0008, 0.5, 0)
+   is None and not mS2.live("experiences"),
    "a battery that does not know its charge says nothing, and nothing is imagined")
+mS2b, dS2c = fresh()
+sn100 = senses_R2.Senses(mS2b)
+ok(senses_R2.Senses(mS2b).battery(-0.0008, 0.003, 0.01)[0][:2] == ("body energy", "working")
+   and senses_R2.Senses(mS2b).battery(0.9, 0.001, 0.01)[0][:2] == ("body energy", "strained"),
+   "charge over capacity comes first whenever the battery gives it; physical units are never ambiguous")
+ok(sn100.battery(81.4)[0][:2] == ("body energy", "easy")
+   and sn100.battery(0.8)[0][:2] == ("body energy", "strained")
+   and senses_R2.Senses(mS2b).battery(0.8)[0][:2] == ("body energy", "easy"),
+   "a battery that counts to 100 is read out of 100 from then on: its 0.8% is never taken for 80%")
+shutil.rmtree(dS2c, ignore_errors=True)
 rowsS2 = sn.battery(0.12)
 ok(rowsS2[0][:2] == ("body energy", "strained")
    and [x["text"] for x in mS2.live("experiences")] == ["My energy ran very low."],
@@ -3918,6 +3929,7 @@ class FakePub_R2:
 
 class FakeNode_R2:
     PARAMS = {}
+    ROS_NS = 0
 
     def __init__(self, name):
         self.subs, self.pubs, self.timers = {}, {}, []
@@ -3925,6 +3937,13 @@ class FakeNode_R2:
 
     def declare_parameter(self, name, default):
         return types_R2.SimpleNamespace(value=FakeNode_R2.PARAMS.get(name, default))
+
+    def get_parameter(self, name):   # rclpy declares use_sim_time on every node itself
+        return types_R2.SimpleNamespace(value=FakeNode_R2.PARAMS.get(name, False))
+
+    def get_clock(self):
+        return types_R2.SimpleNamespace(
+            now=lambda: types_R2.SimpleNamespace(nanoseconds=FakeNode_R2.ROS_NS))
 
     def create_subscription(self, kind, topic, fn, qos):
         self.subs[topic] = (kind, fn)
@@ -3952,6 +3971,8 @@ class String_R2:
 class Battery_R2:
     def __init__(self):
         self.percentage = float("nan")
+        self.charge = float("nan")
+        self.capacity = float("nan")
 
 
 fakes_R2 = {
@@ -4046,6 +4067,30 @@ try:
     node_R3 = bridge_R2.Bridge()
     ok(len(node_R3.timers) == 2 and node_R3.mind.llm is None,
        "without a model it still lives through everything, and its thinking waits for one")
+
+    # simulated time: a simulation running fast must not leave the mind on the wall clock
+    dSim = tempfile.mkdtemp(prefix="mind_")
+    FakeNode_R2.PARAMS = {"mind": dSim, "api_port": 0, "use_sim_time": True}
+    FakeNode_R2.ROS_NS = 0
+    simN = bridge_R2.Bridge()
+    from themind import envelope as envmod_R2
+    ok(simN.sim_time and abs(envmod_R2.age_days(now_iso())) < 1e-4,
+       "before the simulation's first tick, the real clock stands in")
+    FakeNode_R2.ROS_NS = 50 * 10**9
+    simN.senses.battery(0.1)
+    t_low = Mind(dSim).live("experiences")[-1]["t"]
+    FakeNode_R2.ROS_NS = (50 + 3 * 3600) * 10**9          # three simulated hours later
+    ctxSim = simN.mind.context("how are you?")
+    ok("HOW YOUR BODY IS" not in ctxSim and "My energy ran very low. (3 hours ago)" in ctxSim,
+       "on simulated time, three simulated hours make a reading stale and a moment three hours old")
+    for i in range(130):
+        FakeNode_R2.ROS_NS += 60 * 10**9                     # one a simulated minute
+        simN.senses.experience("tick %d" % i)
+    ok(len([x for x in Mind(dSim).live("experiences") if x["text"].startswith("tick")]) == 130,
+       "a fast simulation's minutes are minutes: what an hour may add is counted in its hours")
+    simN.destroy_node()
+    ok(envmod_R2._clock is None, "when the node goes, the process is back on the real clock")
+    shutil.rmtree(dSim, ignore_errors=True)
 finally:
     os.environ.clear()
     os.environ.update(env_R2)

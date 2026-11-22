@@ -22,9 +22,9 @@ everything else it keeps.
   or strained, and only while it is fresh: a battery level from yesterday
   says nothing about now.
 """
-from datetime import datetime, timezone
 
 from .envelope import make_record, now_iso, parse_iso, age_days, norm_key, ago
+from .envelope import now as clock_now
 from .people import norm_who
 
 KINDS = ("saw", "heard", "touched", "did", "felt", "arrived", "left", "happened")
@@ -84,7 +84,7 @@ def _when(at):
     dt = parse_iso(at) if isinstance(at, str) else None
     if dt is None:
         return now_iso()
-    now = datetime.now(timezone.utc)
+    now = clock_now()
     if (dt - now).total_seconds() > 300 or (now - dt).days > 365:
         return now_iso()
     return dt.strftime("%Y-%m-%dT%H:%M:%SZ")

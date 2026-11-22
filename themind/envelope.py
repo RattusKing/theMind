@@ -11,8 +11,35 @@ from datetime import datetime, timezone
 VALID_SRC_KINDS = ("exchange", "record", "inference", "default", "imported", "sensed")
 
 
+_clock = None
+
+
+def set_clock(fn=None):
+    """Where this process's minds read the time. `fn` returns an aware UTC
+    datetime; None goes back to the real clock. A simulated robot lives on
+    simulated time, which may run faster or slower than the wall, and a mind
+    beside it must live on the same time or everything it knows about when
+    breaks at once: how long ago, how fresh a reading is, how much an hour
+    may add, when a rhythm is due. One clock for the whole process, because
+    every timestamp it writes and every age it reads must agree."""
+    global _clock
+    _clock = fn
+
+
+def now():
+    """The time, by whichever clock this process lives on."""
+    if _clock is not None:
+        try:
+            t = _clock()
+            if t is not None:
+                return t
+        except Exception:
+            pass
+    return datetime.now(timezone.utc)
+
+
 def now_iso():
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return now().strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def parse_iso(t):
@@ -26,7 +53,7 @@ def age_days(t):
     dt = parse_iso(t or "")
     if dt is None:
         return 0.0
-    return max(0.0, (datetime.now(timezone.utc) - dt).total_seconds() / 86400.0)
+    return max(0.0, (now() - dt).total_seconds() / 86400.0)
 
 
 def ago(t):
