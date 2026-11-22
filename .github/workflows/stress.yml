@@ -1,0 +1,33 @@
+# The stress run, by hand only: hours of a random life in the physics
+# simulation, then what held and how it ran. Too long for every change.
+name: stress
+
+on:
+  workflow_dispatch:
+    inputs:
+      seconds:
+        description: "simulated seconds to live (7200 is two hours)"
+        default: "7200"
+      seed:
+        description: "the random seed (the same seed lives the same life)"
+        default: "7"
+
+permissions:
+  contents: read
+
+jobs:
+  stress:
+    name: stress run (Gazebo)
+    runs-on: ubuntu-24.04
+    container: ros:jazzy-ros-base
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+      - name: install Gazebo and its ROS bridge
+        run: apt-get update -qq && apt-get install -y -qq ros-jazzy-ros-gz-sim ros-jazzy-ros-gz-bridge > /dev/null
+      - name: hours of a random life, then what held
+        shell: bash
+        env:
+          STRESS_SECONDS: ${{ inputs.seconds }}
+          STRESS_SEED: ${{ inputs.seed }}
+        run: ros2/stress_check.sh
